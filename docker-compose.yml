@@ -1,0 +1,111 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: ielts-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ielts_mock_test
+      POSTGRES_USER: ielts_user
+      POSTGRES_PASSWORD: ielts_password
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - ielts-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ielts_user -d ielts_mock_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching (optional but recommended)
+  redis:
+    image: redis:7-alpine
+    container_name: ielts-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ielts-network
+
+  # Next.js Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ielts-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL="postgresql://neondb_owner:npg_s0i7MxjcIhCd@ep-late-dust-a17jlpvf-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+      - SMTP_HOST="smtp.gmail.com"
+      - SMTP_PORT="587"
+      - SMTP_SECURE="false"
+      - SMTP_USER="devloperabuhuraira@gmail.com"
+      - SMTP_PASS="uwosiveywevwrfdl" #dummy smtp pass
+      - NEXTAUTH_URL="http://localhost:3000"
+      - CLOUDINARY_CLOUD_NAME="dz0azrpke" #dummy cloud name
+      - CLOUDINARY_API_KEY="461621934977911" #dummy api key
+      - CLOUDINARY_API_SECRET="Yb_OCqvfW-CRwFUecDcT5qREsl0" #dummy api secret
+      - RESEND_API_KEY="re_ACPKBocu_JwYQ8M3FNAFGPVrupbHSFpZb" #dummy resend api key
+      - NODE_ENV="development" #dummy node environment
+      - EMAIL_FROM="onboarding@resend.dev" #dummy email from
+      - RESEND_BASE_URL="https://api.resend.com" #dummy resend base url
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - ielts-network
+    volumes:
+      - ./uploads:/app/uploads
+      - ./test-results:/app/test-results
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Database migration and seeding service
+  db-setup:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ielts-db-setup
+    environment:
+      - DATABASE_URL=postgresql://ielts_user:ielts_password@postgres:5432/ielts_mock_test
+      - JWT_SECRET=your-super-secret-jwt-key-here-change-in-production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ielts-network
+    command: >
+      sh -c "
+        echo 'Waiting for database to be ready...' &&
+        npx prisma migrate deploy &&
+        npx prisma db seed &&
+        echo 'Database setup completed!'
+      "
+    restart: "no"
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  ielts-network:
+    driver: bridge

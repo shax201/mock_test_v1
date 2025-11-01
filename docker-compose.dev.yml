@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: ielts-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ielts_mock_test_dev
+      POSTGRES_USER: ielts_user
+      POSTGRES_PASSWORD: ielts_password
+    ports:
+      - "5433:5432"  # Different port to avoid conflicts
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - ielts-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ielts_user -d ielts_mock_test_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    container_name: ielts-redis-dev
+    restart: unless-stopped
+    ports:
+      - "6380:6379"  # Different port to avoid conflicts
+    volumes:
+      - redis_dev_data:/data
+    networks:
+      - ielts-dev-network
+
+volumes:
+  postgres_dev_data:
+    driver: local
+  redis_dev_data:
+    driver: local
+
+networks:
+  ielts-dev-network:
+    driver: bridge
