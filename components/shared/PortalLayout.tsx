@@ -1,108 +1,56 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import type { ReactNode } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 
-type IconProps = {
-  className?: string
+interface NavigationItem {
+  name: string
+  href: string
+  icon: React.ComponentType<{ className?: string }>
 }
 
-const navigation = [
-  {
-    name: 'Dashboard',
-    href: '/admin',
-    icon: ({ className }: IconProps): ReactNode => (
-      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
-      </svg>
-    ),
-  },
-  {
-    name: 'Mock Tests',
-    href: '/admin/mocks',
-    icon: ({ className }: IconProps): ReactNode => (
-      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-      </svg>
-    ),
-  },
-  {
-    name: 'Create Test',
-    href: '/admin/mocks/create',
-    icon: ({ className }: IconProps): ReactNode => (
-      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-      </svg>
-    ),
-  },
-  {
-    name: 'Students',
-    href: '/admin/students',
-    icon: ({ className }: IconProps): ReactNode => (
-      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-      </svg>
-    ),
-  },
-  {
-    name: 'Assignments',
-    href: '/admin/assignments',
-    icon: ({ className }: IconProps): ReactNode => (
-      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-      </svg>
-    ),
-  },
-  {
-    name: 'Results',
-    href: '/admin/results',
-    icon: ({ className }: IconProps): ReactNode => (
-      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-      </svg>
-    ),
-  },
-  {
-    name: 'Analytics',
-    href: '/admin/analytics',
-    icon: ({ className }: IconProps): ReactNode => (
-      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-      </svg>
-    ),
-  },
-  {
-    name: 'Remedial Tests',
-    href: '/admin/remedial-tests',
-    icon: ({ className }: IconProps): ReactNode => (
-      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-      </svg>
-    ),
-  },
-  {
-    name: 'Email Test',
-    href: '/admin/email-test',
-    icon: ({ className }: IconProps): ReactNode => (
-      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-      </svg>
-    ),
-  },
-]
-
-export default function AdminLayout({
-  children,
-}: {
+interface PortalLayoutProps {
   children: React.ReactNode
-}) {
+  navigation: NavigationItem[]
+  brandName: string
+  brandSubtitle: string
+  brandColor: 'blue' | 'green'
+  logoutRedirect: string
+}
+
+export default function PortalLayout({
+  children,
+  navigation,
+  brandName,
+  brandSubtitle,
+  brandColor,
+  logoutRedirect
+}: PortalLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [user, setUser] = useState<{ name: string; email: string; role: string } | null>(null)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
+
+  const colorClasses = {
+    blue: {
+      bg: 'bg-gradient-to-r from-blue-600 to-blue-700',
+      active: 'bg-blue-50 text-blue-700 border-blue-600',
+      icon: 'text-blue-600',
+      button: 'bg-blue-600 hover:bg-blue-700',
+      badge: 'bg-blue-600'
+    },
+    green: {
+      bg: 'bg-gradient-to-r from-green-600 to-green-700',
+      active: 'bg-green-50 text-green-700 border-green-600',
+      icon: 'text-green-600',
+      button: 'bg-green-600 hover:bg-green-700',
+      badge: 'bg-green-600'
+    }
+  }
+
+  const colors = colorClasses[brandColor]
 
   useEffect(() => {
     // Fetch user data
@@ -139,11 +87,11 @@ export default function AdminLayout({
       await fetch('/api/auth/logout', { method: 'POST' })
       setUser(null)
       setIsProfileOpen(false)
-      router.push('/login?type=admin')
+      router.push(logoutRedirect)
     } catch (error) {
       console.error('Logout error:', error)
       // Still redirect to login even if logout API fails
-      router.push('/login?type=admin')
+      router.push(logoutRedirect)
     }
   }
 
@@ -154,23 +102,23 @@ export default function AdminLayout({
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       } transition-transform duration-300 ease-in-out lg:translate-x-0`}>
         {/* Logo and Brand */}
-        <div className="flex items-center justify-between h-16 px-6 bg-gradient-to-r from-blue-600 to-blue-700">
+        <div className={`flex items-center justify-between h-16 px-6 ${colors.bg}`}>
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                <svg className={`w-5 h-5 ${colors.icon}`} fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 4a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1V8zm8 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V8zm0 4a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1v-2z" clipRule="evenodd" />
                 </svg>
               </div>
             </div>
             <div className="ml-3">
-              <h1 className="text-white text-lg font-semibold">IELTS Admin</h1>
-              <p className="text-blue-100 text-xs">Test Management</p>
+              <h1 className="text-white text-lg font-semibold">{brandName}</h1>
+              <p className={`${brandColor === 'blue' ? 'text-blue-100' : 'text-green-100'} text-xs`}>{brandSubtitle}</p>
             </div>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-white hover:text-blue-200"
+            className="lg:hidden text-white hover:opacity-80"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -190,13 +138,13 @@ export default function AdminLayout({
                     href={item.href}
                     className={`group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
                       isActive
-                        ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600'
+                        ? `${colors.active} border-r-2`
                         : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
                     }`}
                   >
                     <item.icon
                       className={`mr-3 h-5 w-5 flex-shrink-0 ${
-                        isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500'
+                        isActive ? colors.icon : 'text-gray-400 group-hover:text-gray-500'
                       }`}
                     />
                     {item.name}
@@ -212,14 +160,14 @@ export default function AdminLayout({
               <div className="mb-4 p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
-                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                    <div className={`w-8 h-8 ${colors.badge} rounded-full flex items-center justify-center`}>
                       <span className="text-white text-sm font-medium">
                         {user.name?.charAt(0) || user.email?.charAt(0) || 'A'}
                       </span>
                     </div>
                   </div>
                   <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-900">{user.name || 'Admin User'}</p>
+                    <p className="text-sm font-medium text-gray-900">{user.name || 'User'}</p>
                     <p className="text-xs text-gray-500">{user.email}</p>
                   </div>
                 </div>
@@ -279,14 +227,14 @@ export default function AdminLayout({
                   className="-m-1.5 flex items-center p-1.5 hover:bg-gray-50 rounded-lg transition-colors"
                 >
                   <span className="sr-only">Open user menu</span>
-                  <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center">
+                  <div className={`h-8 w-8 rounded-full ${colors.badge} flex items-center justify-center`}>
                     <span className="text-white text-sm font-medium">
                       {user?.name?.charAt(0) || user?.email?.charAt(0) || 'A'}
                     </span>
                   </div>
                   <span className="hidden lg:flex lg:items-center">
                     <span className="ml-4 text-sm font-semibold leading-6 text-gray-900" aria-hidden="true">
-                      {user?.name || 'Admin User'}
+                      {user?.name || 'User'}
                     </span>
                     <svg className="ml-2 h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
@@ -298,9 +246,9 @@ export default function AdminLayout({
                   <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
                     <div className="py-1" role="menu">
                       <div className="px-4 py-3 text-sm text-gray-700 border-b border-gray-100">
-                        <div className="font-medium">{user?.name || 'Admin User'}</div>
+                        <div className="font-medium">{user?.name || 'User'}</div>
                         <div className="text-gray-500">{user?.email}</div>
-                        <div className="text-xs text-blue-600 mt-1">{user?.role}</div>
+                        <div className={`text-xs ${colors.icon} mt-1`}>{user?.role}</div>
                       </div>
                       <button
                         onClick={handleLogout}
@@ -338,3 +286,4 @@ export default function AdminLayout({
     </div>
   )
 }
+

@@ -37,34 +37,43 @@ export default function GradeWriting({ params }: { params: Promise<{ submissionI
 
   useEffect(() => {
     const fetchSubmission = async () => {
-      const resolvedParams = await params;
-      // TODO: Fetch real submission data from API
-      setTimeout(() => {
-        setSubmission({
-          id: resolvedParams.submissionId,
-        candidateNumber: 'CAND001',
-        studentName: 'John Doe',
-        testTitle: 'IELTS Academic Mock Test 1',
-        tasks: [
-          {
-            id: 'task1',
-            title: 'Task 1',
-            content: 'The chart shows the percentage of households in different income brackets in City A and City B. In City A, the majority of households (45%) fall into the middle-income bracket, while 30% are in the high-income category and 25% in the low-income group. City B shows a different pattern with 40% of households in the high-income bracket, 35% in the middle-income category, and 25% in the low-income group. Overall, City B has a higher proportion of high-income households compared to City A.',
-            wordCount: 95
-          },
-          {
-            id: 'task2',
-            title: 'Task 2',
-            content: 'Technology has undoubtedly transformed our lives in numerous ways. While some argue that it has made life more complicated, I believe that technology has primarily made our lives easier and more convenient. One of the most significant benefits of technology is the ease of communication. With smartphones and the internet, we can instantly connect with people around the world. This has revolutionized business, education, and personal relationships. Additionally, technology has automated many tedious tasks, from household chores to complex calculations, freeing up time for more meaningful activities. However, it is important to acknowledge that technology can sometimes create complications, such as privacy concerns and digital dependency. Nevertheless, the overall impact of technology has been overwhelmingly positive, making our lives more efficient and connected.',
-            wordCount: 145
+      try {
+        const resolvedParams = await params
+        const response = await fetch(`/api/instructor/submissions/${resolvedParams.submissionId}`)
+        
+        if (response.ok) {
+          const data = await response.json()
+          const sub = data.submission
+          
+          setSubmission({
+            id: sub.id,
+            candidateNumber: sub.candidateNumber,
+            studentName: sub.studentName,
+            testTitle: sub.testTitle,
+            tasks: sub.tasks || [],
+            submittedAt: sub.submittedAt
+          })
+
+          // If marks already exist, load them
+          if (sub.marks) {
+            setMarks({
+              taskAchievement: sub.marks.taskAchievement || 0,
+              coherenceCohesion: sub.marks.coherenceCohesion || 0,
+              lexicalResource: sub.marks.lexicalResource || 0,
+              grammarAccuracy: sub.marks.grammarAccuracy || 0
+            })
+            setFeedback(sub.feedback || [])
           }
-        ],
-        submittedAt: '2024-01-15T10:30:00Z'
-      })
-      setLoading(false)
-    }, 1000)
-    };
-    fetchSubmission();
+        } else {
+          console.error('Failed to fetch submission')
+        }
+      } catch (error) {
+        console.error('Error fetching submission:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchSubmission()
   }, [params])
 
   const handleMarksChange = (newMarks: typeof marks) => {

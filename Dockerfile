@@ -29,25 +29,43 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Set environment variables for build
+# Accept build arguments (secrets should be passed at runtime via --build-arg)
+# These are only used during build and won't be in the final image
+ARG DATABASE_URL
+ARG SMTP_HOST=smtp.gmail.com
+ARG SMTP_PORT=587
+ARG SMTP_SECURE=false
+ARG SMTP_USER
+ARG SMTP_PASS
+ARG NEXTAUTH_URL=http://localhost:3000
+ARG CLOUDINARY_CLOUD_NAME
+ARG CLOUDINARY_API_KEY
+ARG CLOUDINARY_API_SECRET
+ARG RESEND_API_KEY
+ARG JWT_SECRET
+ARG NEXTAUTH_SECRET
+ARG EMAIL_FROM=onboarding@resend.dev
+ARG RESEND_BASE_URL=https://api.resend.com
+ARG PRISMA_CLI_BINARY_TARGETS=linux-musl
+
+# Set environment variables for build (only during build stage)
 ENV NODE_ENV=production
-ENV DATABASE_URL="postgresql://neondb_owner:npg_s0i7MxjcIhCd@ep-late-dust-a17jlpvf-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
-ENV SMTP_HOST="smtp.gmail.com"
-ENV SMTP_PORT="587"
-ENV SMTP_SECURE="false"
-ENV SMTP_USER="devloperabuhuraira@gmail.com"
-ENV SMTP_PASS="uwosiveywevwrfdl"
-ENV NEXTAUTH_URL="http://localhost:3000"
-ENV CLOUDINARY_CLOUD_NAME="dz0azrpke"
-ENV CLOUDINARY_API_KEY="461621934977911"
-ENV CLOUDINARY_API_SECRET="Yb_OCqvfW-CRwFUecDcT5qREsl0"
-ENV RESEND_API_KEY="re_ACPKBocu_JwYQ8M3FNAFGPVrupbHSFpZb"
-ENV JWT_SECRET="your-super-secret-jwt-key-here-change-in-production"
-ENV NEXTAUTH_SECRET="your-nextauth-secret-change-in-production"
-ENV NODE_ENV=production
-ENV EMAIL_FROM="onboarding@resend.dev"
-ENV RESEND_BASE_URL="https://api.resend.com" 
-ENV PRISMA_CLI_BINARY_TARGETS="linux-musl"
+ENV DATABASE_URL=${DATABASE_URL}
+ENV SMTP_HOST=${SMTP_HOST}
+ENV SMTP_PORT=${SMTP_PORT}
+ENV SMTP_SECURE=${SMTP_SECURE}
+ENV SMTP_USER=${SMTP_USER}
+ENV SMTP_PASS=${SMTP_PASS}
+ENV NEXTAUTH_URL=${NEXTAUTH_URL}
+ENV CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+ENV CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+ENV CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+ENV RESEND_API_KEY=${RESEND_API_KEY}
+ENV JWT_SECRET=${JWT_SECRET}
+ENV NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+ENV EMAIL_FROM=${EMAIL_FROM}
+ENV RESEND_BASE_URL=${RESEND_BASE_URL}
+ENV PRISMA_CLI_BINARY_TARGETS=${PRISMA_CLI_BINARY_TARGETS}
 
 # Generate Prisma client
 RUN npx prisma generate
@@ -59,7 +77,7 @@ RUN npm run build
 FROM base AS runner
 WORKDIR /app
 
-ENV NODE_ENV production
+ENV NODE_ENV=production
 # Uncomment the following line in case you want to disable telemetry during runtime.
 # ENV NEXT_TELEMETRY_DISABLED 1
 
