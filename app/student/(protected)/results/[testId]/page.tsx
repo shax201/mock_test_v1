@@ -1,13 +1,17 @@
 'use client'
 
+import { useParams } from 'next/navigation'
 import TestResultsAnalysis from '@/components/test/TestResultsAnalysis'
+import StudentHeader from '@/components/student/StudentHeader'
 
-interface TestResultsPageProps {
-  params: Promise<{ testId: string }>
-}
-
-export default async function TestResultsPage({ params }: TestResultsPageProps) {
-  const { testId } = await params
+export default function TestResultsPage() {
+  const params = useParams()
+  const testId = params?.testId as string
   
-  return <TestResultsAnalysis testId={testId} />
+  return (
+    <>
+      <StudentHeader />
+      <TestResultsAnalysis testId={testId} />
+    </>
+  )
 }

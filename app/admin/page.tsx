@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 
 interface DashboardStats {
-  activeMocks: number
   pendingSubmissions: number
   totalStudents: number
   completedTests: number
@@ -23,7 +22,6 @@ interface RecentActivity {
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats>({
-    activeMocks: 0,
     pendingSubmissions: 0,
     totalStudents: 0,
     completedTests: 0,
@@ -38,7 +36,6 @@ export default function AdminDashboard() {
     // For now, using mock data
     setTimeout(() => {
       setStats({
-        activeMocks: 5,
         pendingSubmissions: 12,
         totalStudents: 48,
         completedTests: 36,
@@ -50,33 +47,33 @@ export default function AdminDashboard() {
         {
           id: '1',
           type: 'test_completed',
-          description: 'Test completed',
+          description: 'Full exam test completed',
           timestamp: '2 hours ago',
           studentName: 'John Doe',
-          testName: 'IELTS Academic Mock Test 1'
+          testName: 'IELTS Reading Test'
         },
         {
           id: '2',
           type: 'test_assigned',
-          description: 'Test assigned',
+          description: 'Full exam test assigned',
           timestamp: '4 hours ago',
           studentName: 'Jane Smith',
-          testName: 'IELTS General Mock Test 2'
+          testName: 'IELTS Listening Test'
         },
         {
           id: '3',
           type: 'test_created',
-          description: 'New test created',
+          description: 'New test template created',
           timestamp: '1 day ago',
-          testName: 'IELTS Academic Mock Test 3'
+          testName: 'Writing Task 1 Template'
         },
         {
           id: '4',
           type: 'test_completed',
-          description: 'Test completed',
+          description: 'Full exam test completed',
           timestamp: '2 days ago',
           studentName: 'Mike Johnson',
-          testName: 'IELTS Academic Mock Test 1'
+          testName: 'IELTS Speaking Test'
         }
       ])
       
@@ -101,43 +98,13 @@ export default function AdminDashboard() {
             Dashboard
           </h2>
           <p className="mt-1 text-sm text-gray-500">
-            Welcome to the IELTS Mock Test Admin Panel. Here&apos;s what&apos;s happening with your tests.
+            Welcome to the IELTS Admin Panel. Here&apos;s what&apos;s happening with your students and test results.
           </p>
-        </div>
-        <div className="mt-4 flex md:mt-0 md:ml-4">
-          <Link
-            href="/admin/mocks/create"
-            className="ml-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            <svg className="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Create Test
-          </Link>
         </div>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Active Tests</dt>
-                  <dd className="text-lg font-medium text-gray-900">{stats.activeMocks}</dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
 
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="p-5">
@@ -301,29 +268,7 @@ export default function AdminDashboard() {
             <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Quick Actions</h3>
             <div className="space-y-4">
               <Link
-                href="/admin/mocks/create"
-                className="group relative flex items-center p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:shadow-md transition-all duration-200"
-              >
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="ml-4">
-                  <h4 className="text-sm font-medium text-gray-900">Create Mock Test</h4>
-                  <p className="text-sm text-gray-500">Build a new IELTS mock test with questions and modules</p>
-                </div>
-                <div className="ml-auto">
-                  <svg className="h-5 w-5 text-gray-400 group-hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </Link>
-
-              <Link
-                href="/admin/assignments"
+                href="/admin/students"
                 className="group relative flex items-center p-4 border border-gray-200 rounded-lg hover:border-green-300 hover:shadow-md transition-all duration-200"
               >
                 <div className="flex-shrink-0">
@@ -334,8 +279,8 @@ export default function AdminDashboard() {
                   </div>
                 </div>
                 <div className="ml-4">
-                  <h4 className="text-sm font-medium text-gray-900">Assign Students</h4>
-                  <p className="text-sm text-gray-500">Assign mock tests to students and generate access tokens</p>
+                  <h4 className="text-sm font-medium text-gray-900">Manage Students</h4>
+                  <p className="text-sm text-gray-500">View and manage student accounts and test progress</p>
                 </div>
                 <div className="ml-auto">
                   <svg className="h-5 w-5 text-gray-400 group-hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

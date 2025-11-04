@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import StudentHeader from '@/components/student/StudentHeader'
 
 interface TestResult {
   id: string
@@ -128,7 +129,9 @@ export default function StudentDashboard() {
 
 
   return (
-    <div className="space-y-6">
+    <>
+      <StudentHeader />
+      <div className="space-y-6 max-w-7xl mx-auto py-6 sm:px-6 lg:px-8s space-y-6">
       <div className="bg-white overflow-hidden shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome to Your IELTS Portal</h1>
@@ -635,6 +638,7 @@ export default function StudentDashboard() {
         </div>
       </div>
     </div>
+    </>
   )
 }
 

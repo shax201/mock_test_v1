@@ -51,6 +51,22 @@
   font-weight: 500;
 }
 
+.headerMenuBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  color: #333;
+}
+
+.headerMenuBtn:hover {
+  background-color: #f0f0f0;
+}
+
 .headerNotesToggleBtn {
   background: none;
   border: none;
@@ -295,8 +311,10 @@
 }
 
 .activeInput {
-  border-color: #4a90e2;
-  box-shadow: 0 0 3px 1px rgba(74, 144, 226, 0.5);
+  border-color: #4a90e2 !important;
+  box-shadow: 0 0 3px 1px rgba(74, 144, 226, 0.5) !important;
+  outline: 2px solid #4a90e2 !important;
+  outline-offset: 2px !important;
 }
 
 .question p {
@@ -326,12 +344,21 @@
 }
 
 .answerInput {
-  border: 1px solid #888;
+  border: 1px solid #888 !important;
   border-radius: 4px;
-  padding: 2px 5px;
-  font-size: 16px;
+  padding: 2px 4px;
+  font-size: 14px;
   text-align: center;
-  margin: 0 4px;
+  margin: 0 2px;
+  min-width: 40px;
+  background-color: #fff !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.answerInput:focus {
+  border-color: #4a90e2 !important;
+  box-shadow: 0 0 3px 1px rgba(74, 144, 226, 0.5) !important;
+  outline: none !important;
 }
 
 .answerInput::placeholder {
@@ -397,6 +424,511 @@
   max-width: 600px;
   text-align: center;
   position: relative;
+}
+
+/* Options Modal styles */
+.optionsModal {
+  background: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 600px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+.optionsModalTitle {
+  font-size: 24px;
+  font-weight: 600;
+  color: #000;
+  margin: 0;
+  padding: 20px 20px 16px 20px;
+  text-align: left;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+.optionsMenuList {
+  display: flex;
+  flex-direction: column;
+}
+
+.optionsMenuItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.optionsMenuItem:hover {
+  background-color: #f5f5f5;
+}
+
+.optionsMenuItemLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.optionsMenuItemLeft svg {
+  color: #000;
+  flex-shrink: 0;
+}
+
+.optionsMenuItemLeft span {
+  font-size: 16px;
+  color: #000;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+.optionsMenuItem > svg:last-child {
+  color: #000;
+  flex-shrink: 0;
+}
+
+.optionsMenuDivider {
+  height: 1px;
+  background-color: #e0e0e0;
+  margin: 0 20px;
+}
+
+/* Contrast Panel styles */
+.contrastPanel {
+  padding: 20px;
+}
+
+.contrastPanelHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.contrastBackButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #333;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.contrastBackButton:hover {
+  background-color: #f0f0f0;
+}
+
+.contrastPanelTitle {
+  font-size: 20px;
+  font-weight: 600;
+  color: #000;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+.contrastOptionsList {
+  display: flex;
+  flex-direction: column;
+}
+
+.contrastOption {
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  gap: 12px;
+}
+
+.contrastOption:hover {
+  background-color: #f5f5f5;
+}
+
+.contrastOption span {
+  font-size: 16px;
+  color: #000;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  flex: 1;
+}
+
+.contrastCheckmarkContainer {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.contrastCheckmark {
+  width: 24px;
+  height: 24px;
+  color: #000;
+}
+
+.contrastOptionDivider {
+  height: 1px;
+  background-color: #e0e0e0;
+  margin: 0 20px;
+}
+
+/* Contrast Theme Styles */
+/* .contrast-black-on-white is the default theme - no CSS needed */
+
+.contrast-white-on-black {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+.contrast-white-on-black .header,
+.contrast-white-on-black .mainContainer,
+.contrast-white-on-black .passagePanel,
+.contrast-white-on-black .questionsPanel,
+.contrast-white-on-black .partHeader,
+.contrast-white-on-black .navRow {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border-color: #333333 !important;
+}
+
+.contrast-white-on-black .readingPassage,
+.contrast-white-on-black .readingPassage p,
+.contrast-white-on-black .readingPassage h4,
+.contrast-white-on-black .readingPassage strong,
+.contrast-white-on-black .questionsContainer,
+.contrast-white-on-black .partHeader p,
+.contrast-white-on-black .partHeader strong,
+.contrast-white-on-black .question,
+.contrast-white-on-black .question p,
+.contrast-white-on-black .questionPrompt,
+.contrast-white-on-black .timerDisplay,
+.contrast-white-on-black .footerQuestionNo,
+.contrast-white-on-black .attemptedCount {
+  color: #ffffff !important;
+}
+
+.contrast-yellow-on-black {
+  background-color: #000000 !important;
+}
+
+.contrast-yellow-on-black .header,
+.contrast-yellow-on-black .mainContainer,
+.contrast-yellow-on-black .passagePanel,
+.contrast-yellow-on-black .questionsPanel,
+.contrast-yellow-on-black .partHeader,
+.contrast-yellow-on-black .navRow {
+  background-color: #000000 !important;
+  border-color: #333333 !important;
+}
+
+.contrast-yellow-on-black .readingPassage,
+.contrast-yellow-on-black .readingPassage p,
+.contrast-yellow-on-black .readingPassage h4,
+.contrast-yellow-on-black .readingPassage strong,
+.contrast-yellow-on-black .questionsContainer,
+.contrast-yellow-on-black .partHeader p,
+.contrast-yellow-on-black .partHeader strong,
+.contrast-yellow-on-black .question,
+.contrast-yellow-on-black .question p,
+.contrast-yellow-on-black .questionPrompt,
+.contrast-yellow-on-black .timerDisplay,
+.contrast-yellow-on-black .footerQuestionNo,
+.contrast-yellow-on-black .attemptedCount {
+  color: #ffff00 !important;
+}
+
+/* Text Size Styles */
+/* .text-size-regular is the default - no CSS needed */
+
+.text-size-large .readingPassage,
+.text-size-large .readingPassage p,
+.text-size-large .question,
+.text-size-large .question p,
+.text-size-large .questionPrompt,
+.text-size-large .partHeader p {
+  font-size: 1.25em !important;
+}
+
+.text-size-large .readingPassage h4 {
+  font-size: 1.5em !important;
+}
+
+.text-size-large .questionsContainer,
+.text-size-large .tfngOption label,
+.text-size-large .answerInput {
+  font-size: 1.25em !important;
+}
+
+.text-size-extra-large .readingPassage,
+.text-size-extra-large .readingPassage p,
+.text-size-extra-large .question,
+.text-size-extra-large .question p,
+.text-size-extra-large .questionPrompt,
+.text-size-extra-large .partHeader p {
+  font-size: 1.5em !important;
+}
+
+.text-size-extra-large .readingPassage h4 {
+  font-size: 1.75em !important;
+}
+
+.text-size-extra-large .questionsContainer,
+.text-size-extra-large .tfngOption label,
+.text-size-extra-large .answerInput {
+  font-size: 1.5em !important;
+}
+
+/* Instructions Panel Styles */
+.instructionsContent {
+  padding: 0 20px 20px 20px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.instructionsSection {
+  margin-bottom: 24px;
+}
+
+.instructionsSection:last-child {
+  margin-bottom: 0;
+}
+
+.instructionsSectionTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #000;
+  margin: 0 0 12px 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+.instructionsList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.instructionsList li {
+  font-size: 14px;
+  color: #333;
+  line-height: 1.6;
+  margin-bottom: 10px;
+  padding-left: 20px;
+  position: relative;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+.instructionsList li:before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: #666;
+  font-weight: bold;
+}
+
+.instructionsList li:last-child {
+  margin-bottom: 0;
+}
+
+.instructionsList li strong {
+  font-weight: 600;
+  color: #000;
+}
+
+/* Submit Drawer Styles */
+.drawerOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1999;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.submitDrawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  z-index: 2000;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  animation: slideDown 0.3s ease;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.submitDrawerContent {
+  background: white;
+  padding: 24px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.submitModalText {
+  font-size: 16px;
+  color: #000;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  flex: 1;
+}
+
+.submitModalNextButton {
+  background-color: #000;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+.submitModalNextButton:hover {
+  background-color: #333;
+}
+
+.submitModalNextButton:active {
+  background-color: #000;
+}
+
+/* Timer End Modal Styles */
+.timerEndModal {
+  background: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.timerEndModalHeader {
+  background: linear-gradient(to bottom, #1a1a1a, #2d2d2d);
+  padding: 20px 24px;
+}
+
+.timerEndModalTitle {
+  color: white;
+  font-size: 24px;
+  font-weight: bold;
+  margin: 0;
+  text-align: left;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+.timerEndModalBody {
+  background: #d0d8e0;
+  padding: 24px;
+  text-align: left;
+}
+
+.timerEndModalMessage {
+  color: #000;
+  font-size: 16px;
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+.timerEndModalButton {
+  background: linear-gradient(to bottom, #e8e8e8, #d0d0d0);
+  border: 1px solid #000;
+  border-radius: 6px;
+  padding: 12px 32px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #000;
+  cursor: pointer;
+  display: block;
+  margin: 0 auto;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+.timerEndModalButton:hover {
+  background: linear-gradient(to bottom, #f0f0f0, #d8d8d8);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+.timerEndModalButton:active {
+  background: linear-gradient(to bottom, #d8d8d8, #c0c0c0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Submitting Answers Full Screen Modal */
+.fullScreenModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8);
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.submittingModalContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+}
+
+.submittingSpinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.submittingText {
+  color: white;
+  font-size: 20px;
+  font-weight: 500;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
 }
 
 .modalCloseBtn {
@@ -509,6 +1041,10 @@
   border: 1px solid #d1d5db;
   border-radius: 5px;
   cursor: grab;
+  list-style: none;
+  margin-bottom: 0;
+  font-weight: bold;
+  text-align: left;
 }
 
 /* Question grid styles */
@@ -536,6 +1072,8 @@
 
 .questionGrid input[type="radio"] {
   cursor: pointer;
+  transform: scale(1.1);
+  margin: 0;
 }
 
 /* Navigation arrows styles */
@@ -702,12 +1240,3 @@
   overflow: hidden;
 }
 
-/* Question set */
-.questionSet {
-  /* Base styles for question sets */
-}
-
-/* Questions container */
-.questionsContainer {
-  /* Container for questions */
-}

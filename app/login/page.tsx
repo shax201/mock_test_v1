@@ -24,8 +24,8 @@ function LoginForm() {
   useEffect(() => {
     switch (userType) {
       case 'student':
-        setEmail('')
-        setPassword('')
+        setEmail('ahmed.hassan@student.radiance.edu')
+        setPassword('student123')
         break
       case 'instructor':
         setEmail('instructor@radiance.edu')

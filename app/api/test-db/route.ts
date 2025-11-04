@@ -8,15 +8,17 @@ export async function GET(request: NextRequest) {
     
     // Test basic queries
     const userCount = await prisma.user.count()
-    const mockCount = await prisma.mock.count()
-    const questionBankCount = await prisma.questionBank.count()
-    
+    const readingTestCount = await prisma.readingTest.count()
+    const passageCount = await prisma.passage.count()
+    const questionCount = await prisma.question.count()
+
     return NextResponse.json({
       status: 'Database connection successful',
       counts: {
         users: userCount,
-        mocks: mockCount,
-        questionBank: questionBankCount
+        readingTests: readingTestCount,
+        passages: passageCount,
+        questions: questionCount
       }
     })
   } catch (error) {

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import StudentHeader from '@/components/student/StudentHeader'
 
 interface TestResult {
   id: string
@@ -76,7 +77,9 @@ export default function StudentResults() {
   }
 
   return (
-    <div className="space-y-6">
+    <>
+      <StudentHeader />
+      <div className="space-y-6">
       {/* Header Banner */}
       <div className="bg-gradient-to-r from-green-500 to-blue-600 rounded-lg shadow-lg">
         <div className="px-4 py-8 sm:p-8">
@@ -257,6 +260,7 @@ export default function StudentResults() {
         </div>
       )}
     </div>
+    </>
   )
 }
 

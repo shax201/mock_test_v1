@@ -29,22 +29,15 @@ export async function GET(
         id: studentId,
         role: 'STUDENT'
       },
-      include: {
-        assignments: {
-          include: {
-            mock: {
-              select: {
-                title: true,
-                description: true
-              }
-            }
-          }
-        },
-        _count: {
-          select: {
-            assignments: true
-          }
-        }
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        dateOfBirth: true,
+        address: true,
+        notes: true,
+        createdAt: true
       }
     })
 
@@ -174,33 +167,12 @@ export async function DELETE(
       )
     }
 
-    // Check if student has any submissions (prevent deletion if they have test history)
-    const submissionCount = await prisma.submission.count({
-      where: {
-        assignment: {
-          studentId
-        }
-      }
-    })
+    // Note: In the simplified system, we allow deletion of all students
+    // No submission checks needed since mock test functionality was removed
 
-    if (submissionCount > 0) {
-      return NextResponse.json(
-        { error: 'Cannot delete student with test submissions. Please archive instead.' },
-        { status: 400 }
-      )
-    }
-
-    // Delete student and related data
-    await prisma.$transaction(async (tx) => {
-      // Delete assignments
-      await tx.assignment.deleteMany({
-        where: { studentId }
-      })
-
-      // Delete student
-      await tx.user.delete({
-        where: { id: studentId }
-      })
+    // Delete student
+    await prisma.user.delete({
+      where: { id: studentId }
     })
 
     return NextResponse.json({ message: 'Student deleted successfully' })

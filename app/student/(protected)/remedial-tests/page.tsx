@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import StudentHeader from '@/components/student/StudentHeader'
 
 interface RemedialTest {
   id: string
@@ -111,7 +112,9 @@ export default function RemedialTests() {
   }
 
   return (
-    <div className="space-y-6">
+    <>
+      <StudentHeader />
+      <div className="space-y-6">
       {/* Header */}
       <div className="bg-white overflow-hidden shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
@@ -286,5 +289,6 @@ export default function RemedialTests() {
         </div>
       )}
     </div>
+    </>
   )
 }

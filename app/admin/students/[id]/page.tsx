@@ -13,25 +13,6 @@ interface Student {
   address?: string
   notes?: string
   createdAt: string
-  assignments: {
-    id: string
-    mockId: string
-    status: string
-    createdAt: string
-    validUntil: string
-    mock: {
-      title: string
-      description: string
-    }
-    submissions: {
-      id: string
-      submittedAt: string
-      autoScore?: number
-    }[]
-  }[]
-  _count: {
-    assignments: number
-  }
 }
 
 export default function StudentDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -165,7 +146,7 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
             {student.name}
           </h2>
           <p className="mt-1 text-sm text-gray-500">
-            Student profile and assignment history
+            Student profile and account details
           </p>
         </div>
         <div className="mt-4 flex space-x-3 md:mt-0 md:ml-4">
@@ -177,15 +158,6 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
             Edit Student
-          </Link>
-          <Link
-            href={`/admin/students/${student.id}/assignments`}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            <svg className="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Manage Assignments
           </Link>
         </div>
       </div>
@@ -207,170 +179,60 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Student Information */}
-        <div className="lg:col-span-1">
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-4 py-5 sm:p-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                Student Information
-              </h3>
-              <dl className="space-y-4">
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">Full Name</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{student.name}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">Email Address</dt>
-                  <dd className="mt-1 text-sm text-gray-900">
-                    <a href={`mailto:${student.email}`} className="text-blue-600 hover:text-blue-500">
-                      {student.email}
-                    </a>
-                  </dd>
-                </div>
-                {student.phone && (
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500">Phone Number</dt>
-                    <dd className="mt-1 text-sm text-gray-900">
-                      <a href={`tel:${student.phone}`} className="text-blue-600 hover:text-blue-500">
-                        {student.phone}
-                      </a>
-                    </dd>
-                  </div>
-                )}
-                {student.dateOfBirth && (
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500">Date of Birth</dt>
-                    <dd className="mt-1 text-sm text-gray-900">
-                      {formatDateOnly(student.dateOfBirth)} ({calculateAge(student.dateOfBirth)} years old)
-                    </dd>
-                  </div>
-                )}
-                {student.address && (
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500">Address</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{student.address}</dd>
-                  </div>
-                )}
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">Member Since</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{formatDate(student.createdAt)}</dd>
-                </div>
-                {student.notes && (
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500">Notes</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{student.notes}</dd>
-                  </div>
-                )}
-              </dl>
+      {/* Student Information */}
+      <div className="bg-white shadow rounded-lg">
+        <div className="px-4 py-5 sm:p-6">
+          <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+            Student Information
+          </h3>
+          <dl className="space-y-4">
+            <div>
+              <dt className="text-sm font-medium text-gray-500">Full Name</dt>
+              <dd className="mt-1 text-sm text-gray-900">{student.name}</dd>
             </div>
-          </div>
-
-          {/* Quick Stats */}
-          <div className="mt-6 bg-white shadow rounded-lg">
-            <div className="px-4 py-5 sm:p-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                Quick Stats
-              </h3>
-              <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="bg-gray-50 px-4 py-5 rounded-lg">
-                  <dt className="text-sm font-medium text-gray-500">Total Assignments</dt>
-                  <dd className="mt-1 text-2xl font-semibold text-gray-900">
-                    {student._count.assignments}
-                  </dd>
-                </div>
-                <div className="bg-gray-50 px-4 py-5 rounded-lg">
-                  <dt className="text-sm font-medium text-gray-500">Active Assignments</dt>
-                  <dd className="mt-1 text-2xl font-semibold text-gray-900">
-                    {student.assignments.filter(a => a.status === 'ACTIVE').length}
-                  </dd>
-                </div>
-                <div className="bg-gray-50 px-4 py-5 rounded-lg">
-                  <dt className="text-sm font-medium text-gray-500">Completed Tests</dt>
-                  <dd className="mt-1 text-2xl font-semibold text-gray-900">
-                    {student.assignments.filter(a => a.status === 'COMPLETED').length}
-                  </dd>
-                </div>
-                <div className="bg-gray-50 px-4 py-5 rounded-lg">
-                  <dt className="text-sm font-medium text-gray-500">Total Submissions</dt>
-                  <dd className="mt-1 text-2xl font-semibold text-gray-900">
-                    {student.assignments.reduce((total, assignment) => total + assignment.submissions.length, 0)}
-                  </dd>
-                </div>
-              </dl>
+            <div>
+              <dt className="text-sm font-medium text-gray-500">Email Address</dt>
+              <dd className="mt-1 text-sm text-gray-900">
+                <a href={`mailto:${student.email}`} className="text-blue-600 hover:text-blue-500">
+                  {student.email}
+                </a>
+              </dd>
             </div>
-          </div>
-        </div>
-
-        {/* Assignments */}
-        <div className="lg:col-span-2">
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-4 py-5 sm:p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg leading-6 font-medium text-gray-900">
-                  Assignment History
-                </h3>
-                <Link
-                  href={`/admin/students/${student.id}/assignments`}
-                  className="text-sm font-medium text-blue-600 hover:text-blue-500"
-                >
-                  Manage Assignments →
-                </Link>
+            {student.phone && (
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Phone Number</dt>
+                <dd className="mt-1 text-sm text-gray-900">
+                  <a href={`tel:${student.phone}`} className="text-blue-600 hover:text-blue-500">
+                    {student.phone}
+                  </a>
+                </dd>
               </div>
-
-              {student.assignments.length === 0 ? (
-                <div className="text-center py-8">
-                  <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">No assignments</h3>
-                  <p className="mt-1 text-sm text-gray-500">This student hasn't been assigned any mock tests yet.</p>
-                  <div className="mt-6">
-                    <Link
-                      href={`/admin/students/${student.id}/assignments`}
-                      className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    >
-                      <svg className="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                      </svg>
-                      Assign Mock Test
-                    </Link>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {student.assignments.map((assignment) => (
-                    <div key={assignment.id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h4 className="text-sm font-medium text-gray-900">{assignment.mock.title}</h4>
-                          <p className="text-sm text-gray-500 mt-1">{assignment.mock.description}</p>
-                          <div className="mt-2 flex items-center text-xs text-gray-500 space-x-4">
-                            <span>Assigned: {formatDate(assignment.createdAt)}</span>
-                            <span>Expires: {formatDate(assignment.validUntil)}</span>
-                            <span>Submissions: {assignment.submissions.length}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(assignment.status)}`}>
-                            {assignment.status}
-                          </span>
-                          {assignment.submissions.length > 0 && (
-                            <Link
-                              href={`/admin/students/${student.id}/submissions/${assignment.submissions[0].id}`}
-                              className="text-xs text-blue-600 hover:text-blue-500"
-                            >
-                              View Submission
-                            </Link>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+            )}
+            {student.dateOfBirth && (
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Date of Birth</dt>
+                <dd className="mt-1 text-sm text-gray-900">
+                  {formatDateOnly(student.dateOfBirth)} ({calculateAge(student.dateOfBirth)} years old)
+                </dd>
+              </div>
+            )}
+            {student.address && (
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Address</dt>
+                <dd className="mt-1 text-sm text-gray-900">{student.address}</dd>
+              </div>
+            )}
+            <div>
+              <dt className="text-sm font-medium text-gray-500">Member Since</dt>
+              <dd className="mt-1 text-sm text-gray-900">{formatDate(student.createdAt)}</dd>
             </div>
-          </div>
+            {student.notes && (
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Notes</dt>
+                <dd className="mt-1 text-sm text-gray-900">{student.notes}</dd>
+              </div>
+            )}
+          </dl>
         </div>
       </div>
     </div>

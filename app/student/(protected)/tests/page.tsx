@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import StudentHeader from '@/components/student/StudentHeader'
 
 interface MockTest {
   id: string
@@ -17,6 +18,7 @@ interface MockTest {
   isRemedial?: boolean
   remedialType?: string
   difficulty?: string
+  isReadingTest?: boolean
 }
 
 export default function StudentTests() {
@@ -25,9 +27,11 @@ export default function StudentTests() {
   const [activeSidebarItem, setActiveSidebarItem] = useState('public')
   const [mockTests, setMockTests] = useState<MockTest[]>([])
   const [publicMockTests, setPublicMockTests] = useState<MockTest[]>([])
+  const [readingTests, setReadingTests] = useState<MockTest[]>([])
   const [listeningTests, setListeningTests] = useState<MockTest[]>([])
   const [loading, setLoading] = useState(true)
   const [publicLoading, setPublicLoading] = useState(true)
+  const [readingLoading, setReadingLoading] = useState(true)
   const [listeningLoading, setListeningLoading] = useState(true)
   const [startingTest, setStartingTest] = useState<string | null>(null)
   const [joiningTest, setJoiningTest] = useState<string | null>(null)
@@ -60,6 +64,72 @@ export default function StudentTests() {
         console.error('Error fetching public mock tests:', error)
       } finally {
         setPublicLoading(false)
+      }
+    }
+
+    const fetchReadingTests = async () => {
+      try {
+        const response = await fetch('/api/student/reading-tests')
+        if (response.ok) {
+          const data = await response.json()
+          const readingTestsList = data.readingTests || []
+          
+          // Check completion status for each reading test
+          const testsWithStatus = await Promise.all(
+            readingTestsList.map(async (test: any) => {
+              try {
+                // Check if there's a completed session for this test
+                const sessionResponse = await fetch(`/api/student/reading-tests/${test.id}/results`)
+                if (sessionResponse.ok) {
+                  const sessionData = await sessionResponse.json()
+                  return {
+                    id: test.id,
+                    title: test.title,
+                    description: `Reading test with ${test._count.passages} passage${test._count.passages !== 1 ? 's' : ''} and ${test.totalQuestions} questions`,
+                    duration: test.totalTimeMinutes,
+                    status: 'COMPLETED',
+                    createdAt: test.createdAt,
+                    isReadingTest: true,
+                    completionInfo: {
+                      completedAt: sessionData.completedAt || new Date().toISOString(),
+                      autoScore: sessionData.band || undefined
+                    }
+                  }
+                } else {
+                  // No completed session found
+                  return {
+                    id: test.id,
+                    title: test.title,
+                    description: `Reading test with ${test._count.passages} passage${test._count.passages !== 1 ? 's' : ''} and ${test.totalQuestions} questions`,
+                    duration: test.totalTimeMinutes,
+                    status: 'AVAILABLE',
+                    createdAt: test.createdAt,
+                    isReadingTest: true
+                  }
+                }
+              } catch (error) {
+                // If error checking session, assume test is available
+                return {
+                  id: test.id,
+                  title: test.title,
+                  description: `Reading test with ${test._count.passages} passage${test._count.passages !== 1 ? 's' : ''} and ${test.totalQuestions} questions`,
+                  duration: test.totalTimeMinutes,
+                  status: 'AVAILABLE',
+                  createdAt: test.createdAt,
+                  isReadingTest: true
+                }
+              }
+            })
+          )
+          
+          setReadingTests(testsWithStatus)
+        } else {
+          console.error('Failed to fetch reading tests:', response.status)
+        }
+      } catch (error) {
+        console.error('Error fetching reading tests:', error)
+      } finally {
+        setReadingLoading(false)
       }
     }
 
@@ -103,6 +173,7 @@ export default function StudentTests() {
 
     fetchMockTests()
     fetchPublicMockTests()
+    fetchReadingTests()
     fetchListeningTests()
   }, [])
 
@@ -168,6 +239,11 @@ export default function StudentTests() {
     }
   }
 
+  const handleStartReadingTest = (readingTestId: string) => {
+    // Navigate directly to the reading test page
+    window.location.href = `/student/reading-tests/${readingTestId}`
+  }
+
   const handleStartListeningTest = async (test: MockTest) => {
     setStartingTest(test.id)
     try {
@@ -213,7 +289,9 @@ export default function StudentTests() {
   }
 
   return (
-    <div className="space-y-6">
+    <>
+      <StudentHeader />
+      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8s space-y-6">
       {/* Main Online Tests Section */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="p-6">
@@ -366,14 +444,57 @@ export default function StudentTests() {
                     <p className="text-sm text-gray-600">Join any available mock test to practice your IELTS skills</p>
                   </div>
                   
-                  {publicLoading ? (
+                  {(publicLoading || readingLoading) ? (
                     <div className="flex items-center justify-center py-12">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
                     </div>
-                  ) : (publicMockTests.filter(t => !(t.title || '').toLowerCase().startsWith('remedial test')).length > 0) ? (
-                    publicMockTests
-                      .filter(t => !(t.title || '').toLowerCase().startsWith('remedial test'))
-                      .map((test) => (
+                  ) : (
+                    <>
+                      {/* Reading Tests */}
+                      {readingTests.map((test) => (
+                        <div key={test.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                              <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.747 5.754 18 7.5 18s3.332.747 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.747 4.5 1.253v13C19.832 18.747 18.247 18 16.5 18c-1.746 0-3.332.747-4.5 1.253" />
+                              </svg>
+                            </div>
+                            <div>
+                              <span className="text-sm font-medium text-gray-900">{test.title}</span>
+                              <p className="text-xs text-gray-500">{test.description} • {test.duration} minutes</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              Reading Test
+                            </span>
+                            {test.status === 'COMPLETED' ? (
+                              <Link 
+                                href={`/student/results/${test.id}`}
+                                className="text-white px-3 py-1 rounded text-xs hover:opacity-90 flex items-center"
+                                style={{ backgroundColor: '#25c994' }}
+                              >
+                                <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                                View Analysis
+                              </Link>
+                            ) : (
+                              <button
+                                onClick={() => handleStartReadingTest(test.id)}
+                                className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700"
+                              >
+                                Take Test
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {/* Public Mock Tests */}
+                      {publicMockTests
+                        .filter(t => !(t.title || '').toLowerCase().startsWith('remedial test'))
+                        .map((test) => (
                       <div key={test.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
                         <div className="flex items-center space-x-3">
                           <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
@@ -425,17 +546,21 @@ export default function StudentTests() {
                             )}
                         </div>
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-12">
-                      <div className="text-gray-500">
-                        <svg className="mx-auto h-12 w-12 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                        </svg>
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">No Public Mock Tests Available</h3>
-                        <p className="text-gray-500">Only full mock tests are shown here.</p>
-                      </div>
-                    </div>
+                      ))}
+                      
+                      {/* Empty State */}
+                      {readingTests.length === 0 && publicMockTests.filter(t => !(t.title || '').toLowerCase().startsWith('remedial test')).length === 0 && (
+                        <div className="text-center py-12">
+                          <div className="text-gray-500">
+                            <svg className="mx-auto h-12 w-12 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                            </svg>
+                            <h3 className="text-lg font-medium text-gray-900 mb-2">No Public Mock Tests Available</h3>
+                            <p className="text-gray-500">Only full mock tests are shown here.</p>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               )}
@@ -575,6 +700,7 @@ export default function StudentTests() {
         </div>
       </div>
     </div>
+    </>
   )
 }
 

@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Fetch all students with their assignment and submission counts
+    // Fetch all students
     const students = await prisma.user.findMany({
       where: {
         role: 'STUDENT'
@@ -26,12 +26,7 @@ export async function GET(request: NextRequest) {
         id: true,
         name: true,
         email: true,
-        createdAt: true,
-        _count: {
-          select: {
-            assignments: true
-          }
-        }
+        createdAt: true
       },
       orderBy: {
         createdAt: 'desc'

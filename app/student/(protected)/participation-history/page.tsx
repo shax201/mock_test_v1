@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import StudentHeader from '@/components/student/StudentHeader'
 
 interface ParticipationHistoryItem {
   id: string
@@ -130,7 +131,9 @@ export default function ParticipationHistory() {
   }
 
   return (
-    <div className="space-y-6">
+    <>
+      <StudentHeader />
+      <div className="space-y-6">
       {/* Header */}
       <div className="bg-white overflow-hidden shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
@@ -472,5 +475,6 @@ export default function ParticipationHistory() {
         </div>
       )}
     </div>
+    </>
   )
 }

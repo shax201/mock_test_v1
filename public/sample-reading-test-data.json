@@ -150,8 +150,37 @@
       "passageId": 1,
       "type": "summary-completion",
       "questionText": "Complete the summary below. Choose NO MORE THAN TWO WORDS from the passage for each answer.",
-      "summaryText": "In history, pearls have had great importance within the men of wealth and power, which were treated as gems for women in [5]. Also, pearls were even used as a medicine for people in [6]. There are essentially three types of pearls: natural, cultured and imitation. Most freshwater cultured pearls sold today come from China while [7] Island is famous for its imitation pearl industry. Good-quality natural pearls are exceedingly unusual. [8] often manufactures some of the glitteriest pearls while [9] produces larger size ones due to the favourable environment along the coastline. In the past, [10] in Persian Gulf produced the world's best pearls. Nowadays, the major remaining suppliers of natural pearls belong to India.",
-      "subQuestions": ["5", "6", "7", "8", "9", "10"]
+      "summaryText": "In history, pearls have had great importance within the men of wealth and power, which were treated as gems for women in [5]. Also, pearls were even used as a medicine for people in [6]. There are essentially three types of pearls: natural, cultured and imitation. Most freshwater cultured pearls sold today come from China while [7] Island is famous for its imitation pearl industry. Good-quality natural pearls are exceedingly unusual. [8] often manufactures some of the glitteriest pearls while [9] produces larger size ones due to the favourable environment along the coastline. In the past, [10] in Persian Gulf produced the world's best pearls. Nowadays, the major remaining suppliers of natural pearls belong to India."
+    },
+    "6": {
+      "passageId": 1,
+      "type": "summary-completion",
+      "questionText": "Complete the summary below. Choose NO MORE THAN TWO WORDS from the passage for each answer.",
+      "summaryText": "In history, pearls have had great importance within the men of wealth and power, which were treated as gems for women in [6]. Also, pearls were even used as a medicine for people in [6]. There are essentially three types of pearls: natural, cultured and imitation. Most freshwater cultured pearls sold today come from China while Mallorca Island is famous for its imitation pearl industry. Good-quality natural pearls are exceedingly unusual. Japan often manufactures some of the glitteriest pearls while Australia produces larger size ones due to the favourable environment along the coastline. In the past, Bahrain in Persian Gulf produced the world's best pearls. Nowadays, the major remaining suppliers of natural pearls belong to India."
+    },
+    "7": {
+      "passageId": 1,
+      "type": "summary-completion",
+      "questionText": "Complete the summary below. Choose NO MORE THAN TWO WORDS from the passage for each answer.",
+      "summaryText": "In history, pearls have had great importance within the men of wealth and power, which were treated as gems for women in ancient Rome. Also, pearls were even used as a medicine for people in [7]. There are essentially three types of pearls: natural, cultured and imitation. Most freshwater cultured pearls sold today come from China while Mallorca Island is famous for its imitation pearl industry. Good-quality natural pearls are exceedingly unusual. Japan often manufactures some of the glitteriest pearls while Australia produces larger size ones due to the favourable environment along the coastline. In the past, Bahrain in Persian Gulf produced the world's best pearls. Nowadays, the major remaining suppliers of natural pearls belong to India."
+    },
+    "8": {
+      "passageId": 1,
+      "type": "summary-completion",
+      "questionText": "Complete the summary below. Choose NO MORE THAN TWO WORDS from the passage for each answer.",
+      "summaryText": "In history, pearls have had great importance within the men of wealth and power, which were treated as gems for women in ancient Rome. Also, pearls were even used as a medicine for people in Persia. There are essentially three types of pearls: natural, cultured and imitation. Most freshwater cultured pearls sold today come from China while Mallorca Island is famous for its imitation pearl industry. Good-quality natural pearls are exceedingly unusual. [8] often manufactures some of the glitteriest pearls while Australia produces larger size ones due to the favourable environment along the coastline. In the past, Bahrain in Persian Gulf produced the world's best pearls. Nowadays, the major remaining suppliers of natural pearls belong to India."
+    },
+    "9": {
+      "passageId": 1,
+      "type": "summary-completion",
+      "questionText": "Complete the summary below. Choose NO MORE THAN TWO WORDS from the passage for each answer.",
+      "summaryText": "In history, pearls have had great importance within the men of wealth and power, which were treated as gems for women in ancient Rome. Also, pearls were even used as a medicine for people in Persia. There are essentially three types of pearls: natural, cultured and imitation. Most freshwater cultured pearls sold today come from China while Mallorca Island is famous for its imitation pearl industry. Good-quality natural pearls are exceedingly unusual. Japan often manufactures some of the glitteriest pearls while [9] produces larger size ones due to the favourable environment along the coastline. In the past, Bahrain in Persian Gulf produced the world's best pearls. Nowadays, the major remaining suppliers of natural pearls belong to India."
+    },
+    "10": {
+      "passageId": 1,
+      "type": "summary-completion",
+      "questionText": "Complete the summary below. Choose NO MORE THAN TWO WORDS from the passage for each answer.",
+      "summaryText": "In history, pearls have had great importance within the men of wealth and power, which were treated as gems for women in ancient Rome. Also, pearls were even used as a medicine for people in Persia. There are essentially three types of pearls: natural, cultured and imitation. Most freshwater cultured pearls sold today come from China while Mallorca Island is famous for its imitation pearl industry. Good-quality natural pearls are exceedingly unusual. Japan often manufactures some of the glitteriest pearls while Australia produces larger size ones due to the favourable environment along the coastline. In the past, [10] in Persian Gulf produced the world's best pearls. Nowadays, the major remaining suppliers of natural pearls belong to India."
     },
     "11": {
       "passageId": 1,
@@ -365,36 +394,31 @@
       "passageId": 3,
       "type": "summary-completion",
       "questionText": "Complete the summary below. Choose ONE WORD ONLY from the passage for each answer.",
-      "summaryText": "Hurricanes originate as groups of [34] over the tropical oceans. Low-latitude seas continuously provide heat and moisture to the atmosphere, producing warm, humid air above the sea surface. When this air rises, the water vapour in it condenses to form clouds and precipitation. Condensation releases heat—the solar heat it took to evaporate the water at the ocean surface. This so-called latent heat of condensation makes the air more buoyant, causing it to ascend still higher in a self-reinforcing feedback process. Eventually, the tropical depression begins to organise and strengthen, forming the familiar eye—the calm central hub around which a hurricane spins. On passing over land, the hurricane's sustaining source of warm water is cut off, which leads to the storm's rapid weakening.",
-      "subQuestions": ["34"]
+      "summaryText": "Hurricanes originate as groups of [34] over the tropical oceans. Low-latitude seas continuously provide heat and moisture to the atmosphere, producing warm, humid air above the sea surface. When this air rises, the water vapour in it condenses to form clouds and precipitation. Condensation releases heat—the solar heat it took to evaporate the water at the ocean surface. This so-called latent heat of condensation makes the air more buoyant, causing it to ascend still higher in a self-reinforcing feedback process. Eventually, the tropical depression begins to organise and strengthen, forming the familiar eye—the calm central hub around which a hurricane spins. On passing over land, the hurricane's sustaining source of warm water is cut off, which leads to the storm's rapid weakening."
     },
     "35": {
       "passageId": 3,
       "type": "summary-completion",
       "questionText": "Complete the summary below. Choose ONE WORD ONLY from the passage for each answer.",
-      "summaryText": "Hurricanes originate as groups of thunderstorms over the tropical oceans. Low-latitude seas continuously provide heat and moisture to the atmosphere, producing warm, humid air above the sea surface. When this air rises, the water vapour in it condenses to form clouds and precipitation. [35] releases heat—the solar heat it took to evaporate the water at the ocean surface. This so-called latent heat of condensation makes the air more buoyant, causing it to ascend still higher in a self-reinforcing feedback process. Eventually, the tropical depression begins to organise and strengthen, forming the familiar eye—the calm central hub around which a hurricane spins. On passing over land, the hurricane's sustaining source of warm water is cut off, which leads to the storm's rapid weakening.",
-      "subQuestions": ["35"]
+      "summaryText": "Hurricanes originate as groups of thunderstorms over the tropical oceans. Low-latitude seas continuously provide heat and moisture to the atmosphere, producing warm, humid air above the sea surface. When this air rises, the water vapour in it condenses to form clouds and precipitation. [35] releases heat—the solar heat it took to evaporate the water at the ocean surface. This so-called latent heat of condensation makes the air more buoyant, causing it to ascend still higher in a self-reinforcing feedback process. Eventually, the tropical depression begins to organise and strengthen, forming the familiar eye—the calm central hub around which a hurricane spins. On passing over land, the hurricane's sustaining source of warm water is cut off, which leads to the storm's rapid weakening."
     },
     "36": {
       "passageId": 3,
       "type": "summary-completion",
       "questionText": "Complete the summary below. Choose ONE WORD ONLY from the passage for each answer.",
-      "summaryText": "Hurricanes originate as groups of thunderstorms over the tropical oceans. Low-latitude seas continuously provide heat and moisture to the atmosphere, producing warm, humid air above the sea surface. When this air rises, the water vapour in it condenses to form clouds and precipitation. Condensation releases heat—the solar heat it took to evaporate the water at the ocean surface. This so-called latent [36] of condensation makes the air more buoyant, causing it to ascend still higher in a self-reinforcing feedback process. Eventually, the tropical depression begins to organise and strengthen, forming the familiar eye—the calm central hub around which a hurricane spins. On passing over land, the hurricane's sustaining source of warm water is cut off, which leads to the storm's rapid weakening.",
-      "subQuestions": ["36"]
+      "summaryText": "Hurricanes originate as groups of thunderstorms over the tropical oceans. Low-latitude seas continuously provide heat and moisture to the atmosphere, producing warm, humid air above the sea surface. When this air rises, the water vapour in it condenses to form clouds and precipitation. Condensation releases heat—the solar heat it took to evaporate the water at the ocean surface. This so-called latent [36] of condensation makes the air more buoyant, causing it to ascend still higher in a self-reinforcing feedback process. Eventually, the tropical depression begins to organise and strengthen, forming the familiar eye—the calm central hub around which a hurricane spins. On passing over land, the hurricane's sustaining source of warm water is cut off, which leads to the storm's rapid weakening."
     },
     "37": {
       "passageId": 3,
       "type": "summary-completion",
       "questionText": "Complete the summary below. Choose ONE WORD ONLY from the passage for each answer.",
-      "summaryText": "Hurricanes originate as groups of thunderstorms over the tropical oceans. Low-latitude seas continuously provide heat and moisture to the atmosphere, producing warm, humid air above the sea surface. When this air rises, the water vapour in it condenses to form clouds and precipitation. Condensation releases heat—the solar heat it took to evaporate the water at the ocean surface. This so-called latent heat of condensation makes the air more buoyant, causing it to ascend still higher in a self-reinforcing feedback process. Eventually, the tropical depression begins to organise and strengthen, forming the familiar [37]—the calm central hub around which a hurricane spins. On passing over land, the hurricane's sustaining source of warm water is cut off, which leads to the storm's rapid weakening.",
-      "subQuestions": ["37"]
+      "summaryText": "Hurricanes originate as groups of thunderstorms over the tropical oceans. Low-latitude seas continuously provide heat and moisture to the atmosphere, producing warm, humid air above the sea surface. When this air rises, the water vapour in it condenses to form clouds and precipitation. Condensation releases heat—the solar heat it took to evaporate the water at the ocean surface. This so-called latent heat of condensation makes the air more buoyant, causing it to ascend still higher in a self-reinforcing feedback process. Eventually, the tropical depression begins to organise and strengthen, forming the familiar [37]—the calm central hub around which a hurricane spins. On passing over land, the hurricane's sustaining source of warm water is cut off, which leads to the storm's rapid weakening."
     },
     "38": {
       "passageId": 3,
       "type": "summary-completion",
       "questionText": "Complete the summary below. Choose ONE WORD ONLY from the passage for each answer.",
-      "summaryText": "Hurricanes originate as groups of thunderstorms over the tropical oceans. Low-latitude seas continuously provide heat and moisture to the atmosphere, producing warm, humid air above the sea surface. When this air rises, the water vapour in it condenses to form clouds and precipitation. Condensation releases heat—the solar heat it took to evaporate the water at the ocean surface. This so-called latent heat of condensation makes the air more buoyant, causing it to ascend still higher in a self-reinforcing feedback process. Eventually, the tropical depression begins to organise and strengthen, forming the familiar eye—the calm central hub around which a hurricane spins. On passing over [38], the hurricane's sustaining source of warm water is cut off, which leads to the storm's rapid weakening.",
-      "subQuestions": ["38"]
+      "summaryText": "Hurricanes originate as groups of thunderstorms over the tropical oceans. Low-latitude seas continuously provide heat and moisture to the atmosphere, producing warm, humid air above the sea surface. When this air rises, the water vapour in it condenses to form clouds and precipitation. Condensation releases heat—the solar heat it took to evaporate the water at the ocean surface. This so-called latent heat of condensation makes the air more buoyant, causing it to ascend still higher in a self-reinforcing feedback process. Eventually, the tropical depression begins to organise and strengthen, forming the familiar eye—the calm central hub around which a hurricane spins. On passing over [38], the hurricane's sustaining source of warm water is cut off, which leads to the storm's rapid weakening."
     },
     "39": {
       "passageId": 3,

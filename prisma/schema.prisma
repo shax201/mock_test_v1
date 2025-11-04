@@ -18,10 +18,7 @@ enum UserRole {
 }
 
 enum ModuleType {
-  LISTENING
   READING
-  WRITING
-  SPEAKING
 }
 
 enum QuestionType {
@@ -43,6 +40,13 @@ enum AssignmentStatus {
   EXPIRED
 }
 
+enum ReadingQuestionType {
+  MATCHING_HEADINGS
+  TRUE_FALSE_NOT_GIVEN
+  SUMMARY_COMPLETION
+  MULTIPLE_CHOICE
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String?
@@ -57,62 +61,151 @@ model User {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   // Relations
-  createdMocks     Mock[]           @relation("MockCreator")
-  assignments      Assignment[]
-  instructorMarks  InstructorMark[]
-  writingFeedback  WritingFeedback[]
-  remedialSessions RemedialTestSession[]
-  remedialTemplates RemedialTestTemplate[]
+  testSessions TestSession[]
 
   @@map("users")
 }
 
+// Reading Test Models
 
-
-// Remedial Test Session - Tracks student remedial test sessions
-model RemedialTestSession {
-  id        String   @id @default(cuid())
-  studentId String   @map("student_id")
-  templateId String? @map("template_id")
-  testType  String   @map("test_type")
-  status    String   @default("ACTIVE")
-  answers   Json?
-  score     Int?
-  startedAt DateTime @map("started_at")
-  completedAt DateTime? @map("completed_at")
-  expiresAt DateTime @map("expires_at")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+// Main reading test entity
+model ReadingTest {
+  id               String   @id @default(cuid())
+  title            String
+  totalQuestions   Int      @default(40)
+  totalTimeMinutes Int      @default(60)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   // Relations
-  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  template RemedialTestTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  passages        Passage[]
+  bandScoreRanges BandScoreRange[]
+  passageConfigs  PassageConfig[]
 
-  @@map("remedial_test_sessions")
+  @@map("reading_tests")
 }
 
-// Remedial Test Template - Templates for creating remedial tests
-model RemedialTestTemplate {
+// Individual passages within a reading test
+model Passage {
   id          String   @id @default(cuid())
+  readingTestId String   @map("reading_test_id")
   title       String
-  description String?
-  type        String   // MATCHING_HEADINGS, INFORMATION_MATCHING, etc.
-  module      String   // READING, LISTENING, etc.
-  difficulty  String   @default("INTERMEDIATE") // BEGINNER, INTERMEDIATE, ADVANCED
-  duration    Int      @default(20) // in minutes
-  questions   Json     // Question data
-  audioUrl    String?  @map("audio_url") // Audio file URL for LISTENING module
-  audioPublicId String? @map("audio_public_id") // Cloudinary public ID for audio file
-  mockTestId  String?  @map("mock_test_id") // Link to specific mock test
-  isActive    Boolean  @default(true)
-  createdBy   String   @map("created_by")
+  order       Int      // Order of passage in the test
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
-  creator User @relation(fields: [createdBy], references: [id], onDelete: Cascade)
-  mockTest Mock? @relation(fields: [mockTestId], references: [id], onDelete: SetNull)
-  sessions RemedialTestSession[]
+  readingTest    ReadingTest    @relation(fields: [readingTestId], references: [id], onDelete: Cascade)
+  contents       PassageContent[]
+  questions      Question[]
 
-  @@map("remedial_test_templates")
+  @@map("passages")
 }
+
+// Content segments within a passage
+model PassageContent {
+  id        String @id @default(cuid())
+  passageId String @map("passage_id")
+  contentId String @map("content_id") // A, B, C, D, E, etc.
+  text      String
+  order     Int   // Order within the passage
+
+  // Relations
+  passage Passage @relation(fields: [passageId], references: [id], onDelete: Cascade)
+
+  @@unique([passageId, contentId])
+  @@map("passage_contents")
+}
+
+// Questions belonging to passages
+model Question {
+  id             String   @id @default(cuid())
+  passageId      String   @map("passage_id")
+  questionNumber Int      @map("question_number") // 1, 2, 3, etc.
+  type           ReadingQuestionType
+  questionText   String   @map("question_text")
+  options        Json?    // For multiple choice questions
+  headingsList   Json?    @map("headings_list") // For matching headings questions
+  summaryText    String?  @map("summary_text") // For summary completion questions
+  subQuestions   Json?    @map("sub_questions") // For multi-blank summary completions (e.g., ["5", "6", "7"])
+  points         Int      @default(1)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  passage       Passage       @relation(fields: [passageId], references: [id], onDelete: Cascade)
+  correctAnswer CorrectAnswer?
+
+  @@map("questions")
+}
+
+// Correct answers for questions
+model CorrectAnswer {
+  id         String   @id @default(cuid())
+  questionId String   @unique @map("question_id")
+  answer     String   // The correct answer (could be text, option letter, etc.)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("correct_answers")
+}
+
+// Band score calculation ranges
+model BandScoreRange {
+  id            String  @id @default(cuid())
+  readingTestId String  @map("reading_test_id")
+  minScore      Int     @map("min_score") // Minimum score to achieve this band
+  band          Float   // Band score (e.g., 9.0, 8.5, etc.)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  readingTest ReadingTest @relation(fields: [readingTestId], references: [id], onDelete: Cascade)
+
+  @@unique([readingTestId, minScore])
+  @@map("band_score_ranges")
+}
+
+// Passage configuration for question distribution
+model PassageConfig {
+  id            String  @id @default(cuid())
+  readingTestId String  @map("reading_test_id")
+  part          Int     // Part number (1, 2, 3)
+  total         Int     // Total questions in this part
+  start         Int     // Starting question number for this part
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  readingTest ReadingTest @relation(fields: [readingTestId], references: [id], onDelete: Cascade)
+
+  @@unique([readingTestId, part])
+  @@map("passage_configs")
+}
+
+// Test sessions for students taking tests
+model TestSession {
+  id         String   @id @default(cuid())
+  testId     String   @map("test_id") // Can reference reading tests or other test types
+  studentId  String   @map("student_id")
+  testType   String   @map("test_type") // READING, LISTENING, etc.
+  startedAt  DateTime? @map("started_at")
+  answers    Json?    // Student answers stored as JSON
+  isCompleted Boolean  @default(false) @map("is_completed")
+  completedAt DateTime? @map("completed_at")
+  score      Int?     // Final score
+  band       Float?   // Band score
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("test_sessions")
+}
+
+

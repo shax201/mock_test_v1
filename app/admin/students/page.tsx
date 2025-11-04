@@ -8,9 +8,6 @@ interface Student {
   name: string
   email: string
   createdAt: string
-  _count: {
-    assignments: number
-  }
 }
 
 export default function StudentsPage() {
@@ -74,11 +71,7 @@ export default function StudentsPage() {
   const filteredStudents = students.filter(student => {
     const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          student.email.toLowerCase().includes(searchTerm.toLowerCase())
-    
-    if (filterStatus === 'all') return matchesSearch
-    if (filterStatus === 'active') return matchesSearch && student._count.assignments > 0
-    if (filterStatus === 'inactive') return matchesSearch && student._count.assignments === 0
-    
+
     return matchesSearch
   })
 
@@ -99,7 +92,7 @@ export default function StudentsPage() {
             Student Management
           </h2>
           <p className="mt-1 text-sm text-gray-500">
-            Manage student accounts, assignments, and track progress.
+            Manage student accounts and view their profiles.
           </p>
         </div>
         <div className="mt-4 flex md:mt-0 md:ml-4">
@@ -134,7 +127,7 @@ export default function StudentsPage() {
 
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="search" className="block text-sm font-medium text-gray-700">
               Search Students
@@ -148,21 +141,6 @@ export default function StudentsPage() {
               className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               placeholder="Search by name or email..."
             />
-          </div>
-          <div>
-            <label htmlFor="filter" className="block text-sm font-medium text-gray-700">
-              Filter by Status
-            </label>
-            <select
-              id="filter"
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            >
-              <option value="all">All Students</option>
-              <option value="active">Active (Has Assignments)</option>
-              <option value="inactive">Inactive (No Assignments)</option>
-            </select>
           </div>
           <div className="flex items-end">
             <div className="text-sm text-gray-500">
@@ -216,11 +194,6 @@ export default function StudentsPage() {
                       <div className="ml-4">
                         <div className="flex items-center">
                           <h3 className="text-lg font-medium text-gray-900">{student.name}</h3>
-                          {student._count.assignments > 0 && (
-                            <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              Active
-                            </span>
-                          )}
                         </div>
                         <p className="text-sm text-gray-500">{student.email}</p>
                         <div className="mt-1 flex items-center text-sm text-gray-500">
@@ -228,12 +201,6 @@ export default function StudentsPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
                           Joined {formatDate(student.createdAt)}
-                        </div>
-                        <div className="mt-1 flex items-center text-sm text-gray-500">
-                          <svg className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                          {student._count.assignments} assignments
                         </div>
                       </div>
                     </div>
@@ -248,13 +215,14 @@ export default function StudentsPage() {
                         Edit
                       </Link>
                       <Link
-                        href={`/admin/students/${student.id}/assignments`}
+                        href={`/admin/students/${student.id}`}
                         className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                       >
                         <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                         </svg>
-                        Assign
+                        View Details
                       </Link>
                       <button
                         onClick={() => handleDelete(student.id)}
