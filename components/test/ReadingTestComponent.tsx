@@ -685,17 +685,91 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
     );
   };
 
+  const renderMatchingInformationGroup = (groupQuestions: Array<[string, any]>, currentQuestion: number) => {
+    if (!groupQuestions || groupQuestions.length === 0) return null;
+    
+    const firstQuestionId = parseInt(groupQuestions[0][0]);
+    const lastQuestionId = parseInt(groupQuestions[groupQuestions.length - 1][0]);
+    const firstQuestionData = groupQuestions[0][1];
+    
+    if (!firstQuestionData) return null;
+    
+    const isActive = currentQuestion >= firstQuestionId && currentQuestion <= lastQuestionId;
+    
+    // Get options (paragraph letters) from first question
+    const options = firstQuestionData.options || [];
+    const passageId = firstQuestionData.passageId;
+    
+    if (!options || options.length === 0) return null;
+
+    return (
+      <div
+        key={`matching-information-${firstQuestionId}`}
+        className={`${styles.question} ${isActive ? styles.activeQuestion : ''}`}
+        data-q-start={firstQuestionId.toString()}
+        data-q-end={lastQuestionId.toString()}
+      >
+        <div className={styles.questionPrompt}>
+          <p><strong>Questions {firstQuestionId}-{lastQuestionId}</strong></p>
+          <p>Reading Passage {passageId} has eight paragraphs, A-H. Which paragraph contains the following information?</p>
+          {passageId === 2 && (
+            <p><strong>NB</strong> You may use any letter more than once.</p>
+          )}
+        </div>
+        <table className={styles.questionGrid}>
+          <thead>
+            <tr>
+              <th></th>
+              {options.map((option: string) => (
+                <th key={option}>{option}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {groupQuestions.map(([questionId, questionData]) => {
+              const qNum = parseInt(questionId);
+              const isQuestionActive = currentQuestion === qNum;
+              return (
+                <tr 
+                  key={questionId}
+                  data-q-num={qNum}
+                  className={isQuestionActive ? styles.activeQuestion : ''}
+                >
+                  <td><strong>{questionId}</strong> {questionData.questionText}</td>
+                  {options.map((option: string) => (
+                    <td key={option}>
+                      <input 
+                        type="radio" 
+                        name={`q${questionId}`} 
+                        value={option}
+                        id={`q${questionId}_${option}`}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   const renderQuestion = (questionId: string, questionData: any, currentQuestion: number, isGrouped: boolean = false) => {
     const questionNum = parseInt(questionId);
     const isActive = currentQuestion === questionNum;
 
-    // Skip rendering individual matching-headings questions if they're part of a group
-    if (isGrouped && questionData.type === 'matching-headings') {
+    // Skip rendering individual matching-headings or matching-information questions if they're part of a group
+    if (isGrouped && (questionData.type === 'matching-headings' || questionData.type === 'matching-information')) {
       return null;
     }
 
     switch (questionData.type) {
       case 'matching-headings':
+        // This should not be reached if grouping is working correctly
+        return null;
+
+      case 'matching-information':
         // This should not be reached if grouping is working correctly
         return null;
 
@@ -981,9 +1055,9 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
                 {/* Questions content will be added here */}
                 {testData.passages.map((passage, passageIndex) => {
                   const passageId = passageIndex + 1;
-                  const passageQuestions = Object.entries(testData.questions).filter(
-                    ([, questionData]: [string, any]) => questionData.passageId === passageId
-                  );
+                  const passageQuestions = Object.entries(testData.questions)
+                    .filter(([, questionData]: [string, any]) => questionData.passageId === passageId)
+                    .sort(([a], [b]) => parseInt(a) - parseInt(b)); // Sort by question number
 
                   if (passageQuestions.length === 0) return null;
 
@@ -1017,8 +1091,26 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
                               
                               // Skip the grouped questions
                               i = j;
+                            } else if (questionData.type === 'matching-information') {
+                              // Group consecutive matching-information questions
+                              const group: Array<[string, any]> = [];
+                              let j = i;
+                              
+                              while (j < passageQuestions.length && passageQuestions[j][1].type === 'matching-information') {
+                                group.push(passageQuestions[j]);
+                                j++;
+                              }
+                              
+                              // Render the grouped matching-information questions
+                              const renderedGroup = renderMatchingInformationGroup(group, currentQuestion);
+                              if (renderedGroup) {
+                                renderedQuestions.push(renderedGroup);
+                              }
+                              
+                              // Skip the grouped questions
+                              i = j;
                             } else {
-                              // Render non-matching-headings questions normally
+                              // Render other question types normally
                               renderedQuestions.push(renderQuestion(questionId, questionData, currentQuestion, false));
                               i++;
                             }

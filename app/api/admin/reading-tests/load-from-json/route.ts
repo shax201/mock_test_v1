@@ -66,21 +66,44 @@ export async function POST(request: NextRequest) {
           }))
         },
         questions: {
-          create: passageQuestions.map((questionData: any) => ({
-            questionNumber: parseInt(questionData.questionKey),
-            type: transformQuestionType(questionData.type),
-            questionText: questionData.questionText,
-            options: questionData.options,
-            headingsList: questionData.headingsList,
-            summaryText: questionData.summaryText,
-            subQuestions: questionData.subQuestions,
-            points: 1,
-            correctAnswer: {
-              create: {
-                answer: correctAnswers[questionData.questionKey]
-              }
+          create: passageQuestions.map((questionData: any) => {
+            const transformedType = transformQuestionType(questionData.type);
+            
+            // Validate the type is a valid enum value
+            const validTypes = ['MATCHING_HEADINGS', 'MATCHING_INFORMATION', 'TRUE_FALSE_NOT_GIVEN', 'SUMMARY_COMPLETION', 'MULTIPLE_CHOICE'];
+            if (!validTypes.includes(transformedType)) {
+              throw new Error(`Invalid question type: "${questionData.type}" (transformed to: "${transformedType}")`);
             }
-          }))
+            
+            // Clean up undefined values to avoid Prisma errors
+            const questionInput: any = {
+              questionNumber: parseInt(questionData.questionKey),
+              type: transformedType as any, // Type assertion for Prisma enum
+              questionText: questionData.questionText,
+              points: 1,
+              correctAnswer: {
+                create: {
+                  answer: correctAnswers[questionData.questionKey]
+                }
+              }
+            };
+            
+            // Only include optional fields if they have values (not undefined or null)
+            if (questionData.options !== undefined && questionData.options !== null) {
+              questionInput.options = questionData.options;
+            }
+            if (questionData.headingsList !== undefined && questionData.headingsList !== null) {
+              questionInput.headingsList = questionData.headingsList;
+            }
+            if (questionData.summaryText !== undefined && questionData.summaryText !== null) {
+              questionInput.summaryText = questionData.summaryText;
+            }
+            if (questionData.subQuestions !== undefined && questionData.subQuestions !== null) {
+              questionInput.subQuestions = questionData.subQuestions;
+            }
+            
+            return questionInput;
+          })
         }
       }
     })
@@ -146,9 +169,13 @@ export async function POST(request: NextRequest) {
 
 // Helper function to transform question types
 function transformQuestionType(type: string): string {
-  switch (type) {
+  const normalizedType = type.toLowerCase().trim();
+  
+  switch (normalizedType) {
     case 'matching-headings':
       return 'MATCHING_HEADINGS'
+    case 'matching-information':
+      return 'MATCHING_INFORMATION'
     case 'true-false-not-given':
       return 'TRUE_FALSE_NOT_GIVEN'
     case 'summary-completion':
@@ -156,6 +183,9 @@ function transformQuestionType(type: string): string {
     case 'multiple-choice':
       return 'MULTIPLE_CHOICE'
     default:
-      return type.toUpperCase().replace(/-/g, '_')
+      // Fallback: try to convert to enum format
+      const enumValue = type.toUpperCase().replace(/-/g, '_');
+      console.warn(`Unknown question type: "${type}", using: "${enumValue}"`);
+      return enumValue;
   }
 }

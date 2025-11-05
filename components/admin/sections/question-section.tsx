@@ -1,0 +1,455 @@
+"use client"
+
+import { useState } from "react"
+import { Card } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react"
+
+interface QuestionSectionProps {
+  questions: any[]
+  passages: any[]
+  passageConfigs: any[]
+  onAdd: (question: any) => void
+  onRemove: (id: number) => void
+}
+
+const QUESTION_TYPES = [
+  { value: "MCQ", label: "Multiple Choice Question" },
+  { value: "FIB", label: "Fill In The Blank" },
+  { value: "MATCHING", label: "Matching" },
+  { value: "TRUE_FALSE", label: "True / False" },
+  { value: "NOT_GIVEN", label: "Not Given" },
+  { value: "TRUE_FALSE_NOT_GIVEN", label: "True / False / Not Given" },
+  { value: "NOTES_COMPLETION", label: "Notes Completion" },
+  { value: "SUMMARY_COMPLETION", label: "Summary Completion" },
+  { value: "MULTIPLE_CHOICE", label: "Multiple Choice" },
+]
+
+export default function QuestionSection({
+  questions,
+  passages,
+  passageConfigs,
+  onAdd,
+  onRemove,
+}: QuestionSectionProps) {
+  const [isExpanded, setIsExpanded] = useState(true)
+  const [formData, setFormData] = useState({
+    passageId: "",
+    part: "1",
+    number: 1,
+    questionType: "MCQ",
+    text: "",
+    options: ["", "", "", ""],
+    correctAnswer: "",
+    subQuestions: [] as Array<{ number: string; answer: string }>,
+  })
+
+  const handleAddOption = () => {
+    setFormData((prev) => ({
+      ...prev,
+      options: [...prev.options, ""],
+    }))
+  }
+
+  const handleRemoveOption = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      options: prev.options.filter((_, i) => i !== index),
+    }))
+  }
+
+  const handleOptionChange = (index: number, value: string) => {
+    setFormData((prev) => {
+      const newOptions = [...prev.options]
+      newOptions[index] = value
+      return { ...prev, options: newOptions }
+    })
+  }
+
+  const handleAddSubQuestion = () => {
+    setFormData((prev) => ({
+      ...prev,
+      subQuestions: [...prev.subQuestions, { number: "", answer: "" }],
+    }))
+  }
+
+  const handleRemoveSubQuestion = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      subQuestions: prev.subQuestions.filter((_, i) => i !== index),
+    }))
+  }
+
+  const handleSubQuestionChange = (index: number, field: "number" | "answer", value: string) => {
+    setFormData((prev) => {
+      const newSubQuestions = [...prev.subQuestions]
+      newSubQuestions[index] = {
+        ...newSubQuestions[index],
+        [field]: value,
+      }
+      return { ...prev, subQuestions: newSubQuestions }
+    })
+  }
+
+  const handleAddQuestion = () => {
+    if (!formData.passageId) {
+      alert("Please select a passage")
+      return
+    }
+    if (!formData.text.trim()) {
+      alert("Please enter the question text")
+      return
+    }
+    if (!formData.correctAnswer.trim()) {
+      alert("Please enter the correct answer")
+      return
+    }
+
+    // For question types that need options
+    const typesWithOptions = ["MCQ", "MATCHING", "MULTIPLE_CHOICE"]
+    if (typesWithOptions.includes(formData.questionType)) {
+      if (formData.options.some((opt) => !opt.trim())) {
+        alert("Please fill in all options")
+        return
+      }
+    }
+
+    if (formData.subQuestions.length > 0) {
+      if (formData.subQuestions.some((sq) => !sq.number.trim() || !sq.answer.trim())) {
+        alert("Please fill in all sub-question numbers and answers")
+        return
+      }
+    }
+
+    onAdd({
+      ...formData,
+      subQuestions:
+        formData.subQuestions.length > 0
+          ? formData.subQuestions.map((sq) => ({ number: sq.number, answer: sq.answer }))
+          : undefined,
+    })
+
+    // Reset form
+    setFormData({
+      passageId: "",
+      part: "1",
+      number: questions.length + 1,
+      questionType: "MCQ",
+      text: "",
+      options: ["", "", "", ""],
+      correctAnswer: "",
+      subQuestions: [],
+    })
+  }
+
+  const needsOptions = (type: string) => {
+    return ["MCQ", "MATCHING", "MULTIPLE_CHOICE"].includes(type)
+  }
+
+  const supportsSubQuestions = (type: string) => {
+    return ["NOTES_COMPLETION", "SUMMARY_COMPLETION", "FIB"].includes(type)
+  }
+
+  const getNextQuestionNumber = () => {
+    if (questions.length === 0) return 1
+    return Math.max(...questions.map((q) => q.number || 0)) + 1
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card className="p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-lg">Add New Question</h3>
+          <button onClick={() => setIsExpanded(!isExpanded)}>
+            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+        </div>
+
+        {isExpanded && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="passage-select">Passage</Label>
+                <Select
+                  value={formData.passageId}
+                  onValueChange={(v) => setFormData((prev) => ({ ...prev, passageId: v }))}
+                >
+                  <SelectTrigger id="passage-select">
+                    <SelectValue placeholder="Select a passage" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {passages.map((passage, index) => (
+                      <SelectItem key={passage.id} value={String(passage.id)}>
+                        {passage.title || `Passage ${index + 1}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="part-select">Part</Label>
+                <Select value={formData.part} onValueChange={(v) => setFormData((prev) => ({ ...prev, part: v }))}>
+                  <SelectTrigger id="part-select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Part 1</SelectItem>
+                    <SelectItem value="2">Part 2</SelectItem>
+                    <SelectItem value="3">Part 3</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="question-type">Question Type</Label>
+                <Select
+                  value={formData.questionType}
+                  onValueChange={(v) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      questionType: v,
+                      options: needsOptions(v) ? ["", "", "", ""] : [],
+                      subQuestions: [],
+                    }))
+                  }
+                >
+                  <SelectTrigger id="question-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {QUESTION_TYPES.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="question-number">Question Number</Label>
+                <Input
+                  id="question-number"
+                  type="number"
+                  value={formData.number}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, number: Number.parseInt(e.target.value) }))}
+                  min="1"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="question-text">Question Text</Label>
+              <Textarea
+                id="question-text"
+                placeholder={
+                  formData.questionType === "MCQ" || formData.questionType === "MULTIPLE_CHOICE"
+                    ? "e.g., What is the main purpose of the passage?\nOr: According to the text, which of the following..."
+                    : formData.questionType === "FIB"
+                      ? "e.g., The author believes that climate change is [question number] to human survival."
+                      : formData.questionType === "MATCHING"
+                        ? "e.g., Match the following terms with their definitions..."
+                        : formData.questionType === "TRUE_FALSE"
+                          ? "e.g., The study was conducted over a period of five years."
+                          : formData.questionType === "NOT_GIVEN"
+                            ? "e.g., The researcher was born in London."
+                            : formData.questionType === "TRUE_FALSE_NOT_GIVEN"
+                              ? "e.g., All participants completed the survey."
+                              : ["NOTES_COMPLETION", "SUMMARY_COMPLETION"].includes(formData.questionType)
+                                ? "e.g., Complete the summary:\nThe new technology offers several advantages including [question number] efficiency and [question number] cost."
+                                : "Enter the question text..."
+                }
+                value={formData.text}
+                onChange={(e) => setFormData((prev) => ({ ...prev, text: e.target.value }))}
+                rows={3}
+              />
+            </div>
+
+            {needsOptions(formData.questionType) && (
+              <div className="space-y-2">
+                <Label>Options</Label>
+                {formData.options.map((option, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      placeholder={
+                        formData.questionType === "MATCHING"
+                          ? `Option ${String.fromCharCode(65 + index)}: e.g., Definition or item to match`
+                          : `Option ${String.fromCharCode(65 + index)}: e.g., Sample answer choice`
+                      }
+                      value={option}
+                      onChange={(e) => handleOptionChange(index, e.target.value)}
+                    />
+                    {formData.options.length > 2 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            options: prev.options.filter((_, i) => i !== index),
+                          }))
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                {formData.options.length < 6 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        options: [...prev.options, ""],
+                      }))
+                    }}
+                    className="gap-2 bg-transparent"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Option
+                  </Button>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="correct-answer">Correct Answer</Label>
+              <Textarea
+                id="correct-answer"
+                placeholder={
+                  formData.questionType === "MCQ" || formData.questionType === "MULTIPLE_CHOICE"
+                    ? "e.g., A"
+                    : formData.questionType === "FIB"
+                      ? "e.g., critical"
+                      : formData.questionType === "MATCHING"
+                        ? "e.g., 1-C, 2-A, 3-D, 4-B"
+                        : formData.questionType === "TRUE_FALSE"
+                          ? "e.g., True or False"
+                          : formData.questionType === "NOT_GIVEN"
+                            ? "e.g., Yes / No / Not Given"
+                            : formData.questionType === "TRUE_FALSE_NOT_GIVEN"
+                              ? "e.g., True / False / Not Given"
+                              : ["NOTES_COMPLETION", "SUMMARY_COMPLETION"].includes(formData.questionType)
+                                ? "e.g., increased / reduced"
+                                : "Enter the correct answer..."
+                }
+                value={formData.correctAnswer}
+                onChange={(e) => setFormData((prev) => ({ ...prev, correctAnswer: e.target.value }))}
+                rows={2}
+              />
+            </div>
+
+            {supportsSubQuestions(formData.questionType) && (
+              <div className="space-y-3 border-t pt-4">
+                <div className="flex items-center justify-between">
+                  <Label>Sub-Questions (For Multi-Blank Items)</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAddSubQuestion}
+                    className="gap-2 bg-transparent"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Sub-Question
+                  </Button>
+                </div>
+
+                {formData.subQuestions.length > 0 && (
+                  <div className="space-y-2">
+                    {formData.subQuestions.map((subQ, index) => (
+                      <div key={index} className="flex gap-2">
+                        <div className="flex-1">
+                          <Input
+                            placeholder="Question number (e.g., 27)"
+                            value={subQ.number}
+                            onChange={(e) => handleSubQuestionChange(index, "number", e.target.value)}
+                            type="number"
+                            min="1"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <Input
+                            placeholder={
+                              formData.questionType === "FIB"
+                                ? "e.g., innovation"
+                                : formData.questionType === "SUMMARY_COMPLETION"
+                                  ? "e.g., sustainable"
+                                  : "e.g., Answer for this blank"
+                            }
+                            value={subQ.answer}
+                            onChange={(e) => handleSubQuestionChange(index, "answer", e.target.value)}
+                          />
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => handleRemoveSubQuestion(index)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <p className="text-xs text-muted-foreground">
+                  Use this for questions with multiple blanks. Each sub-question has its own question number and answer.
+                </p>
+              </div>
+            )}
+
+            <Button onClick={handleAddQuestion} className="w-full gap-2">
+              <Plus className="w-4 h-4" />
+              Add Question
+            </Button>
+          </div>
+        )}
+      </Card>
+
+      {questions.length > 0 && (
+        <Card className="p-4">
+          <h3 className="font-semibold mb-4">Added Questions ({questions.length})</h3>
+          <div className="space-y-3">
+            {questions.map((question) => (
+              <div key={question.id} className="p-3 border rounded bg-muted/30">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex-1">
+                    <p className="font-medium">
+                      Q{question.number} - {question.questionType}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Part {question.part}</p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => onRemove(question.id)}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+                <p className="text-sm mb-2">{question.text}</p>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p>
+                    <strong>Answer:</strong> {question.correctAnswer}
+                  </p>
+                  {question.subQuestions && question.subQuestions.length > 0 && (
+                    <div className="mt-2 pl-2 border-l-2 border-muted-foreground/50">
+                      <p className="font-medium">Sub-Questions:</p>
+                      {question.subQuestions.map((subQ: any, idx: number) => (
+                        <p key={idx} className="text-xs">
+                          Q{subQ.number}: {subQ.answer}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+    </div>
+  )
+}
