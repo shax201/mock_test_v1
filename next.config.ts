@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   eslint: {
     // Allow production builds to succeed even if there are ESLint errors
-    ignoreDuringBuilds: true,
+    // ignoreDuringBuilds: true,
   },
   /* config options here */
 };
