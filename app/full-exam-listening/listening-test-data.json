@@ -1,0 +1,272 @@
+{
+  "audioSource": "https://ia600302.us.archive.org/19/items/ricu-listening/RICU%20Listening.MP3",
+  "instructions": [
+    "◉ Check your headphones carefully before you start.",
+    "◉ The Listening test has 4 parts.",
+    "◉ There are 40 questions in total.",
+    "◉ You will hear each recording once only.",
+    "◉ You can adjust the volume during the test.",
+    "◉ You can check and change your answers while you are listening.",
+    "◉ After the recording ends, you will have 2 minutes to check your answers.",
+    "◉ Spelling and grammar are important.",
+    "◉ When you are ready, click Start Test to begin."
+  ],
+  "parts": [
+    {
+      "id": 1,
+      "title": "Part 1: Questions 1–10",
+      "prompt": [
+        "Complete the notes below.",
+        "Write ONE WORD AND/OR A NUMBER for each answer."
+      ],
+      "sectionTitle": "Booking a residential workshop",
+      "courseRequired": "drama workshop",
+      "fillRows": [
+        { "q": 1, "labelPrefix": "Full name of participant:", "textPrefix": "Jan ", "textSuffix": "" },
+        { "q": 2, "labelPrefix": "Previous course attended:", "textPrefix": "Writing for the ", "textSuffix": "" },
+        { "q": 3, "labelPrefix": "Address:", "textPrefix": "20, Gregory ", "textSuffix": "" },
+        { "q": 4, "labelPrefix": "Current occupation:", "textPrefix": "", "textSuffix": "" },
+        { "q": 5, "labelPrefix": "Date chosen course begins:", "textPrefix": "", "textSuffix": "" },
+        { "q": 6, "labelPrefix": "Estimated arrival time:", "textPrefix": "", "textSuffix": " PM" },
+        { "q": 7, "labelPrefix": "Special dietary requests:", "textPrefix": "No ", "textSuffix": " products" },
+        { "q": 8, "labelPrefix": "Preferred afternoon course:", "textPrefix": "", "textSuffix": " work" },
+        { "q": 9, "labelPrefix": "First source of course information:", "textPrefix": "", "textSuffix": "" },
+        { "q": 10, "labelPrefix": "Pre-course material requested:", "textPrefix": "the ", "textSuffix": " mentioned in the publicity" }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Part 2: Questions 11–20",
+      "prompt11_15": "Questions 11-15 — Choose the correct letter, A, B or C.",
+      "singleChoice": [
+        {
+          "number": 11,
+          "question": "What does Mark say first attracts people to working for Johnson Jones?",
+          "options": ["A the pay", "B the staff discount", "C the working hours"]
+        },
+        {
+          "number": 12,
+          "question": "Mark says the company is one of the country's most successful retailers because it",
+          "options": ["A is focused on long term planning.", "B provides excellent customer service.", "C offers value for money."]
+        },
+        {
+          "number": 13,
+          "question": "Mark says that because Johnson Jones is a partnership, the staff",
+          "options": ["A are better trained.", "B have better job security.", "C are given more responsibility."]
+        },
+        {
+          "number": 14,
+          "question": "What is the typical annual bonus that partners receive?",
+          "options": ["A 8%", "B 15%", "C 20%"]
+        },
+        {
+          "number": 15,
+          "question": "To qualify for the leisure and holiday facilities, partners must have worked for the company for",
+          "options": ["A one year.", "B six months.", "C three months."]
+        }
+      ],
+      "matching": {
+        "heading": "Staff Holiday Centres",
+        "options": [
+          "A available for celebrations and parties",
+          "B suitable for families with children",
+          "C regularly used by senior management",
+          "D also supplies food to the company's supermarkets",
+          "E spa facilities available",
+          "F similar to being in someone's home",
+          "G good for short breaks"
+        ],
+        "items": [
+          { "q": 16, "label": "The Grange" },
+          { "q": 17, "label": "Meadow House" },
+          { "q": 18, "label": "Coombe Manor" },
+          { "q": 19, "label": "The Barn" },
+          { "q": 20, "label": "The Stable" }
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "title": "Part 3: Questions 21–30",
+      "prompt21_26": "Questions 21-26 — Choose the correct letter, A, B or C.",
+      "singleChoice": [
+        {
+          "number": 21,
+          "question": "Why is Fiona keen to organise a debate?",
+          "options": [
+            "A. She has attended debates while at secondary school.",
+            "B. She organised debating with a friend.",
+            "C. She has talked about debating with Daniel."
+          ]
+        },
+        {
+          "number": 22,
+          "question": "Fiona says that an advantage of debating is that it can",
+          "options": [
+            "A. help students to form opinions.",
+            "B. improve students' listening skills.",
+            "C. develop students' self-confidence."
+          ]
+        },
+        {
+          "number": 23,
+          "question": "How will the debate topic be selected?",
+          "options": [
+            "A. Daniel and Fiona will ask the lecturer to choose one from a list.",
+            "B. The other students will select one of Daniel and Fiona's Suggestions.",
+            "C. Daniel and Fiona will collect Suggestions from the other students."
+          ]
+        },
+        {
+          "number": 24,
+          "question": "Daniel and Fiona think one key to a successful debate is for students to",
+          "options": [
+            "A. have a topic that really involves them.",
+            "B. plan their speech Carefully.",
+            "C. be given positions to defend."
+          ]
+        },
+        {
+          "number": 25,
+          "question": "Daniel thinks it would be good for the students to be in two teams because it would",
+          "options": [
+            "A. give everyone a chance to speak.",
+            "B. help students with less confidence.",
+            "C. share out the preparation required."
+          ]
+        },
+        {
+          "number": 26,
+          "question": "What does the lecturer agree to do after the debate?",
+          "options": [
+            "A. make comments on students' written work.",
+            "B. help Daniel and Fiona to write a report.",
+            "C. set the students an essay on a different topic."
+          ]
+        }
+      ],
+      "matching": {
+        "heading": "Aspects of a debate",
+        "options": [
+          "A ask for suggestion",
+          "B give a handout of key points",
+          "C write on the board",
+          "D provide a photocopy of an article",
+          "E recommend a textbook",
+          "F give a demonstration"
+        ],
+        "items": [
+          { "q": 27, "label": "understanding debating procedures" },
+          { "q": 28, "label": "using body language" },
+          { "q": 29, "label": "accessing resources" },
+          { "q": 30, "label": "asking and answering questions" }
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "title": "Part 4: Questions 31–40",
+      "prompt": [
+        "Complete the notes below.",
+        "Write ONE WORD ONLY for each answer."
+      ],
+      "sectionTitle": "Crisis Communication Theory",
+      "notes": [
+        {
+          "heading": "Why do we need theory?",
+          "items": [
+            { "q": 31, "prefix": "Some people think using ", "suffix": " is better than theory" },
+            { "q": 32, "prefix": "But a lot of advice is simply a ", "suffix": "" }
+          ]
+        },
+        {
+          "heading": "Types of crisis",
+          "items": [
+            { "q": 33, "prefix": "The organisation can be a victim - e.g. due to a ", "suffix": "" },
+            { "q": null, "text": "Crisis can be accidental - caused by external factors" },
+            { "q": 34, "prefix": "Crisis can be preventable - resulting from a ", "suffix": " in the organisation" }
+          ]
+        },
+        {
+          "heading": "Suggested response for all crises",
+          "items": [
+            { "q": null, "text": "Give information to prevent any more damage" },
+            { "q": 35, "prefix": "Communicate what ", "suffix": " is to be taken" }
+          ]
+        },
+        {
+          "heading": "Strategies to influence people's thinking",
+          "subsections": [
+            {
+              "title": "Diminish the crisis",
+              "items": [ { "q": 36, "prefix": "Provide ", "suffix": " that the crisis is not so bad" } ]
+            },
+            {
+              "title": "Give excuses for the crisis",
+              "items": [ { "q": null, "text": "Highlight that it was not intentional!" } ]
+            }
+          ]
+        },
+        {
+          "heading": "Protecting the organisation's reputation",
+          "items": [
+            { "q": 37, "prefix": "Initial objective is to lessen ", "suffix": " opinions" },
+            {
+              "q": null,
+              "text": "Rebuild strategies are important when",
+              "children": [
+                { "q": 38, "prefix": "there is a serious ", "suffix": " to the organisation's reputation" },
+                { "q": null, "text": "the impact of the crisis needs lessening" }
+              ]
+            },
+            { "q": 39, "prefix": "Things can be improved by providing an ", "suffix": "" },
+            { "q": 40, "prefix": "In serious cases, ", "suffix": " is usually offered" }
+          ]
+        }
+      ]
+    }
+  ],
+  "correctAnswers": {
+    "q1": ["Creswick"],
+    "q2": ["Theatre"],
+    "q3": ["Place"],
+    "q4": ["Waitress"],
+    "q5": ["13th June", "June 13th"],
+    "q6": ["5.30", "5:30"],
+    "q7": ["Milk"],
+    "q8": ["Comic"],
+    "q9": ["Internet"],
+    "q10": ["leaflet"],
+    "q11": "B",
+    "q12": "A",
+    "q13": "C",
+    "q14": "B",
+    "q15": "C",
+    "q16": "C",
+    "q17": "F",
+    "q18": "B",
+    "q19": "A",
+    "q20": "G",
+    "q21": "C",
+    "q22": "C",
+    "q23": "C",
+    "q24": "A",
+    "q25": "B",
+    "q26": "A",
+    "q27": "F",
+    "q28": "C",
+    "q29": "E",
+    "q30": "B",
+    "q31": ["logic"],
+    "q32": ["guess"],
+    "q33": ["rumour"],
+    "q34": ["mistake"],
+    "q35": ["action"],
+    "q36": ["evidence"],
+    "q37": ["negative"],
+    "q38": ["threat"],
+    "q39": ["apology"],
+    "q40": ["compensation"]
+  }
+}
+
