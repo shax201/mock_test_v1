@@ -311,7 +311,8 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
 
     const band = calculateIELTSBand(score);
     setResults({ score, band, details: resultDetails });
-    setShowResultsModal(true);
+    // Don't show modal - let parent handle navigation to results page
+    // setShowResultsModal(true);
 
     // Call the completion callback if provided
     if (onTestComplete) {

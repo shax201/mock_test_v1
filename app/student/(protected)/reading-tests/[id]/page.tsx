@@ -114,6 +114,9 @@ export default function StudentReadingTestPage() {
       if (response.ok) {
         console.log('✅ Reading test results saved successfully:', data)
 
+        // Get session ID from response for more accurate navigation
+        const sessionId = data.session?.id || params.id
+
         // Step 4: Check for associated listening test first
         try {
           const listeningTestResponse = await fetch(
@@ -151,12 +154,12 @@ export default function StudentReadingTestPage() {
 
           // Step 8: No listening or writing test found, redirect to results
           console.log('ℹ️ No listening or writing test found, redirecting to results')
-          router.push(`/student/results/${params.id}`)
+          router.push(`/student/results/${sessionId}`)
         } catch (error) {
           // Error fetching tests, but reading test was submitted successfully
           console.error('❌ Error fetching associated tests:', error)
-          // Still redirect to results page
-          router.push(`/student/results/${params.id}`)
+          // Still redirect to results page using session ID if available
+          router.push(`/student/results/${sessionId}`)
         }
       } else {
         // Step 6: Handle submission failure

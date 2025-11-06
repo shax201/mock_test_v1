@@ -164,7 +164,8 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
     if (onSubmit) {
       try { onSubmit({ score, rows }) } catch {}
     }
-    setResultModalOpen(true)
+    // Don't show modal - let parent handle navigation to results page
+    // setResultModalOpen(true)
   }
 
   const handleSubmit = () => {

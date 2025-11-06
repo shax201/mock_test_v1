@@ -226,8 +226,96 @@ export default function WritingTestSubmissionDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="space-y-6">
+        {/* Header Skeleton */}
+        <div className="md:flex md:items-center md:justify-between">
+          <div className="flex-1 min-w-0">
+            <div className="h-8 bg-gray-200 rounded w-64 animate-pulse"></div>
+            <div className="mt-2 h-4 bg-gray-200 rounded w-96 animate-pulse"></div>
+          </div>
+          <div className="mt-4 flex md:mt-0 md:ml-4 space-x-3">
+            <div className="h-10 bg-gray-200 rounded w-40 animate-pulse"></div>
+            <div className="h-10 bg-gray-200 rounded w-36 animate-pulse"></div>
+          </div>
+        </div>
+
+        {/* Student Info Card Skeleton */}
+        <div className="bg-white shadow rounded-lg p-6">
+          <div className="h-6 bg-gray-200 rounded w-48 animate-pulse mb-4"></div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <div className="h-4 bg-gray-200 rounded w-16 animate-pulse mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-32 animate-pulse"></div>
+            </div>
+            <div>
+              <div className="h-4 bg-gray-200 rounded w-16 animate-pulse mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-48 animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Test Info Card Skeleton */}
+        <div className="bg-white shadow rounded-lg p-6">
+          <div className="h-6 bg-gray-200 rounded w-40 animate-pulse mb-4"></div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <div className="h-4 bg-gray-200 rounded w-24 animate-pulse mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-40 animate-pulse"></div>
+            </div>
+            <div>
+              <div className="h-4 bg-gray-200 rounded w-32 animate-pulse mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-36 animate-pulse"></div>
+            </div>
+            <div>
+              <div className="h-4 bg-gray-200 rounded w-24 animate-pulse mb-2"></div>
+              <div className="h-6 bg-gray-200 rounded-full w-20 animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Evaluation Form Skeleton */}
+        <div className="bg-white shadow rounded-lg p-6">
+          <div className="h-6 bg-gray-200 rounded w-48 animate-pulse mb-4"></div>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <div className="h-4 bg-gray-200 rounded w-32 animate-pulse mb-2"></div>
+                <div className="h-10 bg-gray-200 rounded w-full animate-pulse"></div>
+              </div>
+              <div>
+                <div className="h-4 bg-gray-200 rounded w-32 animate-pulse mb-2"></div>
+                <div className="h-10 bg-gray-200 rounded w-full animate-pulse"></div>
+              </div>
+            </div>
+            <div className="h-10 bg-gray-200 rounded w-40 animate-pulse"></div>
+          </div>
+        </div>
+
+        {/* Passage Skeleton */}
+        <div className="bg-white shadow rounded-lg p-6">
+          <div className="h-6 bg-gray-200 rounded w-48 animate-pulse mb-4"></div>
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+            <div className="h-4 bg-gray-200 rounded w-32 animate-pulse mb-2"></div>
+            <div className="space-y-2">
+              <div className="h-4 bg-gray-200 rounded w-full animate-pulse"></div>
+              <div className="h-4 bg-gray-200 rounded w-full animate-pulse"></div>
+              <div className="h-4 bg-gray-200 rounded w-3/4 animate-pulse"></div>
+            </div>
+          </div>
+          <div className="border-t border-gray-200 pt-6">
+            <div className="h-5 bg-gray-200 rounded w-32 animate-pulse mb-4"></div>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="h-4 bg-gray-200 rounded w-40 animate-pulse mb-2"></div>
+              <div className="bg-white rounded border border-gray-300 p-4 min-h-[200px]">
+                <div className="space-y-2">
+                  <div className="h-4 bg-gray-200 rounded w-full animate-pulse"></div>
+                  <div className="h-4 bg-gray-200 rounded w-full animate-pulse"></div>
+                  <div className="h-4 bg-gray-200 rounded w-5/6 animate-pulse"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }

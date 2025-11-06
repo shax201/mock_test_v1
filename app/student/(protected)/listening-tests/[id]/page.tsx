@@ -70,6 +70,9 @@ export default function StudentListeningTestPage({ params }: { params: Promise<{
       if (response.ok) {
         console.log('✅ Listening test results saved successfully:', data)
 
+        // Get session ID from response for more accurate navigation
+        const sessionId = data.session?.id || id
+
         // Step 4: Get reading test ID from the response
         const readingTestId = data.readingTestId
 
@@ -96,27 +99,13 @@ export default function StudentListeningTestPage({ params }: { params: Promise<{
           }
 
           // Step 7: No writing test found, redirect to results page
+          // Use reading test ID to show combined results
           console.log('ℹ️ No writing test found, redirecting to results')
           router.push(`/student/results/${readingTestId}`)
         } else {
-          // No reading test associated, just show completion message
-          alert(
-            `Listening test completed! Score: ${results.score}/40, Band: ${((raw: number) => {
-              if (raw >= 39) return 9
-              if (raw >= 37) return 8.5
-              if (raw >= 35) return 8
-              if (raw >= 32) return 7.5
-              if (raw >= 30) return 7
-              if (raw >= 26) return 6.5
-              if (raw >= 23) return 6
-              if (raw >= 18) return 5.5
-              if (raw >= 16) return 5
-              if (raw >= 13) return 4.5
-              if (raw >= 10) return 4
-              if (raw >= 8) return 3.5
-              return 0
-            })(results.score)}\nResults have been saved successfully.`
-          )
+          // No reading test associated, redirect to listening test results using session ID
+          console.log('ℹ️ No reading test associated, redirecting to results')
+          router.push(`/student/results/${sessionId}`)
         }
       } else {
         // Step 8: Handle submission failure
