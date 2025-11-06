@@ -1,29 +1,8 @@
-'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import listeningData from './listening-test-data.json'
 
-type ResultRow = { question: number; userAnswer: string; correctAnswer: string; isCorrect: boolean }
-
 export default function FullExamListeningPage() {
-  const [currentPart, setCurrentPart] = useState<number>(1)
-  const [currentQuestion, setCurrentQuestion] = useState<number>(1)
-  const [isSubmitted, setIsSubmitted] = useState<boolean>(false)
-  const [isReviewTime, setIsReviewTime] = useState<boolean>(false)
-  const [overlayStage, setOverlayStage] = useState<'instructions' | 'loading' | 'play' | 'hidden'>('instructions')
-  const [totalTime, setTotalTime] = useState<number>(0)
-  const [results, setResults] = useState<{ score: number; rows: ResultRow[] } | null>(null)
-  const [resultModalOpen, setResultModalOpen] = useState<boolean>(false)
-
-  const audioRef = useRef<HTMLAudioElement | null>(null)
-  const timerRef = useRef<number | null>(null)
-  const selectionRef = useRef<Range | null>(null)
-
-  const audioSource = (listeningData as any).audioSource as string
-
-  // Answers map
-  const correctAnswers = useMemo(() => ((listeningData as any).correctAnswers as Record<string, string | string[]>), [])
-
+  const data = listeningData as any
   // Timer helpers
   const formatTime = useCallback((seconds: number) => {
     const min = Math.floor(seconds / 60)

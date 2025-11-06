@@ -114,9 +114,25 @@ export default function StudentReadingTestPage() {
       if (response.ok) {
         console.log('✅ Reading test results saved successfully:', data)
 
-        // Step 4: Fetch associated writing test for navigation
-        // Check if there's a writing test based on this reading test
+        // Step 4: Check for associated listening test first
         try {
+          const listeningTestResponse = await fetch(
+            `/api/student/listening-tests/by-reading-test/${params.id}`
+          )
+
+          if (listeningTestResponse.ok) {
+            const listeningTestData = await listeningTestResponse.json()
+            const listeningTestId = listeningTestData.listeningTest?.id
+
+            if (listeningTestId) {
+              // Step 5: Navigate to listening test page
+              console.log('🎧 Navigating to listening test:', listeningTestId)
+              router.push(`/student/listening-tests/${listeningTestId}`)
+              return // Exit early on successful navigation
+            }
+          }
+
+          // Step 6: If no listening test, check for writing test
           const writingTestResponse = await fetch(
             `/api/student/writing-tests/by-reading-test/${params.id}`
           )
@@ -126,31 +142,21 @@ export default function StudentReadingTestPage() {
             const writingTestId = writingTestData.writingTest?.id
 
             if (writingTestId) {
-              // Step 5: Navigate to writing test page
-              // Redirect to the writing test page after successful submission
+              // Step 7: Navigate to writing test page
               console.log('📝 Navigating to writing test:', writingTestId)
               router.push(`/student/writing-tests/${writingTestId}`)
               return // Exit early on successful navigation
-            } else {
-              // No writing test found, but reading test was submitted successfully
-              console.log('ℹ️ No writing test found for this reading test')
-              alert(
-                `Reading test completed! Score: ${results.score}/${results.details.length}, Band: ${results.band}\nResults have been saved successfully.`
-              )
             }
-          } else {
-            // Writing test fetch failed, but reading test was submitted
-            console.warn('⚠️ Could not fetch writing test, but reading test was saved')
-            alert(
-              `Reading test completed! Score: ${results.score}/${results.details.length}, Band: ${results.band}\nResults have been saved successfully.`
-            )
           }
-        } catch (writingTestError) {
-          // Error fetching writing test, but reading test was submitted successfully
-          console.error('❌ Error fetching writing test:', writingTestError)
-          alert(
-            `Reading test completed! Score: ${results.score}/${results.details.length}, Band: ${results.band}\nResults have been saved successfully.`
-          )
+
+          // Step 8: No listening or writing test found, redirect to results
+          console.log('ℹ️ No listening or writing test found, redirecting to results')
+          router.push(`/student/results/${params.id}`)
+        } catch (error) {
+          // Error fetching tests, but reading test was submitted successfully
+          console.error('❌ Error fetching associated tests:', error)
+          // Still redirect to results page
+          router.push(`/student/results/${params.id}`)
         }
       } else {
         // Step 6: Handle submission failure

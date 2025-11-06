@@ -15,6 +15,7 @@ interface QuestionSectionProps {
   passageConfigs: any[]
   onAdd: (question: any) => void
   onRemove: (id: number) => void
+  onUpdate?: (id: number, question: any) => void
 }
 
 const QUESTION_TYPES = [
@@ -35,8 +36,10 @@ export default function QuestionSection({
   passageConfigs,
   onAdd,
   onRemove,
+  onUpdate,
 }: QuestionSectionProps) {
   const [isExpanded, setIsExpanded] = useState(true)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [formData, setFormData] = useState({
     passageId: "",
     part: "1",
@@ -125,15 +128,60 @@ export default function QuestionSection({
       }
     }
 
-    onAdd({
+    const questionData = {
       ...formData,
       subQuestions:
         formData.subQuestions.length > 0
           ? formData.subQuestions.map((sq) => ({ number: sq.number, answer: sq.answer }))
           : undefined,
-    })
+    }
+
+    if (editingId !== null && onUpdate) {
+      onUpdate(editingId, questionData)
+      setEditingId(null)
+    } else {
+      onAdd(questionData)
+    }
 
     // Reset form
+    setFormData({
+      passageId: "",
+      part: "1",
+      number: questions.length + 1,
+      questionType: "MCQ",
+      text: "",
+      options: ["", "", "", ""],
+      correctAnswer: "",
+      subQuestions: [],
+    })
+  }
+
+  const handleEditQuestion = (question: any) => {
+    setEditingId(question.id)
+    setFormData({
+      passageId: question.passageId || "",
+      part: question.part || "1",
+      number: question.questionNumber || question.number || 1,
+      questionType: question.type || question.questionType || "MCQ",
+      text: question.questionText || question.text || "",
+      options: question.options && Array.isArray(question.options) 
+        ? question.options.length > 0 
+          ? question.options 
+          : ["", "", "", ""]
+        : ["", "", "", ""],
+      correctAnswer: question.correctAnswer || "",
+      subQuestions: question.subQuestions && Array.isArray(question.subQuestions)
+        ? question.subQuestions.map((sq: any) => ({
+            number: String(sq.number || sq.questionNumber || ""),
+            answer: sq.answer || ""
+          }))
+        : [],
+    })
+    setIsExpanded(true)
+  }
+
+  const handleCancelEdit = () => {
+    setEditingId(null)
     setFormData({
       passageId: "",
       part: "1",
@@ -163,7 +211,9 @@ export default function QuestionSection({
     <div className="space-y-4">
       <Card className="p-4">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-lg">Add New Question</h3>
+          <h3 className="font-semibold text-lg">
+            {editingId !== null ? "Edit Question" : "Add New Question"}
+          </h3>
           <button onClick={() => setIsExpanded(!isExpanded)}>
             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
@@ -404,10 +454,17 @@ export default function QuestionSection({
               </div>
             )}
 
-            <Button onClick={handleAddQuestion} className="w-full gap-2">
-              <Plus className="w-4 h-4" />
-              Add Question
-            </Button>
+            <div className="flex gap-2">
+              {editingId !== null && (
+                <Button variant="outline" onClick={handleCancelEdit} className="flex-1">
+                  Cancel
+                </Button>
+              )}
+              <Button onClick={handleAddQuestion} className={editingId !== null ? "flex-1 gap-2" : "w-full gap-2"}>
+                <Plus className="w-4 h-4" />
+                {editingId !== null ? "Update Question" : "Add Question"}
+              </Button>
+            </div>
           </div>
         )}
       </Card>
@@ -416,37 +473,64 @@ export default function QuestionSection({
         <Card className="p-4">
           <h3 className="font-semibold mb-4">Added Questions ({questions.length})</h3>
           <div className="space-y-3">
-            {questions.map((question) => (
-              <div key={question.id} className="p-3 border rounded bg-muted/30">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1">
-                    <p className="font-medium">
-                      Q{question.number} - {question.questionType}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Part {question.part}</p>
+            {questions.map((question) => {
+              const questionType = question.type || question.questionType || "MCQ"
+              const questionNumber = question.questionNumber || question.number || 0
+              const questionText = question.questionText || question.text || ""
+              const passage = passages.find((p) => String(p.id) === String(question.passageId))
+              
+              return (
+                <div key={question.id} className="p-3 border rounded bg-muted/30">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1">
+                      <p className="font-medium">
+                        Q{questionNumber} - {questionType}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {passage ? `Passage: ${passage.title}` : ""} • Part {question.part || "1"}
+                      </p>
+                    </div>
+                    <div className="flex gap-1 ml-2">
+                      {onUpdate && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleEditQuestion(question)}
+                          disabled={editingId === question.id}
+                        >
+                          Edit
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="sm" onClick={() => onRemove(question.id)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => onRemove(question.id)}>
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-                <p className="text-sm mb-2">{question.text}</p>
-                <div className="text-xs text-muted-foreground space-y-1">
-                  <p>
-                    <strong>Answer:</strong> {question.correctAnswer}
-                  </p>
-                  {question.subQuestions && question.subQuestions.length > 0 && (
-                    <div className="mt-2 pl-2 border-l-2 border-muted-foreground/50">
-                      <p className="font-medium">Sub-Questions:</p>
-                      {question.subQuestions.map((subQ: any, idx: number) => (
-                        <p key={idx} className="text-xs">
-                          Q{subQ.number}: {subQ.answer}
-                        </p>
-                      ))}
+                  <p className="text-sm mb-2 line-clamp-2">{questionText}</p>
+                  {question.options && Array.isArray(question.options) && question.options.length > 0 && (
+                    <div className="text-xs text-muted-foreground mb-2">
+                      <strong>Options:</strong> {question.options.slice(0, 2).join(", ")}
+                      {question.options.length > 2 && ` (+${question.options.length - 2} more)`}
                     </div>
                   )}
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <p>
+                      <strong>Answer:</strong> {question.correctAnswer || "N/A"}
+                    </p>
+                    {question.subQuestions && Array.isArray(question.subQuestions) && question.subQuestions.length > 0 && (
+                      <div className="mt-2 pl-2 border-l-2 border-muted-foreground/50">
+                        <p className="font-medium">Sub-Questions:</p>
+                        {question.subQuestions.map((subQ: any, idx: number) => (
+                          <p key={idx} className="text-xs">
+                            Q{subQ.number || subQ.questionNumber}: {subQ.answer}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </Card>
       )}

@@ -12,9 +12,11 @@ interface PassageConfigSectionProps {
   configs: any[]
   onAdd: (config: any) => void
   onRemove: (id: number) => void
+  onUpdate?: (id: number, config: any) => void
 }
 
-export default function PassageConfigSection({ configs, onAdd, onRemove }: PassageConfigSectionProps) {
+export default function PassageConfigSection({ configs, onAdd, onRemove, onUpdate }: PassageConfigSectionProps) {
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [formData, setFormData] = useState({
     part: "1",
     total: 13,
@@ -22,22 +24,64 @@ export default function PassageConfigSection({ configs, onAdd, onRemove }: Passa
   })
 
   const handleAddConfig = () => {
-    if (!formData.part || !formData.total || !formData.start) {
+    if (!formData.part || formData.total === undefined || formData.start === undefined) {
       alert("Please fill in all fields")
       return
     }
-    onAdd(formData)
+    
+    if (editingId !== null && onUpdate) {
+      onUpdate(editingId, {
+        part: Number.parseInt(formData.part),
+        total: formData.total,
+        start: formData.start,
+      })
+      setEditingId(null)
+      // Reset form after update
+      setFormData({
+        part: "1",
+        total: 13,
+        start: 1,
+      })
+    } else {
+      onAdd({
+        part: Number.parseInt(formData.part),
+        total: formData.total,
+        start: formData.start,
+      })
+      // Auto-increment for next config
+      const nextPart = Number.parseInt(formData.part) + 1
+      setFormData({
+        part: String(nextPart > 3 ? 1 : nextPart),
+        total: 13,
+        start: formData.start + formData.total,
+      })
+    }
+  }
+
+  const handleEditConfig = (config: any) => {
+    setEditingId(config.id)
     setFormData({
-      part: String(Number.parseInt(formData.part) + 1),
+      part: String(config.part || 1),
+      total: config.total ?? 0,
+      start: config.start ?? 1,
+    })
+  }
+
+  const handleCancelEdit = () => {
+    setEditingId(null)
+    setFormData({
+      part: "1",
       total: 13,
-      start: formData.start + formData.total,
+      start: 1,
     })
   }
 
   return (
     <div className="space-y-4">
       <Card className="p-4">
-        <h3 className="font-semibold mb-4">Add Passage Configuration</h3>
+        <h3 className="font-semibold mb-4">
+          {editingId !== null ? "Edit Passage Configuration" : "Add Passage Configuration"}
+        </h3>
         <div className="space-y-4">
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
@@ -77,10 +121,17 @@ export default function PassageConfigSection({ configs, onAdd, onRemove }: Passa
             </div>
           </div>
 
-          <Button onClick={handleAddConfig} className="w-full gap-2">
-            <Plus className="w-4 h-4" />
-            Add Configuration
-          </Button>
+          <div className="flex gap-2">
+            {editingId !== null && (
+              <Button variant="outline" onClick={handleCancelEdit} className="flex-1">
+                Cancel
+              </Button>
+            )}
+            <Button onClick={handleAddConfig} className={editingId !== null ? "flex-1 gap-2" : "w-full gap-2"}>
+              <Plus className="w-4 h-4" />
+              {editingId !== null ? "Update Configuration" : "Add Configuration"}
+            </Button>
+          </div>
         </div>
       </Card>
 
@@ -88,19 +139,36 @@ export default function PassageConfigSection({ configs, onAdd, onRemove }: Passa
         <Card className="p-4">
           <h3 className="font-semibold mb-4">Added Configurations ({configs.length})</h3>
           <div className="space-y-2">
-            {configs.map((config) => (
-              <div key={config.id} className="p-3 border rounded flex items-center justify-between bg-muted/30">
-                <div>
-                  <p className="font-medium">Part {config.part}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Questions {config.start} - {config.start + config.total - 1} ({config.total} total)
-                  </p>
+            {configs.map((config) => {
+              const endQuestion = config.start + (config.total || 0) - 1
+              return (
+                <div key={config.id} className="p-3 border rounded bg-muted/30">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Part {config.part}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Questions {config.start} - {endQuestion} ({config.total || 0} total)
+                      </p>
+                    </div>
+                    <div className="flex gap-1 ml-2">
+                      {onUpdate && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleEditConfig(config)}
+                          disabled={editingId === config.id}
+                        >
+                          Edit
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="sm" onClick={() => onRemove(config.id)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => onRemove(config.id)}>
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </Card>
       )}

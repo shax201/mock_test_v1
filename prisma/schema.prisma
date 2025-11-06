@@ -33,6 +33,94 @@ enum QuestionType {
   MULTIPLE_CHOICE
 }
 
+// Listening Test Models
+
+enum ListeningQuestionType {
+  TEXT            // fill-in-the-blank input
+  RADIO           // single choice A/B/C
+  SELECT          // dropdown A-G
+}
+
+model ListeningTest {
+  id              String   @id @default(cuid())
+  title           String   @default("IELTS Listening Test")
+  audioSource     String   @map("audio_source")
+  instructions    Json     // array of strings
+  isActive        Boolean  @default(true)
+  readingTestId   String?  @map("reading_test_id") // Optional reference to associated reading test
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  parts ListeningPart[]
+  readingTest ReadingTest? @relation(fields: [readingTestId], references: [id], onDelete: SetNull)
+
+  @@map("listening_tests")
+}
+
+model ListeningPart {
+  id              String   @id @default(cuid())
+  listeningTestId String   @map("listening_test_id")
+  index           Int      // 1..4
+  title           String
+  prompt          Json     // array of strings (HTML-safe text)
+  sectionTitle    String?  // e.g., Booking a residential workshop, Crisis Communication Theory
+  courseRequired  String?  // Part 1 specific: "drama workshop"
+  // Matching metadata for parts using matching (2 and 3)
+  matchingHeading String?  // e.g., Staff Holiday Centres / Aspects of a debate
+  matchingOptions Json?    // array of option strings (A..., B..., ...)
+  // Notes structure for part 4 (non-question lines and hierarchy)
+  notesSections   Json?    // nested structure for headings/subsections/children
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  listeningTest ListeningTest @relation(fields: [listeningTestId], references: [id], onDelete: Cascade)
+  questions     ListeningQuestion[]
+
+  @@unique([listeningTestId, index])
+  @@map("listening_parts")
+}
+
+model ListeningQuestion {
+  id              String   @id @default(cuid())
+  listeningPartId String   @map("listening_part_id")
+  number          Int      // 1..40
+  type            ListeningQuestionType
+  // For TEXT questions (parts 1 and 4)
+  labelPrefix     String?  // Part 1: label area on the left (e.g., "Full name of participant:")
+  textPrefix      String?  // text before <input> (e.g., "Jan ")
+  textSuffix      String?  // text after <input> (e.g., " PM", " mentioned in the publicity")
+  // For RADIO questions
+  questionText    String?  // the question prompt sentence
+  options         Json?    // array of option strings (e.g., "A the pay")
+  // For SELECT questions (matching)
+  matchingLabel   String?  // label shown next to the dropdown (e.g., The Grange)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  part           ListeningPart   @relation(fields: [listeningPartId], references: [id], onDelete: Cascade)
+  correctAnswer  ListeningAnswer?
+
+  @@unique([listeningPartId, number])
+  @@map("listening_questions")
+}
+
+model ListeningAnswer {
+  id           String   @id @default(cuid())
+  questionId   String   @unique @map("question_id")
+  // Accept single string (e.g., "B") or array of acceptable strings for TEXT
+  answer       Json
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  question ListeningQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("listening_answers")
+}
+
 enum AssignmentStatus {
   PENDING
   ACTIVE
@@ -90,6 +178,7 @@ model ReadingTest {
   bandScoreRanges BandScoreRange[]
   passageConfigs  PassageConfig[]
   writingTests    WritingTest[]
+  listeningTests  ListeningTest[] // One reading test can have multiple listening tests
 
   @@map("reading_tests")
 }

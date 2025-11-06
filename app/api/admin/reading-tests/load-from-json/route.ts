@@ -36,12 +36,13 @@ export async function POST(request: NextRequest) {
     const jsonData = JSON.parse(fileContents)
     console.log('JSON parsed successfully')
 
-    const { test, passages, questions, correctAnswers, bandCalculation } = jsonData
+    const { test, passages, questions, correctAnswers, bandCalculation, passageConfigs } = jsonData
     console.log('Data extracted:', {
       testTitle: test.title,
       passagesCount: passages.length,
       questionsCount: Object.keys(questions).length,
-      answersCount: Object.keys(correctAnswers).length
+      answersCount: Object.keys(correctAnswers).length,
+      passageConfigsCount: passageConfigs?.length || 0
     })
 
     // Transform passages with their questions
@@ -114,9 +115,17 @@ export async function POST(request: NextRequest) {
       band: range.band
     }))
 
+    // Transform passage configs
+    const transformedPassageConfigs = passageConfigs?.map((config: any) => ({
+      part: config.part,
+      total: config.total,
+      start: config.start
+    })) || []
+
     console.log('📊 Data transformation completed')
     console.log('Passages to create:', transformedPassages.length)
     console.log('Band ranges to create:', transformedBandScoreRanges.length)
+    console.log('Passage configs to create:', transformedPassageConfigs.length)
 
     // Create the reading test
     console.log('💾 Creating reading test in database...')
@@ -130,6 +139,9 @@ export async function POST(request: NextRequest) {
         },
         bandScoreRanges: {
           create: transformedBandScoreRanges
+        },
+        passageConfigs: {
+          create: transformedPassageConfigs
         }
       },
       include: {
@@ -143,7 +155,12 @@ export async function POST(request: NextRequest) {
             contents: true
           }
         },
-        bandScoreRanges: true
+        bandScoreRanges: true,
+        passageConfigs: {
+          orderBy: {
+            part: 'asc'
+          }
+        }
       }
     })
 

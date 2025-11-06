@@ -312,17 +312,22 @@ export default function TestResultsAnalysis({ testId, initialTab }: TestResultsA
             </div>
 
             {/* Reading Card */}
-            {typeof results.bandScores?.reading === 'number' && results.bandScores.reading > 0 && (
+            {typeof results.bandScores?.reading === 'number' && (
               <div className="bg-white border border-gray-300 rounded-lg p-6 text-center min-w-[150px]">
-                <div className="text-4xl font-bold text-gray-900 mb-2">{results.bandScores.reading}</div>
+                <div className="text-4xl font-bold text-gray-900 mb-2">
+                  {results.bandScores.reading > 0 ? results.bandScores.reading.toFixed(1) : '0.0'}
+                </div>
                 <div className="text-sm text-gray-600 mb-1">Band Score</div>
                 <div className="text-sm font-medium text-gray-800">READING</div>
               </div>
             )}
-            {/* Reading Card (fallback for detailedScores) */}
-            {(!results.bandScores?.reading || results.bandScores.reading === 0) && results.detailedScores?.reading && (
+            {/* Reading Card (fallback for detailedScores when bandScores.reading is not set) */}
+            {(results.bandScores?.reading === undefined || results.bandScores?.reading === null) && 
+             (results.detailedScores?.band || results.detailedScores?.reading) && (
               <div className="bg-white border border-gray-300 rounded-lg p-6 text-center min-w-[150px]">
-                <div className="text-4xl font-bold text-gray-900 mb-2">{results.detailedScores.reading.bandScore || 0}</div>
+                <div className="text-4xl font-bold text-gray-900 mb-2">
+                  {(results.detailedScores?.reading?.bandScore || results.detailedScores?.band || 0).toFixed(1)}
+                </div>
                 <div className="text-sm text-gray-600 mb-1">Band Score</div>
                 <div className="text-sm font-medium text-gray-800">READING</div>
               </div>

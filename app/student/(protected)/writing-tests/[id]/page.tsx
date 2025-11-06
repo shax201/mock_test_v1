@@ -61,6 +61,13 @@ export default function StudentWritingTestPage() {
   const [isResizing, setIsResizing] = useState(false)
   const [showEvaluationModal, setShowEvaluationModal] = useState(false)
   const [submittedSessionId, setSubmittedSessionId] = useState<string | null>(null)
+  const [readingTestId, setReadingTestId] = useState<string | null>(null)
+  const [showOptionsModal, setShowOptionsModal] = useState(false)
+  const [showContrastPanel, setShowContrastPanel] = useState(false)
+  const [showTextSizePanel, setShowTextSizePanel] = useState(false)
+  const [showInstructionsPanel, setShowInstructionsPanel] = useState(false)
+  const [contrastTheme, setContrastTheme] = useState<'black-on-white' | 'white-on-black' | 'yellow-on-black'>('black-on-white')
+  const [textSize, setTextSize] = useState<'regular' | 'large' | 'extra-large'>('regular')
   
   const passagePanelRef = useRef<HTMLDivElement>(null)
   const questionsPanelRef = useRef<HTMLDivElement>(null)
@@ -172,8 +179,8 @@ export default function StudentWritingTestPage() {
   const handleModalClose = () => {
     setShowEvaluationModal(false)
     // Navigate to results page to view submitted test with question-wise review
-    // Use the writing test ID or session ID for results
-    const resultsTestId = submittedSessionId || params.id
+    // Use the reading test ID if available, otherwise use writing test ID
+    const resultsTestId = readingTestId || params.id
     router.push(`/student/results/${resultsTestId}?tab=question-wise`)
   }
 
@@ -213,9 +220,12 @@ export default function StudentWritingTestPage() {
       // Step 3: Handle submission result
       if (response.ok) {
         console.log('✅ Writing test results saved successfully:', data)
-        // Store session ID for navigation to results
+        // Store session ID and reading test ID for navigation to results
         if (data.session?.id) {
           setSubmittedSessionId(data.session.id)
+        }
+        if (data.readingTestId) {
+          setReadingTestId(data.readingTestId)
         }
         // Show evaluation modal instead of redirecting immediately
         setShowEvaluationModal(true)
@@ -277,7 +287,7 @@ export default function StudentWritingTestPage() {
   const task2Question = task2?.questions[0]
 
   return (
-    <div className={styles.mainContainer}>
+    <div className={`${styles.mainContainer} contrast-${contrastTheme} text-size-${textSize}`}>
       {/* Header - Matching reading test style */}
       <div className={styles.header}>
         <div className={styles.headerLeft}>
@@ -285,10 +295,21 @@ export default function StudentWritingTestPage() {
         </div>
         <div className={styles.headerRight}>
           {testStarted && (
-            <div className={styles.timerContainer}>
-              <span>Time Remaining:</span>
-              <span className={styles.timerDisplay}>{formatTime(timeRemaining)}</span>
-            </div>
+            <>
+              <button
+                className={styles.headerMenuBtn}
+                onClick={() => setShowOptionsModal(true)}
+                title="Menu"
+              >
+                <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+                </svg>
+              </button>
+              <div className={styles.timerContainer}>
+                <span>Time Remaining:</span>
+                <span className={styles.timerDisplay}>{formatTime(timeRemaining)}</span>
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -491,6 +512,230 @@ export default function StudentWritingTestPage() {
                 OK
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Options Modal */}
+      {showOptionsModal && (
+        <div 
+          className={styles.optionsModalOverlay}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowOptionsModal(false)
+            }
+          }}
+        >
+          <div className={styles.optionsModal}>
+            <h2 className={styles.optionsModalTitle}>Options</h2>
+            {!showContrastPanel && !showTextSizePanel && !showInstructionsPanel ? (
+              <div className={styles.optionsMenuList}>
+                <div 
+                  className={styles.optionsMenuItem}
+                  onClick={() => setShowContrastPanel(true)}
+                >
+                  <div className={styles.optionsMenuItemLeft}>
+                    <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2"/>
+                      <path d="M12 2 A 10 10 0 0 1 12 22 Z" fill="currentColor"/>
+                    </svg>
+                    <span>Contrast</span>
+                  </div>
+                  <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
+                  </svg>
+                </div>
+                <div className={styles.optionsMenuDivider}></div>
+                <div 
+                  className={styles.optionsMenuItem}
+                  onClick={() => setShowTextSizePanel(true)}
+                >
+                  <div className={styles.optionsMenuItemLeft}>
+                    <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                      <path d="M12 10h-2v2H9v-2H7V9h2V7h1v2h2v1z"/>
+                    </svg>
+                    <span>Text size</span>
+                  </div>
+                  <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
+                  </svg>
+                </div>
+                <div className={styles.optionsMenuDivider}></div>
+                <div 
+                  className={styles.optionsMenuItem}
+                  onClick={() => setShowInstructionsPanel(true)}
+                >
+                  <div className={styles.optionsMenuItemLeft}>
+                    <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="10" fill="currentColor"/>
+                      <path d="M12 8v4M12 16h.01" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                    <span>Test Instructions</span>
+                  </div>
+                  <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
+                  </svg>
+                </div>
+              </div>
+            ) : showContrastPanel ? (
+              <div className={styles.contrastPanel}>
+                <div className={styles.contrastPanelHeader}>
+                  <button 
+                    className={styles.contrastBackButton}
+                    onClick={() => setShowContrastPanel(false)}
+                  >
+                    <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+                    </svg>
+                  </button>
+                  <h3 className={styles.contrastPanelTitle}>Contrast</h3>
+                </div>
+                <div className={styles.contrastOptionsList}>
+                  <div 
+                    className={styles.contrastOption}
+                    onClick={() => setContrastTheme('black-on-white')}
+                  >
+                    <div className={styles.contrastCheckmarkContainer}>
+                      {contrastTheme === 'black-on-white' && (
+                        <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24" className={styles.contrastCheckmark}>
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                        </svg>
+                      )}
+                    </div>
+                    <span>Black on white</span>
+                  </div>
+                  <div className={styles.contrastOptionDivider}></div>
+                  <div 
+                    className={styles.contrastOption}
+                    onClick={() => setContrastTheme('white-on-black')}
+                  >
+                    <div className={styles.contrastCheckmarkContainer}>
+                      {contrastTheme === 'white-on-black' && (
+                        <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24" className={styles.contrastCheckmark}>
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                        </svg>
+                      )}
+                    </div>
+                    <span>White on black</span>
+                  </div>
+                  <div className={styles.contrastOptionDivider}></div>
+                  <div 
+                    className={styles.contrastOption}
+                    onClick={() => setContrastTheme('yellow-on-black')}
+                  >
+                    <div className={styles.contrastCheckmarkContainer}>
+                      {contrastTheme === 'yellow-on-black' && (
+                        <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24" className={styles.contrastCheckmark}>
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                        </svg>
+                      )}
+                    </div>
+                    <span>Yellow on black</span>
+                  </div>
+                </div>
+              </div>
+            ) : showTextSizePanel ? (
+              <div className={styles.contrastPanel}>
+                <div className={styles.contrastPanelHeader}>
+                  <button 
+                    className={styles.contrastBackButton}
+                    onClick={() => setShowTextSizePanel(false)}
+                  >
+                    <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+                    </svg>
+                  </button>
+                  <h3 className={styles.contrastPanelTitle}>Text size</h3>
+                </div>
+                <div className={styles.contrastOptionsList}>
+                  <div 
+                    className={styles.contrastOption}
+                    onClick={() => setTextSize('regular')}
+                  >
+                    <div className={styles.contrastCheckmarkContainer}>
+                      {textSize === 'regular' && (
+                        <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24" className={styles.contrastCheckmark}>
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                        </svg>
+                      )}
+                    </div>
+                    <span>Regular</span>
+                  </div>
+                  <div className={styles.contrastOptionDivider}></div>
+                  <div 
+                    className={styles.contrastOption}
+                    onClick={() => setTextSize('large')}
+                  >
+                    <div className={styles.contrastCheckmarkContainer}>
+                      {textSize === 'large' && (
+                        <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24" className={styles.contrastCheckmark}>
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                        </svg>
+                      )}
+                    </div>
+                    <span>Large</span>
+                  </div>
+                  <div className={styles.contrastOptionDivider}></div>
+                  <div 
+                    className={styles.contrastOption}
+                    onClick={() => setTextSize('extra-large')}
+                  >
+                    <div className={styles.contrastCheckmarkContainer}>
+                      {textSize === 'extra-large' && (
+                        <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24" className={styles.contrastCheckmark}>
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                        </svg>
+                      )}
+                    </div>
+                    <span>Extra Large</span>
+                  </div>
+                </div>
+              </div>
+            ) : showInstructionsPanel ? (
+              <div className={styles.contrastPanel}>
+                <div className={styles.contrastPanelHeader}>
+                  <button 
+                    className={styles.contrastBackButton}
+                    onClick={() => setShowInstructionsPanel(false)}
+                  >
+                    <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+                    </svg>
+                  </button>
+                  <h3 className={styles.contrastPanelTitle}>Test Instructions</h3>
+                </div>
+                <div className={styles.instructionsContent}>
+                  <div className={styles.instructionsSection}>
+                    <h4 className={styles.instructionsSectionTitle}>General Instructions</h4>
+                    <ul className={styles.instructionsList}>
+                      <li>You will have {testData.test.totalTimeMinutes} minutes to complete this test.</li>
+                      <li>The test consists of 2 writing tasks.</li>
+                      <li>Complete both tasks within the time limit.</li>
+                      <li>You can navigate between tasks using the task buttons at the bottom.</li>
+                      <li>Your answers will be saved when you submit the test.</li>
+                    </ul>
+                  </div>
+                  <div className={styles.instructionsSection}>
+                    <h4 className={styles.instructionsSectionTitle}>Task Requirements</h4>
+                    <ul className={styles.instructionsList}>
+                      <li><strong>Task 1:</strong> Write at least 150 words (20 minutes recommended). This task requires you to describe, summarize, or explain information from a graph, chart, or diagram.</li>
+                      <li><strong>Task 2:</strong> Write at least 250 words (40 minutes recommended). This task requires you to write an essay in response to a point of view, argument, or problem.</li>
+                    </ul>
+                  </div>
+                  <div className={styles.instructionsSection}>
+                    <h4 className={styles.instructionsSectionTitle}>Tips</h4>
+                    <ul className={styles.instructionsList}>
+                      <li>Plan your writing before you start - spend a few minutes organizing your ideas.</li>
+                      <li>Pay attention to word count requirements - Task 1 needs at least 150 words, Task 2 needs at least 250 words.</li>
+                      <li>Use appropriate academic vocabulary and formal language.</li>
+                      <li>Check your grammar, spelling, and punctuation before submitting.</li>
+                      <li>Manage your time wisely - allocate more time for Task 2 as it carries more weight.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       )}

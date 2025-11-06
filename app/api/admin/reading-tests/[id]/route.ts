@@ -40,6 +40,11 @@ export async function GET(
           orderBy: {
             minScore: 'desc'
           }
+        },
+        passageConfigs: {
+          orderBy: {
+            part: 'asc'
+          }
         }
       }
     })
@@ -76,7 +81,7 @@ export async function PUT(
 
     const { id } = await params
 
-    const { title, totalQuestions, totalTimeMinutes, passages, bandScoreRanges } = await request.json()
+    const { title, totalQuestions, totalTimeMinutes, passages, bandScoreRanges, passageConfigs } = await request.json()
 
     if (!title) {
       return NextResponse.json(
@@ -163,7 +168,53 @@ export async function PUT(
       })
     }
 
-    return NextResponse.json({ readingTest })
+    // If passage configs are provided, update them
+    if (passageConfigs) {
+      await prisma.passageConfig.deleteMany({
+        where: { readingTestId: id }
+      })
+
+      await prisma.passageConfig.createMany({
+        data: passageConfigs.map((config: any) => ({
+          readingTestId: id,
+          part: config.part,
+          total: config.total,
+          start: config.start
+        }))
+      })
+    }
+
+    // Fetch updated reading test with all relations
+    const updatedReadingTest = await prisma.readingTest.findUnique({
+      where: { id },
+      include: {
+        passages: {
+          include: {
+            questions: {
+              include: {
+                correctAnswer: true
+              }
+            },
+            contents: true
+          },
+          orderBy: {
+            order: 'asc'
+          }
+        },
+        bandScoreRanges: {
+          orderBy: {
+            minScore: 'desc'
+          }
+        },
+        passageConfigs: {
+          orderBy: {
+            part: 'asc'
+          }
+        }
+      }
+    })
+
+    return NextResponse.json({ readingTest: updatedReadingTest })
   } catch (error) {
     console.error('Error updating reading test:', error)
     return NextResponse.json(

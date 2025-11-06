@@ -358,7 +358,7 @@ export default function StudentTests() {
                       CD-IELTS Mocks
                   </button>
                   
-                  <button
+                  {/* <button
                     onClick={() => setActiveSidebarItem('item-wise')}
                     className={`w-full flex items-center px-3 py-3 text-sm font-medium transition-colors relative ${
                       activeSidebarItem === 'item-wise'
@@ -370,7 +370,7 @@ export default function StudentTests() {
                       <div className="absolute right-0 top-0 bottom-0 w-1 bg-green-500"></div>
                     )}
                     Item-wise Tests
-                  </button>
+                  </button> */}
                 </div>
               </nav>
             </div>

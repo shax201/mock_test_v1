@@ -40,7 +40,14 @@ export async function POST(
     // Step 3: Verify writing test exists
     // Check if the writing test is active and available
     const writingTest = await prisma.writingTest.findUnique({
-      where: { id: resolvedParams.id, isActive: true }
+      where: { id: resolvedParams.id, isActive: true },
+      include: {
+        readingTest: {
+          select: {
+            id: true
+          }
+        }
+      }
     })
 
     if (!writingTest) {
@@ -101,7 +108,8 @@ export async function POST(
         completedAt: session.completedAt?.toISOString() || null,
         createdAt: session.createdAt.toISOString(),
         updatedAt: session.updatedAt.toISOString()
-      }
+      },
+      readingTestId: writingTest.readingTest?.id || null
     })
   } catch (error) {
     // Step 8: Handle errors
