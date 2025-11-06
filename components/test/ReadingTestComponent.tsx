@@ -143,10 +143,20 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
   }, [clearSelection]);
 
   const onContextMenu = useCallback((e: React.MouseEvent) => {
-    if ((e.target as HTMLElement)?.closest('input, textarea, select, .answer-input')) return;
-    e.preventDefault();
+    const target = e.target as HTMLElement;
+    // Don't interfere with input fields, buttons, or form elements
+    // Early return for any input-related elements
+    if (target.tagName === 'INPUT' || 
+        target.tagName === 'TEXTAREA' || 
+        target.tagName === 'SELECT' || 
+        target.tagName === 'BUTTON' ||
+        target.closest('input, textarea, select, button') !== null) {
+      return; // Allow default behavior for input fields
+    }
+    
     const sel = window.getSelection();
     if (sel && sel.toString().trim().length > 0) {
+      e.preventDefault();
       selectionRef.current = sel.getRangeAt(0).cloneRange();
       const menu = contextMenuRef.current;
       if (menu) {
@@ -154,10 +164,9 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
         menu.style.top = `${e.pageY}px`;
         menu.style.display = 'block';
       }
-    } else {
-      clearSelection();
     }
-  }, [clearSelection]);
+    // If no selection, don't prevent default - allow normal context menu
+  }, []);
 
   const closeContextMenu = useCallback(() => {
     if (contextMenuRef.current) {
