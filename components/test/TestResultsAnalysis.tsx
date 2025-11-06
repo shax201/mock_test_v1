@@ -41,6 +41,17 @@ interface TestResultsData {
       isCorrect: boolean
       explanation?: string
     }>
+    writing?: Array<{
+      id: string
+      question: string
+      type: string
+      part: number
+      studentAnswer: string
+      correctAnswer: string
+      isCorrect: boolean | null
+      explanation?: string
+      wordCount?: number
+    }>
   }
   feedback?: {
     writing: Array<{
@@ -55,6 +66,7 @@ interface TestResultsData {
 
 interface TestResultsAnalysisProps {
   testId: string
+  initialTab?: 'brief' | 'writing' | 'question-wise'
 }
 
 interface RemedialTest {
@@ -73,14 +85,21 @@ interface RemedialTest {
   }
 }
 
-export default function TestResultsAnalysis({ testId }: TestResultsAnalysisProps) {
+export default function TestResultsAnalysis({ testId, initialTab }: TestResultsAnalysisProps) {
   const [loading, setLoading] = useState(true)
   const [results, setResults] = useState<TestResultsData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [remedialTests, setRemedialTests] = useState<RemedialTest[]>([])
   const [remedialLoading, setRemedialLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<'self-analysis' | 'remedial'>('self-analysis')
-  const [activeSubTab, setActiveSubTab] = useState<'brief' | 'listening' | 'reading' | 'writing' | 'question-wise'>('brief')
+  const [activeSubTab, setActiveSubTab] = useState<'brief' | 'writing' | 'question-wise'>(initialTab || 'brief')
+  
+  // Update sub tab when initialTab changes
+  useEffect(() => {
+    if (initialTab) {
+      setActiveSubTab(initialTab)
+    }
+  }, [initialTab])
 
   const fetchRemedialTests = async (mockTestId: string) => {
     try {
@@ -237,8 +256,6 @@ export default function TestResultsAnalysis({ testId }: TestResultsAnalysisProps
             <div className="flex space-x-8 mb-8 border-b border-gray-200">
               {[
                 { key: 'brief', label: 'Brief' },
-                { key: 'listening', label: 'Listening' },
-                { key: 'reading', label: 'Reading' },
                 { key: 'writing', label: 'Writing' },
                 { key: 'question-wise', label: 'Question-wise' }
               ].map((tab) => (
@@ -269,23 +286,29 @@ export default function TestResultsAnalysis({ testId }: TestResultsAnalysisProps
               <div className="text-sm font-medium text-gray-800">LISTENING</div>
             </div>
 
-            {/* Reading Card (optional) */}
-            {results.detailedScores?.reading && (
+            {/* Reading Card */}
+            {typeof results.bandScores?.reading === 'number' && results.bandScores.reading > 0 && (
               <div className="bg-white border border-gray-300 rounded-lg p-6 text-center min-w-[150px]">
-                <div className="text-4xl font-bold text-gray-900 mb-2">{results.detailedScores.reading.bandScore}</div>
+                <div className="text-4xl font-bold text-gray-900 mb-2">{results.bandScores.reading}</div>
+                <div className="text-sm text-gray-600 mb-1">Band Score</div>
+                <div className="text-sm font-medium text-gray-800">READING</div>
+              </div>
+            )}
+            {/* Reading Card (fallback for detailedScores) */}
+            {(!results.bandScores?.reading || results.bandScores.reading === 0) && results.detailedScores?.reading && (
+              <div className="bg-white border border-gray-300 rounded-lg p-6 text-center min-w-[150px]">
+                <div className="text-4xl font-bold text-gray-900 mb-2">{results.detailedScores.reading.bandScore || 0}</div>
                 <div className="text-sm text-gray-600 mb-1">Band Score</div>
                 <div className="text-sm font-medium text-gray-800">READING</div>
               </div>
             )}
 
-            {/* Writing Card (optional) */}
-            {typeof results.bandScores?.writing === 'number' && (
-              <div className="bg-white border border-gray-300 rounded-lg p-6 text-center min-w-[150px]">
-                <div className="text-4xl font-bold text-gray-900 mb-2">{results.bandScores.writing}</div>
-                <div className="text-sm text-gray-600 mb-1">Band Score</div>
-                <div className="text-sm font-medium text-gray-800">WRITING</div>
-              </div>
-            )}
+            {/* Writing Card */}
+            <div className="bg-white border border-gray-300 rounded-lg p-6 text-center min-w-[150px]">
+              <div className="text-4xl font-bold text-gray-900 mb-2">{results.bandScores?.writing ?? 0}</div>
+              <div className="text-sm text-gray-600 mb-1">Band Score</div>
+              <div className="text-sm font-medium text-gray-800">WRITING</div>
+            </div>
           </div>
 
               {/* Review Link */}
@@ -303,189 +326,29 @@ export default function TestResultsAnalysis({ testId }: TestResultsAnalysisProps
             </div>
           )}
 
-          {/* Reading Analysis */}
-          {activeTab === 'self-analysis' && activeSubTab === 'reading' && results.detailedScores?.reading && (
-            <div className="space-y-8">
-              {/* Performance Overview */}
-              <div className="bg-gray-50 rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-6">Performance Overview</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-blue-50 rounded-lg p-6 text-center">
-                    <div className="text-3xl font-bold text-blue-600 mb-2">{results.detailedScores.reading.correctAnswers}</div>
-                    <div className="text-sm font-medium text-blue-600">Correct Answers</div>
-                  </div>
-                  <div className="bg-green-50 rounded-lg p-6 text-center">
-                    <div className="text-3xl font-bold text-green-600 mb-2">{results.detailedScores.reading.totalQuestions}</div>
-                    <div className="text-sm font-medium text-green-600">Total Questions</div>
-                  </div>
-                  <div className="bg-purple-50 rounded-lg p-6 text-center">
-                    <div className="text-3xl font-bold text-purple-600 mb-2">{results.detailedScores.reading.accuracy}%</div>
-                    <div className="text-sm font-medium text-purple-600">Accuracy</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Part-wise Performance */}
-              <div className="bg-gray-50 rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-6">Part-wise Performance</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {Object.entries(results.detailedScores.reading.partScores).map(([part, data]: [string, any]) => (
-                    <div key={part} className="bg-white rounded-lg p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <h4 className="text-lg font-medium text-gray-900 capitalize">{part}</h4>
-                        <span className={`text-lg font-bold px-3 py-1 rounded-full ${
-                          data.bandScore >= 6 ? 'bg-green-100 text-green-800' :
-                          data.bandScore >= 4 ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {data.bandScore}
-                        </span>
-                      </div>
-                      <div className="text-sm text-gray-600 mb-3">
-                        {data.correct}/{data.total} correct
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3">
-                        <div 
-                          className="bg-blue-600 h-3 rounded-full transition-all duration-1000"
-                          style={{ width: `${(data.correct / data.total) * 100}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Question Type Performance */}
-              {results.detailedScores.reading.questionTypeScores.length > 0 && (
-                <div className="bg-gray-50 rounded-lg p-6">
-                  <h3 className="text-xl font-semibold text-gray-900 mb-6">Question Type Performance</h3>
-                  <div className="space-y-4">
-                    {results.detailedScores.reading.questionTypeScores.map((item: any, index: number) => (
-                      <div key={index} className="flex items-center justify-between p-4 bg-white rounded-lg">
-                        <div className="flex-1">
-                          <div className="text-lg font-medium text-gray-900">{item.type}</div>
-                          <div className="text-sm text-gray-500">{item.correct}/{item.total} correct</div>
-                        </div>
-                        <div className="flex items-center space-x-6">
-                          <div className="w-32 bg-gray-200 rounded-full h-3">
-                            <div 
-                              className="bg-blue-600 h-3 rounded-full transition-all duration-1000"
-                              style={{ width: `${item.accuracy}%` }}
-                            ></div>
-                          </div>
-                          <div className="text-lg font-medium text-gray-900 w-16 text-right">
-                            {item.accuracy}%
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Listening Analysis */}
-          {activeTab === 'self-analysis' && activeSubTab === 'listening' && results.detailedScores?.listening && (
-            <div className="space-y-8">
-              {/* Performance Overview */}
-              <div className="bg-gray-50 rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-6">Performance Overview</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-blue-50 rounded-lg p-6 text-center">
-                    <div className="text-3xl font-bold text-blue-600 mb-2">{results.detailedScores.listening.correctAnswers}</div>
-                    <div className="text-sm font-medium text-blue-600">Correct Answers</div>
-                  </div>
-                  <div className="bg-green-50 rounded-lg p-6 text-center">
-                    <div className="text-3xl font-bold text-green-600 mb-2">{results.detailedScores.listening.totalQuestions}</div>
-                    <div className="text-sm font-medium text-green-600">Total Questions</div>
-                  </div>
-                  <div className="bg-purple-50 rounded-lg p-6 text-center">
-                    <div className="text-3xl font-bold text-purple-600 mb-2">{results.detailedScores.listening.accuracy}%</div>
-                    <div className="text-sm font-medium text-purple-600">Accuracy</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Part-wise Performance */}
-              <div className="bg-gray-50 rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-6">Part-wise Performance</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {Object.entries(results.detailedScores.listening.partScores).map(([part, data]: [string, any]) => (
-                    <div key={part} className="bg-white rounded-lg p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <h4 className="text-lg font-medium text-gray-900 capitalize">{part}</h4>
-                        <span className={`text-lg font-bold px-3 py-1 rounded-full ${
-                          data.bandScore >= 6 ? 'bg-green-100 text-green-800' :
-                          data.bandScore >= 4 ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {data.bandScore}
-                        </span>
-                      </div>
-                      <div className="text-sm text-gray-600 mb-3">
-                        {data.correct}/{data.total} correct
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3">
-                        <div 
-                          className="bg-green-600 h-3 rounded-full transition-all duration-1000"
-                          style={{ width: `${(data.correct / data.total) * 100}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Question Type Performance */}
-              {results.detailedScores.listening.questionTypeScores.length > 0 && (
-                <div className="bg-gray-50 rounded-lg p-6">
-                  <h3 className="text-xl font-semibold text-gray-900 mb-6">Question Type Performance</h3>
-                  <div className="space-y-4">
-                    {results.detailedScores.listening.questionTypeScores.map((item: any, index: number) => (
-                      <div key={index} className="flex items-center justify-between p-4 bg-white rounded-lg">
-                        <div className="flex-1">
-                          <div className="text-lg font-medium text-gray-900">{item.type}</div>
-                          <div className="text-sm text-gray-500">{item.correct}/{item.total} correct</div>
-                        </div>
-                        <div className="flex items-center space-x-6">
-                          <div className="w-32 bg-gray-200 rounded-full h-3">
-                            <div 
-                              className="bg-green-600 h-3 rounded-full transition-all duration-1000"
-                              style={{ width: `${item.accuracy}%` }}
-                            ></div>
-                          </div>
-                          <div className="text-lg font-medium text-gray-900 w-16 text-right">
-                            {item.accuracy}%
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Question-wise Review */}
           {activeTab === 'self-analysis' && activeSubTab === 'question-wise' && (
             <QuestionWiseResults
               testId={testId}
               questions={[
-                ...(results.questionDetails?.reading || []).map(q => ({ ...q, moduleType: 'reading' as const })),
-                ...(results.questionDetails?.listening || []).map(q => ({ ...q, moduleType: 'listening' as const }))
+                ...(results.questionDetails?.reading || []).map(q => ({ ...q, moduleType: 'reading' as const, isCorrect: q.isCorrect ?? false })),
+                ...(results.questionDetails?.listening || []).map(q => ({ ...q, moduleType: 'listening' as const, isCorrect: q.isCorrect ?? false })),
+                ...(results.questionDetails?.writing || []).map(q => ({ ...q, moduleType: 'writing' as const, isCorrect: q.isCorrect ?? null }))
               ]}
-              totalQuestions={(results.questionDetails?.reading?.length || 0) + (results.questionDetails?.listening?.length || 0)}
+              totalQuestions={
+                (results.questionDetails?.reading?.length || 0) + 
+                (results.questionDetails?.listening?.length || 0) +
+                (results.questionDetails?.writing?.length || 0)
+              }
             />
           )}
 
-          {/* Other Tab Content */}
-          {activeTab === 'self-analysis' && activeSubTab !== 'brief' && activeSubTab !== 'reading' && activeSubTab !== 'listening' && activeSubTab !== 'question-wise' && (
+          {/* Writing Analysis */}
+          {activeTab === 'self-analysis' && activeSubTab === 'writing' && (
             <div className="text-center py-12">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                {activeSubTab.charAt(0).toUpperCase() + activeSubTab.slice(1)} Analysis
-              </h3>
-              <p className="text-gray-600">Detailed analysis for {activeSubTab} will be available here.</p>
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">Writing Analysis</h3>
+              <p className="text-gray-600">Detailed writing analysis will be available here.</p>
             </div>
           )}
 

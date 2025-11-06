@@ -53,6 +53,7 @@ export default function StudentReadingTestPage() {
   const [testData, setTestData] = useState<TestData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
     if (params.id) {
@@ -78,8 +79,12 @@ export default function StudentReadingTestPage() {
   }
 
   const handleTestCompletion = async (results: any) => {
+    // Set submitting state to prevent multiple submissions
+    setIsSubmitting(true)
+
     try {
-      // Extract answers from details array
+      // Step 1: Extract answers from details array
+      // Convert the results details array into a flat answers object
       const answers: Record<string, string> = {}
       if (results.details && Array.isArray(results.details)) {
         results.details.forEach((detail: any) => {
@@ -89,7 +94,8 @@ export default function StudentReadingTestPage() {
         })
       }
 
-      // Save results to database using the dedicated results endpoint
+      // Step 2: Submit reading test results to backend
+      // This saves the test session and marks it as completed
       const response = await fetch(`/api/student/reading-tests/${params.id}/results`, {
         method: 'POST',
         headers: {
@@ -104,21 +110,68 @@ export default function StudentReadingTestPage() {
 
       const data = await response.json()
 
+      // Step 3: Handle submission result
       if (response.ok) {
-        console.log('Test results saved successfully:', data)
-        // Optionally redirect to results page or show success message
-        alert(`Test completed! Score: ${results.score}/${results.details.length}, Band: ${results.band}\nResults have been saved successfully.`)
-        
-        // Optionally redirect to results page
-        // router.push(`/student/results/${params.id}`)
+        console.log('✅ Reading test results saved successfully:', data)
+
+        // Step 4: Fetch associated writing test for navigation
+        // Check if there's a writing test based on this reading test
+        try {
+          const writingTestResponse = await fetch(
+            `/api/student/writing-tests/by-reading-test/${params.id}`
+          )
+
+          if (writingTestResponse.ok) {
+            const writingTestData = await writingTestResponse.json()
+            const writingTestId = writingTestData.writingTest?.id
+
+            if (writingTestId) {
+              // Step 5: Navigate to writing test page
+              // Redirect to the writing test page after successful submission
+              console.log('📝 Navigating to writing test:', writingTestId)
+              router.push(`/student/writing-tests/${writingTestId}`)
+              return // Exit early on successful navigation
+            } else {
+              // No writing test found, but reading test was submitted successfully
+              console.log('ℹ️ No writing test found for this reading test')
+              alert(
+                `Reading test completed! Score: ${results.score}/${results.details.length}, Band: ${results.band}\nResults have been saved successfully.`
+              )
+            }
+          } else {
+            // Writing test fetch failed, but reading test was submitted
+            console.warn('⚠️ Could not fetch writing test, but reading test was saved')
+            alert(
+              `Reading test completed! Score: ${results.score}/${results.details.length}, Band: ${results.band}\nResults have been saved successfully.`
+            )
+          }
+        } catch (writingTestError) {
+          // Error fetching writing test, but reading test was submitted successfully
+          console.error('❌ Error fetching writing test:', writingTestError)
+          alert(
+            `Reading test completed! Score: ${results.score}/${results.details.length}, Band: ${results.band}\nResults have been saved successfully.`
+          )
+        }
       } else {
-        console.error('Failed to save test results:', data.error || data.message)
-        alert(`Test completed! Score: ${results.score}/${results.details.length}, Band: ${results.band}\nWarning: ${data.error || data.message || 'Failed to save results to database.'}`)
+        // Step 6: Handle submission failure
+        // Reading test submission failed, show error to user
+        console.error('❌ Failed to save reading test results:', data.error || data.message)
+        alert(
+          `Test completed! Score: ${results.score}/${results.details.length}, Band: ${results.band}\nWarning: ${data.error || data.message || 'Failed to save results to database.'}`
+        )
       }
     } catch (error) {
-      console.error('Error saving test results:', error)
+      // Step 7: Handle network or unexpected errors
+      // Catch any errors during the submission process
+      console.error('❌ Error saving test results:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      alert(`Test completed! Score: ${results.score}/${results.details.length}, Band: ${results.band}\nWarning: Failed to save results to database. Error: ${errorMessage}`)
+      alert(
+        `Test completed! Score: ${results.score}/${results.details.length}, Band: ${results.band}\nWarning: Failed to save results to database. Error: ${errorMessage}`
+      )
+    } finally {
+      // Step 8: Reset submitting state
+      // Allow user to retry if needed
+      setIsSubmitting(false)
     }
   }
 

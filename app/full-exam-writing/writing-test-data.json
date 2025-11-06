@@ -1,0 +1,56 @@
+{
+  "test": {
+    "title": "IELTS Writing Practice Test",
+    "totalTimeMinutes": 60
+  },
+  "readingTestId": "",
+  "passages": [
+    {
+      "title": "Writing Task 1",
+      "order": 1,
+      "contents": [
+        {
+          "contentId": "A",
+          "text": "You should spend about 20 minutes on this task. The chart below shows the percentage of households in owned and rented accommodation in England and Wales between 1918 and 2011. Summarise the information by selecting and reporting the main features, and make comparisons where relevant."
+        }
+      ],
+      "questions": [
+        {
+          "questionNumber": 1,
+          "type": "TASK_1",
+          "questionText": "Write at least 150 words describing the chart showing household accommodation in England and Wales between 1918 and 2011."
+        }
+      ]
+    },
+    {
+      "title": "Writing Task 2",
+      "order": 2,
+      "contents": [
+        {
+          "contentId": "A",
+          "text": "You should spend about 40 minutes on this task. Write about the following topic: Some people think that university students should specialize in one subject, while others think universities should encourage students to learn a range of subjects. Discuss both views and give your opinion. Give reasons for your answer and include any relevant examples from your own knowledge or experience."
+        }
+      ],
+      "questions": [
+        {
+          "questionNumber": 2,
+          "type": "TASK_2",
+          "questionText": "Write at least 250 words discussing whether university students should specialize in one subject or learn a range of subjects."
+        }
+      ]
+    }
+  ],
+  "passageConfigs": [
+    {
+      "part": 1,
+      "total": 1,
+      "start": 1
+    },
+    {
+      "part": 2,
+      "total": 1,
+      "start": 2
+    }
+  ]
+}
+

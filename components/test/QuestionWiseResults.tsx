@@ -10,9 +10,10 @@ interface Question {
   options?: string[]
   studentAnswer: string
   correctAnswer: string
-  isCorrect: boolean
+  isCorrect: boolean | null
   explanation?: string
-  moduleType: 'reading' | 'listening'
+  moduleType: 'reading' | 'listening' | 'writing'
+  wordCount?: number
 }
 
 interface QuestionWiseResultsProps {
@@ -24,7 +25,7 @@ interface QuestionWiseResultsProps {
 export default function QuestionWiseResults({ testId, questions, totalQuestions }: QuestionWiseResultsProps) {
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
-  const [filterType, setFilterType] = useState<'all' | 'reading' | 'listening'>('all')
+  const [filterType, setFilterType] = useState<'all' | 'reading' | 'listening' | 'writing'>('all')
   const [isBookmarked, setIsBookmarked] = useState(false)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
@@ -118,6 +119,7 @@ export default function QuestionWiseResults({ testId, questions, totalQuestions 
             <option value="all">All Questions</option>
             <option value="reading">Reading Questions</option>
             <option value="listening">Listening Questions</option>
+            <option value="writing">Writing Questions</option>
           </select>
         </div>
       </div>
@@ -136,9 +138,11 @@ export default function QuestionWiseResults({ testId, questions, totalQuestions 
               className={`flex-shrink-0 w-10 h-10 rounded-full border-2 flex items-center justify-center text-sm font-medium transition-colors ${
                 selectedQuestion?.id === question.id
                   ? 'bg-gray-800 text-white border-gray-800'
-                  : question.isCorrect
+                  : question.isCorrect === true
                   ? 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100'
-                  : 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100'
+                  : question.isCorrect === false
+                  ? 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100'
+                  : 'bg-yellow-50 text-yellow-700 border-yellow-300 hover:bg-yellow-100'
               }`}
             >
               {index + 1}
@@ -213,7 +217,9 @@ export default function QuestionWiseResults({ testId, questions, totalQuestions 
           <span className={`px-3 py-1 rounded-full text-sm font-medium ${
             selectedQuestion.moduleType === 'reading' 
               ? 'bg-blue-100 text-blue-800' 
-              : 'bg-green-100 text-green-800'
+              : selectedQuestion.moduleType === 'listening'
+              ? 'bg-green-100 text-green-800'
+              : 'bg-purple-100 text-purple-800'
           }`}>
             {selectedQuestion.moduleType.charAt(0).toUpperCase() + selectedQuestion.moduleType.slice(1)}
           </span>
@@ -223,13 +229,25 @@ export default function QuestionWiseResults({ testId, questions, totalQuestions 
           <span className="px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
             {selectedQuestion.type}
           </span>
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-            selectedQuestion.isCorrect 
-              ? 'bg-green-100 text-green-800' 
-              : 'bg-red-100 text-red-800'
-          }`}>
-            {selectedQuestion.isCorrect ? 'Correct' : 'Incorrect'}
-          </span>
+          {selectedQuestion.isCorrect !== null && (
+            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+              selectedQuestion.isCorrect 
+                ? 'bg-green-100 text-green-800' 
+                : 'bg-red-100 text-red-800'
+            }`}>
+              {selectedQuestion.isCorrect ? 'Correct' : 'Incorrect'}
+            </span>
+          )}
+          {selectedQuestion.isCorrect === null && selectedQuestion.moduleType === 'writing' && (
+            <span className="px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+              Pending Evaluation
+            </span>
+          )}
+          {selectedQuestion.wordCount !== undefined && (
+            <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+              {selectedQuestion.wordCount} words
+            </span>
+          )}
         </div>
 
         {/* Question Content */}
@@ -258,26 +276,58 @@ export default function QuestionWiseResults({ testId, questions, totalQuestions 
           )}
 
           {/* Answer Comparison */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-gray-50 rounded-lg p-6">
-              <h4 className="text-lg font-semibold text-gray-900 mb-4">Your Answer:</h4>
-              <div className={`p-4 rounded-lg ${
-                selectedQuestion.isCorrect 
-                  ? 'bg-green-100 text-green-800' 
-                  : 'bg-red-100 text-red-800'
-              }`}>
-                <p className="font-medium">
-                  {selectedQuestion.studentAnswer || 'No answer provided'}
-                </p>
+          {selectedQuestion.moduleType === 'writing' ? (
+            /* Writing Answer Display - Full text response */
+            <div className="space-y-6">
+              <div className="bg-gray-50 rounded-lg p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-lg font-semibold text-gray-900">Your Answer:</h4>
+                  {selectedQuestion.wordCount !== undefined && (
+                    <span className="text-sm text-gray-600">
+                      Word Count: {selectedQuestion.wordCount}
+                    </span>
+                  )}
+                </div>
+                <div className="p-4 rounded-lg bg-white border border-gray-200 min-h-[200px]">
+                  <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">
+                    {selectedQuestion.studentAnswer || 'No answer provided'}
+                  </p>
+                </div>
+              </div>
+              {selectedQuestion.correctAnswer && selectedQuestion.correctAnswer !== 'Evaluation pending' && (
+                <div className="bg-gray-50 rounded-lg p-6">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Evaluation:</h4>
+                  <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+                    <p className="text-gray-800">{selectedQuestion.correctAnswer}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Reading/Listening Answer Display - Side by side comparison */
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-gray-50 rounded-lg p-6">
+                <h4 className="text-lg font-semibold text-gray-900 mb-4">Your Answer:</h4>
+                <div className={`p-4 rounded-lg ${
+                  selectedQuestion.isCorrect === true
+                    ? 'bg-green-100 text-green-800' 
+                    : selectedQuestion.isCorrect === false
+                    ? 'bg-red-100 text-red-800'
+                    : 'bg-gray-100 text-gray-800'
+                }`}>
+                  <p className="font-medium">
+                    {selectedQuestion.studentAnswer || 'No answer provided'}
+                  </p>
+                </div>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-6">
+                <h4 className="text-lg font-semibold text-gray-900 mb-4">Correct Answer:</h4>
+                <div className="p-4 rounded-lg bg-green-100 text-green-800">
+                  <p className="font-medium">{selectedQuestion.correctAnswer}</p>
+                </div>
               </div>
             </div>
-            <div className="bg-gray-50 rounded-lg p-6">
-              <h4 className="text-lg font-semibold text-gray-900 mb-4">Correct Answer:</h4>
-              <div className="p-4 rounded-lg bg-green-100 text-green-800">
-                <p className="font-medium">{selectedQuestion.correctAnswer}</p>
-              </div>
-            </div>
-          </div>
+          )}
 
           {/* Explanation */}
           {selectedQuestion.explanation && (

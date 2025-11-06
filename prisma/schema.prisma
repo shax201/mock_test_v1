@@ -48,6 +48,11 @@ enum ReadingQuestionType {
   MULTIPLE_CHOICE
 }
 
+enum WritingQuestionType {
+  TASK_1
+  TASK_2
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String?
@@ -83,6 +88,7 @@ model ReadingTest {
   passages        Passage[]
   bandScoreRanges BandScoreRange[]
   passageConfigs  PassageConfig[]
+  writingTests    WritingTest[]
 
   @@map("reading_tests")
 }
@@ -100,6 +106,7 @@ model Passage {
   readingTest    ReadingTest    @relation(fields: [readingTestId], references: [id], onDelete: Cascade)
   contents       PassageContent[]
   questions      Question[]
+  writingQuestions WritingQuestion[]
 
   @@map("passages")
 }
@@ -207,6 +214,94 @@ model TestSession {
   student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@map("test_sessions")
+}
+
+// Writing Test Models
+
+// Main writing test entity (based on ReadingTest)
+model WritingTest {
+  id               String   @id @default(cuid())
+  readingTestId   String   @map("reading_test_id")
+  title            String
+  totalTimeMinutes Int      @default(60)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  readingTest     ReadingTest       @relation(fields: [readingTestId], references: [id], onDelete: Cascade)
+  passages        WritingPassage[]
+  passageConfigs WritingPassageConfig[]
+
+  @@map("writing_tests")
+}
+
+// Individual passages within a writing test
+model WritingPassage {
+  id          String   @id @default(cuid())
+  writingTestId String   @map("writing_test_id")
+  title       String
+  order       Int      // Order of passage in the test
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  writingTest WritingTest    @relation(fields: [writingTestId], references: [id], onDelete: Cascade)
+  contents    WritingPassageContent[]
+  questions   WritingQuestion[]
+
+  @@map("writing_passages")
+}
+
+// Content segments within a writing passage
+model WritingPassageContent {
+  id        String @id @default(cuid())
+  passageId String @map("passage_id")
+  contentId String @map("content_id") // A, B, C, D, E, etc.
+  text      String
+  order     Int   // Order within the passage
+
+  // Relations
+  passage WritingPassage @relation(fields: [passageId], references: [id], onDelete: Cascade)
+
+  @@unique([passageId, contentId])
+  @@map("writing_passage_contents")
+}
+
+// Questions belonging to writing passages (related to reading test)
+model WritingQuestion {
+  id             String   @id @default(cuid())
+  passageId      String   @map("passage_id")
+  readingPassageId String?  @map("reading_passage_id") // Optional reference to reading test passage
+  questionNumber Int      @map("question_number") // 1, 2, 3, etc.
+  type           WritingQuestionType
+  questionText   String   @map("question_text")
+  points         Int      @default(1)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  passage        WritingPassage @relation(fields: [passageId], references: [id], onDelete: Cascade)
+  readingPassage Passage?        @relation(fields: [readingPassageId], references: [id], onDelete: SetNull)
+
+  @@map("writing_questions")
+}
+
+// Passage configuration for question distribution
+model WritingPassageConfig {
+  id            String  @id @default(cuid())
+  writingTestId String  @map("writing_test_id")
+  part          Int     // Part number (1, 2, 3)
+  total         Int     // Total questions in this part
+  start         Int     // Starting question number for this part
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  writingTest WritingTest @relation(fields: [writingTestId], references: [id], onDelete: Cascade)
+
+  @@unique([writingTestId, part])
+  @@map("writing_passage_configs")
 }
 
 
