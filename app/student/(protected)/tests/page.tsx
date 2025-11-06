@@ -11,6 +11,7 @@ interface MockTest {
   duration: number
   status: string
   createdAt: string
+  writingTestId?: string
   completionInfo?: {
     completedAt: string
     autoScore?: number
@@ -90,6 +91,7 @@ export default function StudentTests() {
                     status: 'COMPLETED',
                     createdAt: test.createdAt,
                     isReadingTest: true,
+                    writingTestId: test.writingTestId,
                     completionInfo: {
                       completedAt: sessionData.completedAt || new Date().toISOString(),
                       autoScore: sessionData.band || undefined
@@ -104,7 +106,8 @@ export default function StudentTests() {
                     duration: test.totalTimeMinutes,
                     status: 'AVAILABLE',
                     createdAt: test.createdAt,
-                    isReadingTest: true
+                    isReadingTest: true,
+                    writingTestId: test.writingTestId
                   }
                 }
               } catch (error) {
@@ -116,7 +119,8 @@ export default function StudentTests() {
                   duration: test.totalTimeMinutes,
                   status: 'AVAILABLE',
                   createdAt: test.createdAt,
-                  isReadingTest: true
+                  isReadingTest: true,
+                  writingTestId: test.writingTestId
                 }
               }
             })
@@ -470,7 +474,7 @@ export default function StudentTests() {
                             </span>
                             {test.status === 'COMPLETED' ? (
                               <Link 
-                                href={`/student/results/${test.id}`}
+                                href={`/student/results/${test.writingTestId}`}
                                 className="text-white px-3 py-1 rounded text-xs hover:opacity-90 flex items-center"
                                 style={{ backgroundColor: '#25c994' }}
                               >

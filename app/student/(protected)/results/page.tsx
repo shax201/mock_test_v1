@@ -223,21 +223,40 @@ export default function StudentResults() {
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                   <div className="text-center p-4 bg-gray-50 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600">{result.listeningBand.toFixed(1)}</div>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {result.listeningBand > 0 ? result.listeningBand.toFixed(1) : '-'}
+                    </div>
                     <div className="text-sm text-gray-500">Listening</div>
                   </div>
                   <div className="text-center p-4 bg-gray-50 rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">{result.readingBand.toFixed(1)}</div>
+                    <div className="text-2xl font-bold text-green-600">
+                      {result.readingBand > 0 ? result.readingBand.toFixed(1) : '-'}
+                    </div>
                     <div className="text-sm text-gray-500">Reading</div>
                   </div>
                   <div className="text-center p-4 bg-gray-50 rounded-lg">
-                    <div className="text-2xl font-bold text-yellow-600">{result.writingBand.toFixed(1)}</div>
+                    <div className="text-2xl font-bold text-yellow-600">
+                      {result.writingBand > 0 ? result.writingBand.toFixed(1) : (
+                        <span className="text-sm text-gray-400">Pending</span>
+                      )}
+                    </div>
                     <div className="text-sm text-gray-500">Writing</div>
                   </div>
                   <div className="text-center p-4 bg-gray-50 rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600">{result.speakingBand.toFixed(1)}</div>
+                    <div className="text-2xl font-bold text-purple-600">
+                      {result.speakingBand > 0 ? result.speakingBand.toFixed(1) : '-'}
+                    </div>
                     <div className="text-sm text-gray-500">Speaking</div>
                   </div>
+                </div>
+
+                <div className="mt-6 flex space-x-4">
+                  <Link 
+                    href={`/student/results/${result.id}?tab=brief`}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                  >
+                    View Detailed Report
+                  </Link>
                 </div>
 
                 {/* <div className="mt-6 flex space-x-4">

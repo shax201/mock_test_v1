@@ -122,10 +122,16 @@ export default function TestResultsAnalysis({ testId, initialTab }: TestResultsA
   useEffect(() => {
     const fetchResults = async () => {
       try {
-        const response = await fetch(`/api/student/results/${testId}`)
+        // Add cache-busting parameter to ensure fresh data after admin evaluation
+        const response = await fetch(`/api/student/results/${testId}?t=${Date.now()}`)
         
         if (response.ok) {
           const data = await response.json()
+          console.log('Results fetched:', {
+            writingBand: data.results?.bandScores?.writing,
+            overallBand: data.results?.overallBand,
+            sessionBand: data.results?.detailedScores?.band
+          })
           setResults(data.results)
           
           // Extract mock test ID from the results and fetch remedial tests
@@ -149,6 +155,25 @@ export default function TestResultsAnalysis({ testId, initialTab }: TestResultsA
     }
 
     fetchResults()
+    
+    // Set up polling to check for updates every 30 seconds if writing score is pending
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/student/results/${testId}?t=${Date.now()}`)
+        if (response.ok) {
+          const data = await response.json()
+          const writingBand = data.results?.bandScores?.writing
+          // Only update if writing score changed from pending to evaluated
+          if (writingBand !== null && writingBand !== undefined && writingBand > 0) {
+            setResults(data.results)
+          }
+        }
+      } catch (error) {
+        console.error('Error polling for results:', error)
+      }
+    }, 30000) // Check every 30 seconds
+    
+    return () => clearInterval(interval)
   }, [testId])
 
   if (loading) {
@@ -305,9 +330,19 @@ export default function TestResultsAnalysis({ testId, initialTab }: TestResultsA
 
             {/* Writing Card */}
             <div className="bg-white border border-gray-300 rounded-lg p-6 text-center min-w-[150px]">
-              <div className="text-4xl font-bold text-gray-900 mb-2">{results.bandScores?.writing ?? 0}</div>
-              <div className="text-sm text-gray-600 mb-1">Band Score</div>
-              <div className="text-sm font-medium text-gray-800">WRITING</div>
+              {results.bandScores?.writing !== undefined && results.bandScores.writing !== null && results.bandScores.writing > 0 ? (
+                <>
+                  <div className="text-4xl font-bold text-gray-900 mb-2">{results.bandScores.writing.toFixed(1)}</div>
+                  <div className="text-sm text-gray-600 mb-1">Band Score</div>
+                  <div className="text-sm font-medium text-gray-800">WRITING</div>
+                </>
+              ) : (
+                <>
+                  <div className="text-lg font-medium text-gray-400 mb-2">Pending</div>
+                  <div className="text-sm text-gray-600 mb-1">Band Score</div>
+                  <div className="text-sm font-medium text-gray-800">WRITING</div>
+                </>
+              )}
             </div>
           </div>
 

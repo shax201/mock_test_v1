@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
         totalQuestions: true,
         totalTimeMinutes: true,
         isActive: true,
+        writingTestId: true,
         createdAt: true,
         _count: {
           select: {

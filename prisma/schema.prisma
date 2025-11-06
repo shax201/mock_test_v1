@@ -81,6 +81,7 @@ model ReadingTest {
   totalQuestions   Int      @default(40)
   totalTimeMinutes Int      @default(60)
   isActive         Boolean  @default(true)
+  writingTestId    String?  @map("writing_test_id") // Store the associated writing test ID
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 

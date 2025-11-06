@@ -183,6 +183,14 @@ export async function PUT(
       }
     })
 
+    // Update the reading test to store the writing test ID
+    if (readingTestId) {
+      await prisma.readingTest.update({
+        where: { id: readingTestId },
+        data: { writingTestId: writingTest.id }
+      })
+    }
+
     return NextResponse.json({ writingTest })
   } catch (error) {
     console.error('Error updating writing test:', error)
@@ -211,9 +219,24 @@ export async function DELETE(
 
     const { id } = await params
 
+    // Get the writing test to find the associated reading test
+    const writingTest = await prisma.writingTest.findUnique({
+      where: { id },
+      select: { readingTestId: true }
+    })
+
+    // Delete the writing test
     await prisma.writingTest.delete({
       where: { id }
     })
+
+    // Clear the writingTestId from the reading test
+    if (writingTest?.readingTestId) {
+      await prisma.readingTest.update({
+        where: { id: writingTest.readingTestId },
+        data: { writingTestId: null }
+      })
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {

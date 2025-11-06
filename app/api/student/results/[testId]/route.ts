@@ -29,6 +29,7 @@ export async function GET(
     const testId = resolvedParams.testId
 
     // Step 1: Try to find session by ID first (if testId is a session ID)
+    // This will always fetch the latest data from the database, including updated band scores
     let session = await prisma.testSession.findUnique({
       where: {
         id: testId,
@@ -36,6 +37,16 @@ export async function GET(
         isCompleted: true
       }
     })
+    
+    // Log for debugging
+    if (session && session.testType === 'WRITING') {
+      console.log('Writing session found:', {
+        id: session.id,
+        band: session.band,
+        score: session.score,
+        updatedAt: session.updatedAt
+      })
+    }
 
     // Step 2: If not found by session ID, try to find by test ID
     if (!session) {
@@ -51,6 +62,7 @@ export async function GET(
       })
 
       // If not READING, try WRITING
+      // Order by updatedAt to get the most recently evaluated session
       if (!session) {
         session = await prisma.testSession.findFirst({
           where: {
@@ -59,7 +71,7 @@ export async function GET(
             testType: 'WRITING',
             isCompleted: true
           },
-          orderBy: { completedAt: 'desc' }
+          orderBy: { updatedAt: 'desc' }
         })
       }
     }
@@ -125,13 +137,13 @@ export async function GET(
       mockTestId: session.testId,
       bandScores: {
         listening: 0,
-        reading: session.testType === 'READING' ? (session.band || 0) : 0,
-        writing: session.testType === 'WRITING' ? (session.band || 0) : 0
+        reading: session.testType === 'READING' ? (session.band ?? 0) : 0,
+        writing: session.testType === 'WRITING' ? (session.band ?? null) : 0
       },
-      overallBand: session.band || 0,
+      overallBand: session.band ?? 0,
       detailedScores: {
-        score: session.score || 0,
-        band: session.band || 0
+        score: session.score ?? 0,
+        band: session.band ?? 0
       },
       questionDetails: {} as any,
       generatedAt: session.completedAt?.toISOString() || new Date().toISOString(),
@@ -207,6 +219,7 @@ export async function GET(
       // Step 6: Also fetch reading test results if writing test is based on a reading test
       if (testDetails && testDetails.readingTestId) {
         // Find the reading test session for the same student
+        // Order by updatedAt to get the most recently evaluated session
         const readingSession = await prisma.testSession.findFirst({
           where: {
             testId: testDetails.readingTestId,
@@ -214,7 +227,7 @@ export async function GET(
             testType: 'READING',
             isCompleted: true
           },
-          orderBy: { completedAt: 'desc' }
+          orderBy: { updatedAt: 'desc' }
         })
 
         if (readingSession) {

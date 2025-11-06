@@ -180,6 +180,14 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Writing test created successfully!')
 
+    // Update the reading test to store the writing test ID
+    await prisma.readingTest.update({
+      where: { id: readingTestId },
+      data: { writingTestId: writingTest.id }
+    })
+
+    console.log('✅ Reading test updated with writing test ID')
+
     return NextResponse.json({
       message: 'Writing test created successfully from JSON data',
       writingTest
