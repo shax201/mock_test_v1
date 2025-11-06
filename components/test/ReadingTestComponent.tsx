@@ -4,12 +4,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styles from '../../app/full-exam-reading/ReadingTest.module.css';
 import { ReadingTestData } from '@/lib/types/reading-test';
 
-interface Note {
-  id: number;
-  text: string;
-  highlightedText: string;
-  element: HTMLElement;
-}
 
 interface ResultDetail {
   qNum: number;
@@ -29,10 +23,10 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
   const [currentQuestion, setCurrentQuestion] = useState(1);
   const [timeInSeconds, setTimeInSeconds] = useState((testData.test?.totalTimeMinutes || 60) * 60);
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
-  const [selectedRange, setSelectedRange] = useState<Range | null>(null);
   const [activeQuestionElement, setActiveQuestionElement] = useState<HTMLElement | null>(null);
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [noteIdCounter, setNoteIdCounter] = useState(0);
+  const [noteModalOpen, setNoteModalOpen] = useState<boolean>(false);
+  const [selectedQuote, setSelectedQuote] = useState<string>('');
+  const [noteText, setNoteText] = useState<string>('');
   const [isTestStarted, setIsTestStarted] = useState(false);
   const [showResultsModal, setShowResultsModal] = useState(false);
   const [showOptionsModal, setShowOptionsModal] = useState(false);
@@ -73,6 +67,7 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
   const nextBtnRef = useRef<HTMLButtonElement>(null);
   const headingsListRef = useRef<HTMLUListElement>(null);
   const optionsModalRef = useRef<HTMLDivElement>(null);
+  const selectionRef = useRef<Range | null>(null);
 
   const correctAnswers = testData.correctAnswers as Record<string, string>;
   const passageConfigs = testData.passageConfigs;
@@ -123,103 +118,53 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
     // Add input and change event listeners for updating indicators
     document.addEventListener('input', updateAllIndicators);
     document.addEventListener('change', updateAllIndicators);
-
-    // Context menu setup
-    const panels = [passagePanelRef.current, questionsPanelRef.current].filter(Boolean);
-    panels.forEach(panel => {
-      if (panel) {
-        panel.addEventListener('contextmenu', showContextMenu);
-      }
-    });
-
-    document.addEventListener('click', (e) => {
-      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
-        closeContextMenu();
-      }
-    });
-
-    // Selection change listener
-    document.addEventListener('selectionchange', () => {
-      const selection = window.getSelection();
-      if (selection && !selection.isCollapsed && selection.toString().trim().length > 0) {
-        const range = selection.getRangeAt(0);
-        const panels = [passagePanelRef.current, questionsPanelRef.current].filter(Boolean);
-        if (panels.some(panel => panel?.contains(range.commonAncestorContainer))) {
-          setSelectedRange(range.cloneRange());
-        } else {
-          setSelectedRange(null);
-        }
-      } else {
-        setSelectedRange(null);
-      }
-    });
   }, []);
 
-  const showContextMenu = useCallback((e: MouseEvent) => {
-    e.preventDefault();
-    const target = e.target as HTMLElement;
-    const isClickOnHighlight = target.closest('.highlight, .comment-highlight');
-    const selection = window.getSelection();
-    const isSelectionActive = selection && !selection.isCollapsed && selection.toString().trim().length > 0;
+  const clearSelection = useCallback(() => {
+    window.getSelection()?.removeAllRanges();
+    selectionRef.current = null;
+    if (contextMenuRef.current) contextMenuRef.current.style.display = 'none';
+  }, []);
 
-    let showMenu = false;
-
-    if (isClickOnHighlight) {
-      const menuHighlight = contextMenuRef.current?.querySelector('#menu-highlight') as HTMLElement | null;
-      const menuNote = contextMenuRef.current?.querySelector('#menu-note') as HTMLElement | null;
-      const menuClear = contextMenuRef.current?.querySelector('#menu-clear') as HTMLElement | null;
-      const menuClearAll = contextMenuRef.current?.querySelector('#menu-clear-all') as HTMLElement | null;
-      if (menuHighlight) menuHighlight.style.display = 'none';
-      if (menuNote) menuNote.style.display = 'none';
-      if (menuClear) menuClear.style.display = 'block';
-      if (menuClearAll) menuClearAll.style.display = 'block';
-      if (contextMenuRef.current) {
-        (contextMenuRef.current as any).targetElementForClear = isClickOnHighlight;
-      }
-      showMenu = true;
-      } else if (isSelectionActive) {
-        const passagePanel = document.getElementById('passage-panel');
-        const questionsPanel = document.getElementById('questions-panel');
-        const currentPanels = [passagePanel, questionsPanel];
-        if (selection && currentPanels.some(panel => panel && panel.contains(selection.getRangeAt(0).commonAncestorContainer))) {
-          const menuHighlight = contextMenuRef.current?.querySelector('#menu-highlight') as HTMLElement | null;
-          const menuNote = contextMenuRef.current?.querySelector('#menu-note') as HTMLElement | null;
-          const menuClear = contextMenuRef.current?.querySelector('#menu-clear') as HTMLElement | null;
-          const menuClearAll = contextMenuRef.current?.querySelector('#menu-clear-all') as HTMLElement | null;
-          if (menuHighlight) menuHighlight.style.display = 'block';
-          if (menuNote) menuNote.style.display = 'block';
-          if (menuClear) menuClear.style.display = 'none';
-          if (menuClearAll) menuClearAll.style.display = 'block';
-          showMenu = true;
-        } else {
-          // Selection not within panels
-        }
-      } else {
-        // No selection active
-      }
-
-    if (showMenu && contextMenuRef.current) {
-      contextMenuRef.current.style.display = 'block';
-      const menuHeight = contextMenuRef.current.offsetHeight || 120; // fallback height
-      const menuWidth = contextMenuRef.current.offsetWidth || 120; // fallback width
-
-      let left = (e as any).pageX;
-      let top = (e as any).pageY;
-      if (left + menuWidth > window.innerWidth) left = window.innerWidth - menuWidth - 5;
-      if (top + menuHeight > window.innerHeight) top = (e as any).pageY - menuHeight - 5;
-      else top = (e as any).pageY - menuHeight - 5;
-
-      contextMenuRef.current.style.left = `${left}px`;
-      contextMenuRef.current.style.top = `${top}px`;
+  const applyHighlight = useCallback((className: string) => {
+    const currentSelection = selectionRef.current;
+    if (!currentSelection || currentSelection.collapsed) return null;
+    const span = document.createElement('span');
+    span.className = className;
+    try {
+      const contents = currentSelection.extractContents();
+      span.appendChild(contents);
+      currentSelection.insertNode(span);
+    } catch (e) {
+      return null;
     }
-  }, [selectedRange]);
+    clearSelection();
+    return span;
+  }, [clearSelection]);
+
+  const onContextMenu = useCallback((e: React.MouseEvent) => {
+    if ((e.target as HTMLElement)?.closest('input, textarea, select, .answer-input')) return;
+    e.preventDefault();
+    const sel = window.getSelection();
+    if (sel && sel.toString().trim().length > 0) {
+      selectionRef.current = sel.getRangeAt(0).cloneRange();
+      const menu = contextMenuRef.current;
+      if (menu) {
+        menu.style.left = `${e.pageX}px`;
+        menu.style.top = `${e.pageY}px`;
+        menu.style.display = 'block';
+      }
+    } else {
+      clearSelection();
+    }
+  }, [clearSelection]);
 
   const closeContextMenu = useCallback(() => {
     if (contextMenuRef.current) {
       contextMenuRef.current.style.display = 'none';
     }
-    setSelectedRange(null);
-  }, []);
+    clearSelection();
+  }, [clearSelection]);
 
   const handleDragStart = useCallback((e: React.DragEvent, headingValue: string) => {
     e.dataTransfer.setData('text/plain', headingValue);
@@ -528,105 +473,66 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
     }
   }, [currentQuestion, goToQuestion]);
 
+  const [notesOpen, setNotesOpen] = useState<boolean>(false);
+
   const toggleNotesPanel = useCallback(() => {
-    if (notesContainerRef.current) {
-      notesContainerRef.current.classList.toggle(styles.visible);
-    }
-    if (headerNotesBtnRef.current) {
-      headerNotesBtnRef.current.classList.toggle(styles.activeIcon);
+    setNotesOpen(prev => !prev);
+  }, []);
+
+  useEffect(() => {
+    if (notesOpen) document.body.classList.add('notes-visible');
+    else document.body.classList.remove('notes-visible');
+    return () => document.body.classList.remove('notes-visible');
+  }, [notesOpen]);
+
+  const onHighlightClick = useCallback(() => {
+    applyHighlight(styles.highlight);
+  }, [applyHighlight]);
+
+  const onNoteClick = useCallback(() => {
+    const currentSelection = selectionRef.current;
+    if (currentSelection) {
+      setSelectedQuote(currentSelection.toString());
+      setNoteModalOpen(true);
+      if (contextMenuRef.current) contextMenuRef.current.style.display = 'none';
     }
   }, []);
 
-  const highlightText = useCallback(() => {
-    if (selectedRange && !selectedRange.collapsed) {
-      try {
-        const span = document.createElement('span');
-        span.className = 'highlight';
-        span.appendChild(selectedRange.extractContents());
-        selectedRange.insertNode(span);
-      } catch (error) {
-        console.error('Error highlighting text:', error);
+  const onSaveNote = useCallback(() => {
+    const currentSelection = selectionRef.current;
+    if (!currentSelection) return;
+    const highlightSpan = applyHighlight(styles.noteHighlight);
+    if (!highlightSpan) return;
+    const noteId = `note-${Date.now()}`;
+    highlightSpan.id = noteId;
+
+    // Create note item
+    const noteItem = document.createElement('div');
+    noteItem.className = styles.noteItem;
+    noteItem.dataset.targetId = noteId;
+    noteItem.innerHTML = `<button class="${styles.noteDeleteBtn}" title="Delete note">&times;</button><div class="${styles.noteSourceText}">"${selectedQuote}"</div><div class="${styles.noteText}">${noteText || '<i>No additional comment.</i>'}</div>`;
+    noteItem.addEventListener('click', (evt) => {
+      const target = evt.target as HTMLElement;
+      // Don't stop propagation for delete button - let it bubble to deletion handler
+      const deleteBtn = target.closest(`.${styles.noteDeleteBtn}`);
+      if (deleteBtn) {
+        return; // Let the event bubble to the container's deletion handler
       }
-    }
-    closeContextMenu();
-    window.getSelection()?.removeAllRanges();
-    setSelectedRange(null);
-  }, [selectedRange, closeContextMenu]);
-
-  const addNote = useCallback(() => {
-    const noteText = prompt('Enter your note:');
-    if (noteText && selectedRange && !selectedRange.collapsed) {
-      const highlightedText = selectedRange.toString().trim();
-      const newNoteId = noteIdCounter + 1;
-      setNoteIdCounter(newNoteId);
-
-      try {
-        const span = document.createElement('span');
-        span.className = 'comment-highlight';
-        span.setAttribute('data-note-ref-id', newNoteId.toString());
-
-        const tooltip = document.createElement('span');
-        tooltip.className = 'comment-tooltip';
-        tooltip.textContent = noteText;
-
-        span.appendChild(selectedRange.extractContents());
-        span.appendChild(tooltip);
-        selectedRange.insertNode(span);
-
-        const newNote: Note = {
-          id: newNoteId,
-          text: noteText,
-          highlightedText: highlightedText,
-          element: span
-        };
-
-        setNotes(prev => [...prev, newNote]);
-      } catch (error) {
-        console.error('Error adding note:', error);
-      }
-    }
-    closeContextMenu();
-    window.getSelection()?.removeAllRanges();
-    setSelectedRange(null);
-  }, [selectedRange, noteIdCounter, closeContextMenu]);
-
-  const deleteNote = useCallback((noteId: number) => {
-    setNotes(prev => {
-      const noteToDelete = prev.find(note => note.id === noteId);
-      if (noteToDelete) {
-        unwrapElement(noteToDelete.element);
-      }
-      return prev.filter(note => note.id !== noteId);
-    });
-  }, []);
-
-  const clearHighlight = useCallback(() => {
-    const elementToClear = contextMenuRef.current ? (contextMenuRef.current as any).targetElementForClear : null;
-    if (elementToClear) {
-      const noteRefId = elementToClear.getAttribute('data-note-ref-id');
-      if (noteRefId) {
-        deleteNote(parseInt(noteRefId, 10));
-      } else {
-        unwrapElement(elementToClear);
-      }
-    }
-    closeContextMenu();
-    window.getSelection()?.removeAllRanges();
-  }, [closeContextMenu, deleteNote]);
-
-  const clearAllHighlights = useCallback(() => {
-    document.querySelectorAll('.highlight').forEach(el => unwrapElement(el as HTMLElement));
-    document.querySelectorAll('.comment-highlight').forEach(el => {
-      const noteRefId = el.getAttribute('data-note-ref-id');
-      if (noteRefId) {
-        deleteNote(parseInt(noteRefId, 10));
-      } else {
-        unwrapElement(el as HTMLElement);
+      evt.stopPropagation();
+      const targetEl = document.getElementById(noteId);
+      if (targetEl) {
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        targetEl.classList.add('flash');
+        window.setTimeout(() => targetEl.classList.remove('flash'), 1200);
       }
     });
-    closeContextMenu();
-    window.getSelection()?.removeAllRanges();
-  }, [deleteNote, closeContextMenu]);
+    notesListRef.current?.appendChild(noteItem);
+
+    setNoteText('');
+    setSelectedQuote('');
+    setNoteModalOpen(false);
+    if (!notesOpen) setNotesOpen(true);
+  }, [applyHighlight, selectedQuote, noteText, notesOpen]);
 
   const unwrapElement = (element: HTMLElement) => {
     const parent = element.parentNode;
@@ -926,6 +832,42 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
     };
   }, [timerInterval]);
 
+  // Delete notes via delegation
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const target = e.target as HTMLElement;
+      // Check if the target is the delete button or a child of it
+      const deleteBtn = target.closest(`.${styles.noteDeleteBtn}`) as HTMLElement | null;
+      if (!deleteBtn) return;
+      e.stopPropagation();
+      const noteItem = deleteBtn.closest(`.${styles.noteItem}`) as HTMLElement | null;
+      if (!noteItem) return;
+      const noteId = noteItem.dataset.targetId;
+      const highlightSpan = noteId ? document.getElementById(noteId) : null;
+      if (highlightSpan) {
+        const parent = highlightSpan.parentNode as HTMLElement;
+        while (highlightSpan.firstChild) parent.insertBefore(highlightSpan.firstChild, highlightSpan);
+        parent.removeChild(highlightSpan);
+        parent.normalize();
+      }
+      noteItem.remove();
+    };
+    const container = notesListRef.current;
+    container?.addEventListener('click', handler);
+    return () => container?.removeEventListener('click', handler);
+  }, []);
+
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (!contextMenuRef.current) return;
+      if (!(contextMenuRef.current.contains(e.target as Node))) {
+        contextMenuRef.current.style.display = 'none';
+      }
+    };
+    document.addEventListener('click', onDocClick);
+    return () => document.removeEventListener('click', onDocClick);
+  }, []);
+
   return (
     <>
       {/* Start Exam Modal */}
@@ -979,7 +921,7 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
               </div>
               <button
                 ref={headerNotesBtnRef}
-                className={styles.headerNotesToggleBtn}
+                className={`${styles.headerNotesToggleBtn} ${notesOpen ? styles.activeIcon : ''}`}
                 onClick={toggleNotesPanel}
                 title="Toggle Notes Panel"
               >
@@ -1006,7 +948,7 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
           <div className={styles.mainContainer}>
             <div className={styles.panelsContainer}>
               {/* Passage Panel */}
-              <div ref={passagePanelRef} id="passage-panel" className={styles.passagePanel}>
+              <div ref={passagePanelRef} id="passage-panel" className={styles.passagePanel} onContextMenu={onContextMenu}>
                 {/* Passage 1 */}
                 <div id="passage-text-1" className={`${styles.readingPassage} ${currentPassage === 1 ? '' : styles.hidden}`}>
                   <h4 className={styles.textCenter}>{testData.passages[0].title}</h4>
@@ -1052,7 +994,7 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
               <div ref={resizerRef} className={styles.resizer}></div>
 
               {/* Questions Panel */}
-              <div ref={questionsPanelRef} id="questions-panel" className={styles.questionsPanel}>
+              <div ref={questionsPanelRef} id="questions-panel" className={styles.questionsPanel} onContextMenu={onContextMenu}>
                 {/* Questions content will be added here */}
                 {testData.passages.map((passage, passageIndex) => {
                   const passageId = passageIndex + 1;
@@ -1126,25 +1068,13 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
               </div>
 
               {/* Notes Panel */}
-              <div ref={notesContainerRef} className={styles.notesPanelContainer}>
+              <div className={`${styles.notesPanelContainer} ${notesOpen ? styles.visible : ''}`}>
                 <div className={styles.notesPanel}>
                   <div className={styles.notesHeader}>
                     <h4>My Notes</h4>
                   </div>
-                  <div ref={notesListRef}>
-                    {notes.map(note => (
-                      <div key={note.id} className={styles.noteItem} data-note-id={note.id}>
-                        <div className={styles.noteSourceText}>"{note.highlightedText}"</div>
-                        <div className={styles.noteText}>{note.text}</div>
-                        <button
-                          className={styles.noteDeleteBtn}
-                          data-note-id={note.id}
-                          onClick={() => deleteNote(note.id)}
-                        >
-                          &times;
-                        </button>
-                      </div>
-                    ))}
+                  <div ref={notesListRef} id="notes-list">
+                    {/* Notes are added via DOM manipulation */}
                   </div>
                 </div>
               </div>
@@ -1225,20 +1155,32 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
           </nav>
 
           {/* Context Menu */}
-          <div ref={contextMenuRef} className={styles.contextMenu}>
-            <div id="menu-highlight" className={styles.contextMenuItem} onClick={highlightText}>
-              Highlight
-            </div>
-            <div id="menu-note" className={styles.contextMenuItem} onClick={addNote}>
-              Note
-            </div>
-            <div id="menu-clear" className={styles.contextMenuItem} onClick={clearHighlight}>
-              Clear
-            </div>
-            <div id="menu-clear-all" className={styles.contextMenuItem} onClick={clearAllHighlights}>
-              Clear All
-            </div>
+          <div ref={contextMenuRef} className={styles.contextMenu} style={{ display: 'none' }}>
+            <button id="highlight-btn" onClick={onHighlightClick}>Highlight</button>
+            <button id="note-btn" onClick={onNoteClick}>Note</button>
           </div>
+
+          {/* Note Modal */}
+          {noteModalOpen && (
+            <div id="note-modal" className={styles.noteModal}>
+              <h4>Add a Note</h4>
+              <p>Selected Text:</p>
+              <blockquote>{selectedQuote}</blockquote>
+              <textarea 
+                id="note-textarea" 
+                className={styles.noteTextarea}
+                placeholder="Type your note here..." 
+                spellCheck={false} 
+                autoComplete="off" 
+                value={noteText} 
+                onChange={(e) => setNoteText(e.target.value)} 
+              />
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button id="save-note-btn" onClick={onSaveNote}>Save Note</button>
+                <button id="cancel-note-btn" onClick={() => { setNoteText(''); setSelectedQuote(''); setNoteModalOpen(false); clearSelection(); }}>Cancel</button>
+              </div>
+            </div>
+          )}
 
           {/* Options Modal */}
           {showOptionsModal && (
