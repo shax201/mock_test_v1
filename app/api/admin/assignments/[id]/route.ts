@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyJWT } from '@/lib/auth/jwt'
+import { revalidatePath, revalidateTag } from 'next/cache'
 
 export async function GET(
   request: NextRequest,
@@ -74,6 +75,13 @@ export async function DELETE(
     await prisma.assignment.delete({
       where: { id }
     })
+
+    // Revalidate the assignments list page and cache tags
+    revalidatePath('/admin/assignments')
+    revalidateTag('assignments')
+    // Also revalidate dashboard since it shows assignment stats
+    revalidatePath('/admin')
+    revalidateTag('admin-dashboard')
 
     return NextResponse.json({ success: true })
   } catch (error) {

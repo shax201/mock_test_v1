@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyJWT } from '@/lib/auth/jwt'
+import { revalidatePath, revalidateTag } from 'next/cache'
 
 /**
  * POST /api/student/writing-tests/[id]/results
@@ -92,6 +93,18 @@ export async function POST(
         }
       })
     }
+
+    // Revalidate admin dashboard since it shows completed tests and pending submissions stats
+    revalidatePath('/admin')
+    revalidateTag('admin-dashboard')
+    // Also revalidate writing submissions page
+    revalidatePath('/admin/writing-tests/submissions')
+    revalidateTag('writing-submissions')
+    // Revalidate student dashboard and results pages
+    revalidatePath('/student')
+    revalidateTag('student-dashboard')
+    revalidateTag('student-results')
+    revalidateTag('student-assignments')
 
     // Step 7: Return success response
     // Send back the session data to confirm successful submission

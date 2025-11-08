@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyJWT } from '@/lib/auth/jwt'
+import { revalidatePath, revalidateTag } from 'next/cache'
 
 export async function GET(
   request: NextRequest,
@@ -271,6 +272,10 @@ export async function PUT(
       }
     }
 
+    // Revalidate the writing tests list page and cache tags
+    revalidatePath('/admin/writing-tests')
+    revalidateTag('writing-tests')
+
     return NextResponse.json({ writingTest })
   } catch (error: any) {
     console.error('Error updating writing test:', error)
@@ -327,11 +332,18 @@ export async function DELETE(
 
     const { id } = await params
 
-    // Get the writing test to find the associated reading test
+    // Check if the writing test exists before trying to delete
     const writingTest = await prisma.writingTest.findUnique({
       where: { id },
       select: { readingTestId: true }
     })
+
+    if (!writingTest) {
+      return NextResponse.json(
+        { error: 'Writing test not found' },
+        { status: 404 }
+      )
+    }
 
     // Delete the writing test
     await prisma.writingTest.delete({
@@ -339,18 +351,36 @@ export async function DELETE(
     })
 
     // Clear the writingTestId from the reading test
-    if (writingTest?.readingTestId) {
+    if (writingTest.readingTestId) {
       await prisma.readingTest.update({
         where: { id: writingTest.readingTestId },
         data: { writingTestId: null }
+      }).catch((error) => {
+        // If reading test doesn't exist, just log and continue
+        console.warn('Could not update reading test:', error)
       })
     }
 
+    // Revalidate the writing tests list page and cache tags
+    revalidatePath('/admin/writing-tests')
+    revalidateTag('writing-tests')
+    revalidatePath('/admin')
+    revalidateTag('admin-dashboard')
+
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error deleting writing test:', error)
+    
+    // Handle Prisma record not found error
+    if (error?.code === 'P2025') {
+      return NextResponse.json(
+        { error: 'Writing test not found' },
+        { status: 404 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error?.message || 'Unknown error' },
       { status: 500 }
     )
   }

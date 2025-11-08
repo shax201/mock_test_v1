@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyJWT } from '@/lib/auth/jwt'
+import { revalidatePath, revalidateTag } from 'next/cache'
 
 export async function PUT(
   request: NextRequest,
@@ -78,6 +79,16 @@ export async function PUT(
         score: overallBand !== undefined ? Math.round(overallBand * 10) : null // Convert band to score (0-90)
       }
     })
+
+    // Revalidate the submissions list page and cache tags
+    revalidatePath('/admin/writing-tests/submissions')
+    revalidateTag('writing-submissions')
+    // Also revalidate dashboard since it shows pending submissions count
+    revalidatePath('/admin')
+    revalidateTag('admin-dashboard')
+    // Revalidate student results pages
+    revalidateTag('student-results')
+    revalidateTag('student-result-detail')
 
     return NextResponse.json({
       success: true,

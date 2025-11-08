@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyJWT } from '@/lib/auth/jwt'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { randomBytes } from 'crypto'
 import { emailService } from '@/lib/email/email-service'
 
@@ -208,6 +209,13 @@ export async function POST(request: NextRequest) {
       console.error('Failed to send assignment email:', emailError)
       // Continue - assignment is created successfully even if email fails
     }
+
+    // Revalidate the assignments list page and cache tags
+    revalidatePath('/admin/assignments')
+    revalidateTag('assignments')
+    // Also revalidate dashboard since it shows assignment stats
+    revalidatePath('/admin')
+    revalidateTag('admin-dashboard')
 
     return NextResponse.json({ assignment }, { status: 201 })
   } catch (error: any) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyJWT } from '@/lib/auth/jwt'
+import { revalidatePath, revalidateTag } from 'next/cache'
 
 export async function PUT(
   request: NextRequest,
@@ -81,6 +82,16 @@ export async function PUT(
         score: Math.round(finalBand * 10) // Convert band to score (0-90)
       }
     })
+
+    // Revalidate instructor pages and cache tags
+    revalidatePath('/instructor')
+    revalidatePath('/instructor/pending')
+    revalidatePath('/instructor/completed')
+    revalidateTag('instructor-dashboard')
+    revalidateTag('instructor-submissions')
+    // Revalidate student results pages
+    revalidateTag('student-results')
+    revalidateTag('student-result-detail')
 
     return NextResponse.json({
       success: true,

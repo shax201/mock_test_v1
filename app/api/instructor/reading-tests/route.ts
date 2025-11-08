@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyJWT } from '@/lib/auth/jwt'
+import { revalidatePath, revalidateTag } from 'next/cache'
 
 export async function GET(request: NextRequest) {
   try {
@@ -179,6 +180,10 @@ export async function POST(request: NextRequest) {
         bandScoreRanges: true
       }
     })
+
+    // Revalidate instructor reading tests page and cache tags
+    revalidatePath('/instructor/reading-tests')
+    revalidateTag('instructor-reading-tests')
 
     return NextResponse.json({ readingTest }, { status: 201 })
   } catch (error) {

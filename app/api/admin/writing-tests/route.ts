@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyJWT } from '@/lib/auth/jwt'
+import { revalidatePath, revalidateTag } from 'next/cache'
 
 export async function GET(request: NextRequest) {
   try {
@@ -158,6 +159,13 @@ export async function POST(request: NextRequest) {
       where: { id: readingTestId },
       data: { writingTestId: writingTest.id }
     })
+
+    // Revalidate the writing tests list page and cache tags
+    revalidatePath('/admin/writing-tests')
+    revalidateTag('writing-tests')
+    // Also revalidate dashboard since it shows test creation activity
+    revalidatePath('/admin')
+    revalidateTag('admin-dashboard')
 
     return NextResponse.json({ writingTest }, { status: 201 })
   } catch (error) {

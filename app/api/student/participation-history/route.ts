@@ -1,59 +1,34 @@
-import { cookies } from 'next/headers'
-import { verifyJWT } from '@/lib/auth/jwt'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { unstable_cache } from 'next/cache'
-import ParticipationHistoryClient from './ParticipationHistoryClient'
+import { verifyJWT } from '@/lib/auth/jwt'
 
-interface ParticipationHistoryItem {
-  id: string
-  testTitle: string
-  testDescription: string
-  candidateNumber: string
-  status: string
-  assignedAt: string
-  validFrom: string
-  validUntil: string
-  completedAt: string | null
-  testDuration: number | null
-  progressPercentage: number
-  moduleStatus: Array<{
-    module: string
-    status: string
-    submittedAt: string | null
-    autoScore: number | null
-    instructorMarked: boolean
-  }>
-  overallBand: number | null
-  moduleBands: {
-    listening: number | null
-    reading: number | null
-    writing: number | null
-    speaking: number | null
-  }
-  hasResult: boolean
-  isExpired: boolean
-  canRetake: boolean
-}
+export async function GET(request: NextRequest) {
+  try {
+    const token = request.cookies.get('student-token')?.value
 
-interface SummaryStats {
-  totalTests: number
-  completedTests: number
-  activeTests: number
-  expiredTests: number
-  averageBand: number
-  totalTestTime: number
-}
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
-// Enable ISR with time-based revalidation (revalidate every 60 seconds)
-export const revalidate = 60
+    const payload = await verifyJWT(token)
+    if (!payload || payload.role !== 'STUDENT') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
-// Cache the participation history query
-const getCachedParticipationHistory = unstable_cache(
-  async (studentId: string): Promise<{ participationHistory: ParticipationHistoryItem[], summaryStats: SummaryStats }> => {
+    const studentId = payload.userId
+    const { searchParams } = new URL(request.url)
+    const limit = parseInt(searchParams.get('limit') || '10')
+    const page = parseInt(searchParams.get('page') || '1')
+    const status = searchParams.get('status') || 'all'
+    const search = searchParams.get('search') || ''
+
     const now = new Date()
 
+    // Fetch all assignments for this student
     const assignments = await prisma.assignment.findMany({
-      where: { studentId },
+      where: {
+        studentId
+      },
       include: {
         readingTest: {
           select: {
@@ -62,14 +37,12 @@ const getCachedParticipationHistory = unstable_cache(
           }
         }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: {
+        createdAt: 'desc'
+      }
     })
 
-    const student = await prisma.user.findUnique({
-      where: { id: studentId },
-      select: { email: true }
-    })
-
+    // Process assignments with status and test sessions
     const participationHistory = await Promise.all(
       assignments.map(async (assignment) => {
         let assignmentStatus = assignment.status
@@ -77,6 +50,7 @@ const getCachedParticipationHistory = unstable_cache(
         const validUntil = new Date(assignment.validUntil)
         const isExpired = validUntil < now
 
+        // Auto-update status based on dates
         if (validFrom > now) {
           assignmentStatus = 'PENDING'
         } else if (isExpired) {
@@ -85,6 +59,7 @@ const getCachedParticipationHistory = unstable_cache(
           assignmentStatus = 'ACTIVE'
         }
 
+        // Get test sessions for this assignment
         const readingSession = await prisma.testSession.findFirst({
           where: {
             studentId,
@@ -95,6 +70,7 @@ const getCachedParticipationHistory = unstable_cache(
           orderBy: { completedAt: 'desc' }
         })
 
+        // Get listening test if exists
         const listeningTest = await prisma.listeningTest.findFirst({
           where: { readingTestId: assignment.readingTestId },
           select: { id: true }
@@ -112,6 +88,7 @@ const getCachedParticipationHistory = unstable_cache(
             })
           : null
 
+        // Get writing test if exists
         const writingTest = await prisma.writingTest.findFirst({
           where: { readingTestId: assignment.readingTestId },
           select: { id: true }
@@ -129,6 +106,7 @@ const getCachedParticipationHistory = unstable_cache(
             })
           : null
 
+        // Calculate progress
         const modules = [
           { module: 'READING', session: readingSession },
           { module: 'LISTENING', session: listeningSession },
@@ -139,6 +117,7 @@ const getCachedParticipationHistory = unstable_cache(
         const completedModules = modules.filter(m => m.session && m.session.isCompleted).length
         const progressPercentage = (completedModules / 4) * 100
 
+        // Calculate overall band (average of completed modules)
         const bands = modules
           .filter(m => m.session && m.session.band !== null)
           .map(m => m.session!.band!)
@@ -147,6 +126,7 @@ const getCachedParticipationHistory = unstable_cache(
           ? bands.reduce((sum, band) => sum + band, 0) / bands.length
           : null
 
+        // Module status
         const moduleStatus = modules.map(({ module, session }) => ({
           module,
           status: session && session.isCompleted
@@ -157,6 +137,7 @@ const getCachedParticipationHistory = unstable_cache(
           instructorMarked: session?.testType === 'WRITING' && session.band !== null
         }))
 
+        // Module bands
         const moduleBands = {
           listening: listeningSession?.band || null,
           reading: readingSession?.band || null,
@@ -164,10 +145,20 @@ const getCachedParticipationHistory = unstable_cache(
           speaking: null
         }
 
+        // Determine if all modules are completed
         const allCompleted = modules.every(m => m.session && m.session.isCompleted)
         if (allCompleted && overallBand !== null) {
           assignmentStatus = 'COMPLETED'
         }
+
+        // Calculate test duration (sum of all session durations if available)
+        const testDuration = null // Can be calculated if duration is stored
+
+        // Get student email for candidate number
+        const student = await prisma.user.findUnique({
+          where: { id: studentId },
+          select: { email: true }
+        })
 
         return {
           id: assignment.id,
@@ -181,7 +172,7 @@ const getCachedParticipationHistory = unstable_cache(
           completedAt: allCompleted && readingSession?.completedAt
             ? readingSession.completedAt.toISOString()
             : null,
-          testDuration: null,
+          testDuration,
           progressPercentage,
           moduleStatus,
           overallBand,
@@ -193,6 +184,20 @@ const getCachedParticipationHistory = unstable_cache(
       })
     )
 
+    // Apply filters
+    let filteredHistory = participationHistory
+
+    if (status !== 'all') {
+      filteredHistory = filteredHistory.filter(item => item.status === status)
+    }
+
+    if (search) {
+      filteredHistory = filteredHistory.filter(item =>
+        item.testTitle.toLowerCase().includes(search.toLowerCase())
+      )
+    }
+
+    // Calculate summary stats
     const summaryStats = {
       totalTests: participationHistory.length,
       completedTests: participationHistory.filter(item => item.status === 'COMPLETED').length,
@@ -202,77 +207,33 @@ const getCachedParticipationHistory = unstable_cache(
         .filter(item => item.overallBand !== null)
         .reduce((sum, item) => sum + (item.overallBand || 0), 0) /
         Math.max(1, participationHistory.filter(item => item.overallBand !== null).length),
-      totalTestTime: 0
+      totalTestTime: 0 // Can be calculated if duration is stored
     }
 
-    return {
-      participationHistory,
+    // Pagination
+    const total = filteredHistory.length
+    const totalPages = Math.ceil(total / limit)
+    const startIndex = (page - 1) * limit
+    const paginatedHistory = filteredHistory.slice(startIndex, startIndex + limit)
+
+    return NextResponse.json({
+      participationHistory: paginatedHistory,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1
+      },
       summaryStats
-    }
-  },
-  ['student-participation-history-full'],
-  {
-    revalidate: 60,
-    tags: ['student-dashboard', 'student-results', 'student-assignments']
-  }
-)
-
-export default async function ParticipationHistory({
-  searchParams
-}: {
-  searchParams: Promise<{ page?: string; status?: string; search?: string }>
-}) {
-  // Auth is handled by middleware, get userId from token
-  const cookieStore = await cookies()
-  const token = cookieStore.get('student-token')?.value
-  const payload = token ? await verifyJWT(token) : null
-  const studentId = payload?.userId || ''
-
-  if (!studentId) {
-    // This shouldn't happen if middleware is working, but handle gracefully
-    return (
-      <ParticipationHistoryClient
-        initialHistory={[]}
-        initialSummaryStats={{
-          totalTests: 0,
-          completedTests: 0,
-          activeTests: 0,
-          expiredTests: 0,
-          averageBand: 0,
-          totalTestTime: 0
-        }}
-        error="Authentication error"
-      />
+    })
+  } catch (error) {
+    console.error('Error fetching participation history:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
     )
   }
-  const resolvedSearchParams = await searchParams
-
-  // Fetch participation history with caching
-  let participationHistory: ParticipationHistoryItem[] = []
-  let summaryStats: SummaryStats = {
-    totalTests: 0,
-    completedTests: 0,
-    activeTests: 0,
-    expiredTests: 0,
-    averageBand: 0,
-    totalTestTime: 0
-  }
-  let error = ''
-
-  try {
-    const data = await getCachedParticipationHistory(studentId)
-    participationHistory = data.participationHistory
-    summaryStats = data.summaryStats
-  } catch (err) {
-    console.error('Error fetching participation history:', err)
-    error = 'Failed to fetch participation history'
-  }
-
-  return (
-    <ParticipationHistoryClient
-      initialHistory={participationHistory}
-      initialSummaryStats={summaryStats}
-      error={error}
-    />
-  )
 }
+

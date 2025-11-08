@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyJWT } from '@/lib/auth/jwt'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import fs from 'fs'
 import path from 'path'
 
@@ -165,6 +166,10 @@ export async function POST(request: NextRequest) {
     })
 
     console.log('✅ Reading test created successfully!')
+
+    // Revalidate the reading tests list page and cache tags
+    revalidatePath('/admin/reading-tests')
+    revalidateTag('reading-tests')
 
     return NextResponse.json({
       message: 'Reading test created successfully from JSON data',

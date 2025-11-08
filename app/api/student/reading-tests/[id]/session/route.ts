@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyJWT } from '@/lib/auth/jwt'
+import { revalidatePath, revalidateTag } from 'next/cache'
 
 interface TestSession {
   id: string
@@ -233,6 +234,15 @@ export async function PUT(
         band: band || 0
       }
     })
+
+    // Revalidate admin dashboard since it shows completed tests stats
+    revalidatePath('/admin')
+    revalidateTag('admin-dashboard')
+    // Revalidate student dashboard and results pages
+    revalidatePath('/student')
+    revalidateTag('student-dashboard')
+    revalidateTag('student-results')
+    revalidateTag('student-assignments')
 
     return NextResponse.json({
       id: updatedSession.id,

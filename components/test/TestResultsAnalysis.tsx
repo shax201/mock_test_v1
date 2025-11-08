@@ -67,31 +67,14 @@ interface TestResultsData {
 interface TestResultsAnalysisProps {
   testId: string
   initialTab?: 'brief' | 'writing' | 'question-wise'
+  initialResults?: TestResultsData | null
+  initialError?: string | null
 }
 
-interface RemedialTest {
-  id: string
-  title: string
-  description: string
-  type: string
-  module: string
-  difficulty: string
-  duration: number
-  questions: any[]
-  mockTest?: {
-    id: string
-    title: string
-    description: string
-  }
-}
-
-export default function TestResultsAnalysis({ testId, initialTab }: TestResultsAnalysisProps) {
-  const [loading, setLoading] = useState(true)
-  const [results, setResults] = useState<TestResultsData | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [remedialTests, setRemedialTests] = useState<RemedialTest[]>([])
-  const [remedialLoading, setRemedialLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState<'self-analysis' | 'remedial'>('self-analysis')
+export default function TestResultsAnalysis({ testId, initialTab, initialResults, initialError }: TestResultsAnalysisProps) {
+  const [loading, setLoading] = useState(!initialResults && !initialError)
+  const [results, setResults] = useState<TestResultsData | null>(initialResults || null)
+  const [error, setError] = useState<string | null>(initialError || null)
   const [activeSubTab, setActiveSubTab] = useState<'brief' | 'writing' | 'question-wise'>(initialTab || 'brief')
   
   // Update sub tab when initialTab changes
@@ -101,25 +84,19 @@ export default function TestResultsAnalysis({ testId, initialTab }: TestResultsA
     }
   }, [initialTab])
 
-  const fetchRemedialTests = async (mockTestId: string) => {
-    try {
-      setRemedialLoading(true)
-      const response = await fetch(`/api/student/remedial-tests/by-mock-test/${mockTestId}`)
-      
-      if (response.ok) {
-        const data = await response.json()
-        setRemedialTests(data.remedialTests || [])
-      } else {
-        console.error('Failed to fetch remedial tests:', response.status)
-      }
-    } catch (error) {
-      console.error('Error fetching remedial tests:', error)
-    } finally {
-      setRemedialLoading(false)
-    }
-  }
-
   useEffect(() => {
+    // Only fetch if we don't have initial results
+    if (initialResults) {
+      setLoading(false)
+      return
+    }
+
+    if (initialError) {
+      setError(initialError)
+      setLoading(false)
+      return
+    }
+
     const fetchResults = async () => {
       try {
         // Add cache-busting parameter to ensure fresh data after admin evaluation
@@ -133,11 +110,6 @@ export default function TestResultsAnalysis({ testId, initialTab }: TestResultsA
             sessionBand: data.results?.detailedScores?.band
           })
           setResults(data.results)
-          
-          // Extract mock test ID from the results and fetch remedial tests
-          if (data.results?.mockTestId) {
-            fetchRemedialTests(data.results.mockTestId)
-          }
         } else if (response.status === 202) {
           // Results not yet available
           const errorData = await response.json()
@@ -174,7 +146,7 @@ export default function TestResultsAnalysis({ testId, initialTab }: TestResultsA
     }, 30000) // Check every 30 seconds
     
     return () => clearInterval(interval)
-  }, [testId])
+  }, [testId, initialResults, initialError])
 
   if (loading) {
     return (
@@ -240,31 +212,10 @@ export default function TestResultsAnalysis({ testId, initialTab }: TestResultsA
           {/* Tabs */}
           <div className="flex justify-between items-center mb-8">
             <div className="flex space-x-8">
-              <button
-                onClick={() => setActiveTab('self-analysis')}
-                className={`pb-4 border-b-2 transition-colors ${
-                  activeTab === 'self-analysis'
-                    ? 'border-gray-400 text-gray-900'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <div className="text-lg font-medium">Self Analysis</div>
+              <div className="pb-4 border-b-2 border-gray-400">
+                <div className="text-lg font-medium text-gray-900">Self Analysis</div>
                 <div className="text-sm text-gray-500">Know Where You Stand</div>
-              </button>
-              <button
-                onClick={() => setActiveTab('remedial')}
-                className={`pb-4 border-b-2 transition-colors relative ${
-                  activeTab === 'remedial'
-                    ? 'border-gray-400 text-gray-900'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <div className="text-lg font-medium flex items-center">
-                  Remedial Tests
-                  <span className="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">New</span>
-                </div>
-                <div className="text-sm text-gray-500">Improve Your Weak Areas</div>
-              </button>
+              </div>
             </div>
             
             {/* Download Report Button */}
@@ -277,8 +228,7 @@ export default function TestResultsAnalysis({ testId, initialTab }: TestResultsA
           </div>
 
           {/* Sub Navigation */}
-          {activeTab === 'self-analysis' && (
-            <div className="flex space-x-8 mb-8 border-b border-gray-200">
+          <div className="flex space-x-8 mb-8 border-b border-gray-200">
               {[
                 { key: 'brief', label: 'Brief' },
                 { key: 'writing', label: 'Writing' },
@@ -297,10 +247,9 @@ export default function TestResultsAnalysis({ testId, initialTab }: TestResultsA
                 </button>
               ))}
             </div>
-          )}
 
           {/* Content Area */}
-          {activeTab === 'self-analysis' && activeSubTab === 'brief' && (
+          {activeSubTab === 'brief' && (
             <div className="text-center">
           {/* Band Score Cards */}
           <div className="flex justify-center space-x-8 mb-8">
@@ -368,7 +317,7 @@ export default function TestResultsAnalysis({ testId, initialTab }: TestResultsA
 
 
           {/* Question-wise Review */}
-          {activeTab === 'self-analysis' && activeSubTab === 'question-wise' && (
+          {activeSubTab === 'question-wise' && (
             <QuestionWiseResults
               testId={testId}
               questions={[
@@ -385,102 +334,10 @@ export default function TestResultsAnalysis({ testId, initialTab }: TestResultsA
           )}
 
           {/* Writing Analysis */}
-          {activeTab === 'self-analysis' && activeSubTab === 'writing' && (
+          {activeSubTab === 'writing' && (
             <div className="text-center py-12">
               <h3 className="text-xl font-semibold text-gray-900 mb-4">Writing Analysis</h3>
               <p className="text-gray-600">Detailed writing analysis will be available here.</p>
-            </div>
-          )}
-
-          {activeTab === 'remedial' && (
-            <div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-6">Personalized Remedial Tests</h3>
-              <p className="text-gray-600 mb-6">Practice tests designed to help you improve your weak areas based on this mock test.</p>
-              
-              {remedialLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                  <span className="ml-2 text-gray-600">Loading remedial tests...</span>
-                </div>
-              ) : remedialTests.length > 0 ? (
-                <div className="space-y-4">
-                  {remedialTests.map((test) => (
-                    <div key={test.id} className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h4 className="text-lg font-medium text-gray-900 mb-2">{test.title}</h4>
-                          <p className="text-sm text-gray-600 mb-3">{test.description}</p>
-                          <div className="flex items-center space-x-4">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              {test.module}
-                            </span>
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              {test.difficulty}
-                            </span>
-                            <span className="text-sm text-gray-500">
-                              {test.duration} minutes
-                            </span>
-                            <span className="text-sm text-gray-500">
-                              {test.type.replace(/_/g, ' ')}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="ml-4">
-                          <button
-                            onClick={async () => {
-                              try {
-                                const response = await fetch('/api/student/start-remedial-test-session', {
-                                  method: 'POST',
-                                  headers: {
-                                    'Content-Type': 'application/json',
-                                  },
-                                  body: JSON.stringify({ remedialTestId: test.id }),
-                                })
-
-                                if (response.ok) {
-                                  const data = await response.json()
-                                  console.log("data",data);
-                                  
-                                  // Navigate to the appropriate module based on test type
-                                  let modulePath = 'reading' // default
-                                  if (data.module === 'MATCHING_HEADINGS' || test.type === 'MATCHING_HEADINGS') {
-                                    modulePath = 'matching-headings'
-                                  } else if (data.module === 'LISTENING') {
-                                    modulePath = 'listening'
-                                  } else if (data.module === 'WRITING') {
-                                    modulePath = 'writing'
-                                  }
-                                  
-                                  window.location.href = `/test/${data.token}/${modulePath}`
-                                } else {
-                                  const errorData = await response.json()
-                                  alert('Failed to start remedial test. Please try again.')
-                                }
-                              } catch (error) {
-                                console.error('Error starting remedial test:', error)
-                                alert('Network error. Please try again.')
-                              }
-                            }}
-                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
-                          >
-                            Start Test
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2z" />
-                  </svg>
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">No remedial tests available</h3>
-                  <p className="mt-1 text-sm text-gray-500">
-                    No remedial tests are currently linked to this mock test.
-                  </p>
-                </div>
-              )}
             </div>
           )}
         </div>

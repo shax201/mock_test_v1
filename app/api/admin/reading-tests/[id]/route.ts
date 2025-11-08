@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyJWT } from '@/lib/auth/jwt'
+import { revalidatePath, revalidateTag } from 'next/cache'
 
 export async function GET(
   request: NextRequest,
@@ -214,6 +215,10 @@ export async function PUT(
       }
     })
 
+    // Revalidate the reading tests list page and cache tags
+    revalidatePath('/admin/reading-tests')
+    revalidateTag('reading-tests')
+
     return NextResponse.json({ readingTest: updatedReadingTest })
   } catch (error) {
     console.error('Error updating reading test:', error)
@@ -242,16 +247,44 @@ export async function DELETE(
 
     const { id } = await params
 
+    // Check if the reading test exists before trying to delete
+    const readingTest = await prisma.readingTest.findUnique({
+      where: { id },
+      select: { id: true }
+    })
+
+    if (!readingTest) {
+      return NextResponse.json(
+        { error: 'Reading test not found' },
+        { status: 404 }
+      )
+    }
+
     // Delete the reading test (cascade will handle related records)
     await prisma.readingTest.delete({
       where: { id }
     })
 
+    // Revalidate the reading tests list page and cache tags
+    revalidatePath('/admin/reading-tests')
+    revalidateTag('reading-tests')
+    revalidatePath('/admin')
+    revalidateTag('admin-dashboard')
+
     return NextResponse.json({ message: 'Reading test deleted successfully' })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error deleting reading test:', error)
+    
+    // Handle Prisma record not found error
+    if (error?.code === 'P2025') {
+      return NextResponse.json(
+        { error: 'Reading test not found' },
+        { status: 404 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error?.message || 'Unknown error' },
       { status: 500 }
     )
   }

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/db'
 import { verifyJWT } from '@/lib/auth/jwt'
-
-const prisma = new PrismaClient()
+import { revalidatePath, revalidateTag } from 'next/cache'
 
 export async function GET(
   request: NextRequest,
@@ -126,6 +125,13 @@ export async function PUT(
       }
     })
 
+    // Revalidate the students list page and cache tags
+    revalidatePath('/admin/students')
+    revalidateTag('students')
+    // Also revalidate dashboard since it shows student stats
+    revalidatePath('/admin')
+    revalidateTag('admin-dashboard')
+
     return NextResponse.json({ student })
   } catch (error) {
     console.error('Error updating student:', error)
@@ -174,6 +180,13 @@ export async function DELETE(
     await prisma.user.delete({
       where: { id: studentId }
     })
+
+    // Revalidate the students list page and cache tags
+    revalidatePath('/admin/students')
+    revalidateTag('students')
+    // Also revalidate dashboard since it shows student stats
+    revalidatePath('/admin')
+    revalidateTag('admin-dashboard')
 
     return NextResponse.json({ message: 'Student deleted successfully' })
   } catch (error) {

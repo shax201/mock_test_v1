@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 
 interface Student {
   id: string
@@ -16,27 +15,25 @@ export default function StudentProtectedLayout({
 }) {
   const [student, setStudent] = useState<Student | null>(null)
   const [loading, setLoading] = useState(true)
-  const router = useRouter()
 
   useEffect(() => {
-    const checkAuth = async () => {
+    // Auth is handled by middleware, but fetch user info for display
+    const fetchUserInfo = async () => {
       try {
         const response = await fetch('/api/student/auth/me')
         if (response.ok) {
           const data = await response.json()
           setStudent(data.student)
-        } else {
-          router.push('/login?type=student')
         }
       } catch (error) {
-        router.push('/login?type=student')
+        console.error('Error fetching user info:', error)
       } finally {
         setLoading(false)
       }
     }
 
-    checkAuth()
-  }, [router])
+    fetchUserInfo()
+  }, [])
 
   if (loading) {
     return (
@@ -45,8 +42,6 @@ export default function StudentProtectedLayout({
       </div>
     )
   }
-
-  if (!student) return null
 
   return (
     <div className="min-h-screen bg-gray-100">

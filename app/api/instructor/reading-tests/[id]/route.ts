@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyJWT } from '@/lib/auth/jwt'
+import { revalidatePath, revalidateTag } from 'next/cache'
 
 export async function GET(
   request: NextRequest,
@@ -216,6 +217,10 @@ export async function PUT(
       }
     })
 
+    // Revalidate instructor reading tests page and cache tags
+    revalidatePath('/instructor/reading-tests')
+    revalidateTag('instructor-reading-tests')
+
     return NextResponse.json({ readingTest: updatedReadingTest })
   } catch (error) {
     console.error('Error updating reading test:', error)
@@ -249,6 +254,10 @@ export async function DELETE(
     await prisma.readingTest.delete({
       where: { id }
     })
+
+    // Revalidate instructor reading tests page and cache tags
+    revalidatePath('/instructor/reading-tests')
+    revalidateTag('instructor-reading-tests')
 
     return NextResponse.json({ message: 'Reading test deleted successfully' })
   } catch (error) {

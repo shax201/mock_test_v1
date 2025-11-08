@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/db'
 import { verifyJWT } from '@/lib/auth/jwt'
-
-const prisma = new PrismaClient()
+import { revalidatePath, revalidateTag } from 'next/cache'
 
 export async function GET(request: NextRequest) {
   try {
@@ -92,6 +91,13 @@ export async function POST(request: NextRequest) {
         passwordHash: 'temp_password' // Will be set when student first logs in
       }
     })
+
+    // Revalidate the students list page and cache tags
+    revalidatePath('/admin/students')
+    revalidateTag('students')
+    // Also revalidate dashboard since it shows student stats
+    revalidatePath('/admin')
+    revalidateTag('admin-dashboard')
 
     return NextResponse.json({ student }, { status: 201 })
   } catch (error) {

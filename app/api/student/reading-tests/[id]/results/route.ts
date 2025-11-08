@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyJWT } from '@/lib/auth/jwt'
+import { revalidatePath, revalidateTag } from 'next/cache'
 
 /**
  * POST /api/student/reading-tests/[id]/results
@@ -82,6 +83,15 @@ export async function POST(
         }
       })
     }
+
+    // Revalidate admin dashboard since it shows completed tests stats
+    revalidatePath('/admin')
+    revalidateTag('admin-dashboard')
+    // Revalidate student dashboard and results pages
+    revalidatePath('/student')
+    revalidateTag('student-dashboard')
+    revalidateTag('student-results')
+    revalidateTag('student-assignments')
 
     return NextResponse.json({
       success: true,

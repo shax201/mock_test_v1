@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyJWT } from '@/lib/auth/jwt'
+import { revalidatePath, revalidateTag } from 'next/cache'
 
 export async function GET(
   request: NextRequest,
@@ -144,6 +145,10 @@ export async function PUT(
         }
       })
 
+      // Revalidate the listening tests list page and cache tags
+      revalidatePath('/admin/listening-tests')
+      revalidateTag('listening-tests')
+
       return NextResponse.json({ listeningTest })
     } else {
       // Simple update without parts
@@ -178,6 +183,10 @@ export async function PUT(
         }
       })
 
+      // Revalidate the listening tests list page and cache tags
+      revalidatePath('/admin/listening-tests')
+      revalidateTag('listening-tests')
+
       return NextResponse.json({ listeningTest })
     }
   } catch (error) {
@@ -206,15 +215,44 @@ export async function DELETE(
     }
 
     const resolvedParams = await params
+    
+    // Check if the listening test exists before trying to delete
+    const listeningTest = await prisma.listeningTest.findUnique({
+      where: { id: resolvedParams.id },
+      select: { id: true }
+    })
+
+    if (!listeningTest) {
+      return NextResponse.json(
+        { error: 'Listening test not found' },
+        { status: 404 }
+      )
+    }
+
     await prisma.listeningTest.delete({
       where: { id: resolvedParams.id }
     })
 
+    // Revalidate the listening tests list page and cache tags
+    revalidatePath('/admin/listening-tests')
+    revalidateTag('listening-tests')
+    revalidatePath('/admin')
+    revalidateTag('admin-dashboard')
+
     return NextResponse.json({ message: 'Listening test deleted successfully' })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error deleting listening test:', error)
+    
+    // Handle Prisma record not found error
+    if (error?.code === 'P2025') {
+      return NextResponse.json(
+        { error: 'Listening test not found' },
+        { status: 404 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error?.message || 'Unknown error' },
       { status: 500 }
     )
   }
