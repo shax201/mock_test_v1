@@ -822,6 +822,74 @@
   background-color: #000;
 }
 
+/* Fullscreen Modal Styles */
+.fullscreenModal {
+  background: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.fullscreenModalHeader {
+  background: linear-gradient(to bottom, #1a1a1a, #2d2d2d);
+  padding: 20px 24px;
+}
+
+.fullscreenModalTitle {
+  color: white;
+  font-size: 24px;
+  font-weight: bold;
+  margin: 0;
+  text-align: left;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+.fullscreenModalBody {
+  background: #d0d8e0;
+  padding: 24px;
+  text-align: left;
+}
+
+.fullscreenModalMessage {
+  color: #000;
+  font-size: 16px;
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+.fullscreenModalButtons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.fullscreenModalButton {
+  background: linear-gradient(to bottom, #e8e8e8, #d0d0d0);
+  border: 1px solid #000;
+  border-radius: 6px;
+  padding: 8px 20px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #000;
+  cursor: pointer;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  transition: all 0.2s ease;
+}
+
+.fullscreenModalButton:hover {
+  background: linear-gradient(to bottom, #f0f0f0, #d8d8d8);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.fullscreenModalButton:active {
+  background: linear-gradient(to bottom, #d8d8d8, #c0c0c0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
 /* Timer End Modal Styles */
 .timerEndModal {
   background: white;

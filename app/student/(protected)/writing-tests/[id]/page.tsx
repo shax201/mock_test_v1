@@ -66,6 +66,10 @@ export default function StudentWritingTestPage() {
   const [showContrastPanel, setShowContrastPanel] = useState(false)
   const [showTextSizePanel, setShowTextSizePanel] = useState(false)
   const [showInstructionsPanel, setShowInstructionsPanel] = useState(false)
+  const [showFullscreenModal, setShowFullscreenModal] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
+  const [loadingProgress, setLoadingProgress] = useState(0)
+  const [isRedirecting, setIsRedirecting] = useState(false)
   const [contrastTheme, setContrastTheme] = useState<'black-on-white' | 'white-on-black' | 'yellow-on-black'>('black-on-white')
   const [textSize, setTextSize] = useState<'regular' | 'large' | 'extra-large'>('regular')
   
@@ -181,12 +185,69 @@ export default function StudentWritingTestPage() {
     // Navigate to results page to view submitted test with question-wise review
     // Use the reading test ID if available, otherwise use writing test ID
     const resultsTestId = readingTestId || params.id
-    router.push(`/student/results/${resultsTestId}?tab=question-wise`)
+    setIsRedirecting(true)
+    setTimeout(() => {
+      router.push(`/student/results/${resultsTestId}?tab=question-wise`)
+    }, 500)
   }
 
   // Start the test
+  const requestFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen()
+      }
+    } catch (error) {
+      console.error('Error requesting fullscreen:', error)
+    }
+  }
+
+  const startLoading = () => {
+    setIsLoading(true)
+    setLoadingProgress(0)
+    
+    // Simulate loading progress
+    const interval = setInterval(() => {
+      setLoadingProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(interval)
+          setTimeout(() => {
+            setIsLoading(false)
+            setTestStarted(true)
+          }, 500)
+          return 100
+        }
+        return prev + 2 // Increment by 2% each time
+      })
+    }, 100) // Update every 100ms
+  }
+
+  const handleFullscreenYes = async () => {
+    await requestFullscreen()
+    setShowFullscreenModal(false)
+    startLoading()
+  }
+
+  const handleFullscreenNo = () => {
+    setShowFullscreenModal(false)
+    startLoading()
+  }
+
   const startTest = () => {
-    setTestStarted(true)
+    if (!isLoading) {
+      startLoading()
+    }
+  }
+
+  // Exit fullscreen mode
+  const exitFullscreen = async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen()
+      }
+    } catch (error) {
+      console.error('Error exiting fullscreen:', error)
+    }
   }
 
   // Submit writing test answers
@@ -194,6 +255,9 @@ export default function StudentWritingTestPage() {
     if (isSubmitting) return
 
     setIsSubmitting(true)
+
+    // Exit fullscreen mode
+    await exitFullscreen()
 
     try {
       // Step 1: Prepare submission data
@@ -287,7 +351,34 @@ export default function StudentWritingTestPage() {
   const task2Question = task2?.questions[0]
 
   return (
-    <div className={`${styles.mainContainer} contrast-${contrastTheme} text-size-${textSize}`}>
+    <>
+      {/* Redirecting Loading Screen */}
+      {isRedirecting && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: '#2d2d2d',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999
+        }}>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
+          <p style={{
+            color: 'white',
+            fontSize: '18px',
+            textAlign: 'center',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif'
+          }}>
+            Redirecting to results...
+          </p>
+        </div>
+      )}
+      <div className={`${styles.mainContainer} contrast-${contrastTheme} text-size-${textSize}`}>
       {/* Header - Matching reading test style */}
       <div className={styles.header}>
         <div className={styles.headerLeft}>
@@ -314,37 +405,185 @@ export default function StudentWritingTestPage() {
         </div>
       </div>
 
-      {!testStarted ? (
-        /* Start Screen */
-        <div className={styles.startScreen}>
-          <div className={styles.startCard}>
-            <h1 className={styles.startTitle}>{testData.test.title}</h1>
-            <div className="text-left space-y-4 mb-6">
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                <h3 className="font-bold text-purple-900 mb-2">Test Instructions</h3>
-                <ul className="text-sm text-purple-800 space-y-1">
-                  <li>• You will have {testData.test.totalTimeMinutes} minutes to complete this test</li>
-                  <li>• Complete both writing tasks</li>
-                  <li>• Task 1: Write at least 150 words (20 minutes recommended)</li>
-                  <li>• Task 2: Write at least 250 words (40 minutes recommended)</li>
-                  <li>• Your answers will be saved when you submit</li>
-                </ul>
-              </div>
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <h3 className="font-bold text-yellow-900 mb-2">Important Notes</h3>
-                <ul className="text-sm text-yellow-800 space-y-1">
-                  <li>• Do not refresh the page during the test</li>
-                  <li>• Ensure you have a stable internet connection</li>
-                  <li>• The test will auto-submit when time runs out</li>
-                </ul>
+      {/* Fullscreen Modal */}
+      {showFullscreenModal && !testStarted && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          zIndex: 2000,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '8px',
+            width: '90%',
+            maxWidth: '500px',
+            overflow: 'hidden',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)'
+          }}>
+            <div style={{
+              background: 'linear-gradient(to bottom, #1a1a1a, #2d2d2d)',
+              padding: '20px 24px'
+            }}>
+              <h2 style={{
+                color: 'white',
+                fontSize: '24px',
+                fontWeight: 'bold',
+                margin: 0,
+                textAlign: 'left',
+                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif'
+              }}>Alert!</h2>
+            </div>
+            <div style={{
+              background: '#d0d8e0',
+              padding: '24px',
+              textAlign: 'left'
+            }}>
+              <p style={{
+                color: '#000',
+                fontSize: '16px',
+                margin: '0 0 24px 0',
+                lineHeight: '1.5',
+                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif'
+              }}>
+                Would you like to attempt this test in fullscreen mode?
+              </p>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '12px',
+                marginTop: '20px'
+              }}>
+                <button 
+                  onClick={handleFullscreenYes}
+                  style={{
+                    background: 'linear-gradient(to bottom, #e8e8e8, #d0d0d0)',
+                    border: '1px solid #000',
+                    borderRadius: '6px',
+                    padding: '8px 20px',
+                    fontSize: '16px',
+                    fontWeight: 500,
+                    color: '#000',
+                    cursor: 'pointer',
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(to bottom, #f0f0f0, #d8d8d8)'
+                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.2)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(to bottom, #e8e8e8, #d0d0d0)'
+                    e.currentTarget.style.boxShadow = 'none'
+                  }}
+                  onMouseDown={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(to bottom, #d8d8d8, #c0c0c0)'
+                    e.currentTarget.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.2)'
+                  }}
+                  onMouseUp={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(to bottom, #f0f0f0, #d8d8d8)'
+                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.2)'
+                  }}
+                >
+                  Yes
+                </button>
+                <button 
+                  onClick={handleFullscreenNo}
+                  style={{
+                    background: 'linear-gradient(to bottom, #e8e8e8, #d0d0d0)',
+                    border: '1px solid #000',
+                    borderRadius: '6px',
+                    padding: '8px 20px',
+                    fontSize: '16px',
+                    fontWeight: 500,
+                    color: '#000',
+                    cursor: 'pointer',
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(to bottom, #f0f0f0, #d8d8d8)'
+                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.2)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(to bottom, #e8e8e8, #d0d0d0)'
+                    e.currentTarget.style.boxShadow = 'none'
+                  }}
+                  onMouseDown={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(to bottom, #d8d8d8, #c0c0c0)'
+                    e.currentTarget.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.2)'
+                  }}
+                  onMouseUp={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(to bottom, #f0f0f0, #d8d8d8)'
+                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.2)'
+                  }}
+                >
+                  No
+                </button>
               </div>
             </div>
-            <button onClick={startTest} className={styles.startButton}>
-              Start Test
-            </button>
           </div>
         </div>
-      ) : (
+      )}
+
+      {/* Loading Screen */}
+      {!testStarted && !showFullscreenModal && isLoading && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: '#2d2d2d',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 2000
+        }}>
+          <p style={{
+            color: 'white',
+            fontSize: '18px',
+            marginBottom: '30px',
+            textAlign: 'center',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif'
+          }}>
+            Please wait while we are loading the questions. This may take a while.
+          </p>
+          <div style={{
+            width: '400px',
+            maxWidth: '90%',
+            height: '20px',
+            backgroundColor: '#1a1a1a',
+            borderRadius: '10px',
+            overflow: 'hidden',
+            marginBottom: '15px'
+          }}>
+            <div style={{
+              width: `${loadingProgress}%`,
+              height: '100%',
+              backgroundColor: '#4CAF50',
+              transition: 'width 0.1s ease',
+              borderRadius: '10px'
+            }}></div>
+          </div>
+          <p style={{
+            color: 'white',
+            fontSize: '16px',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif'
+          }}>
+            {loadingProgress}%
+          </p>
+        </div>
+      )}
+
+      {testStarted && (
         <>
           {/* Main Container with Left/Right Panels */}
           <div className={styles.mainContainer}>
@@ -739,7 +978,8 @@ export default function StudentWritingTestPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   )
 }
 

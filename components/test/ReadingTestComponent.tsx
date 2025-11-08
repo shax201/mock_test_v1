@@ -36,6 +36,9 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showTimerEndModal, setShowTimerEndModal] = useState(false);
   const [showSubmittingModal, setShowSubmittingModal] = useState(false);
+  const [showFullscreenModal, setShowFullscreenModal] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const [contrastTheme, setContrastTheme] = useState<'black-on-white' | 'white-on-black' | 'yellow-on-black'>('black-on-white');
   const [textSize, setTextSize] = useState<'regular' | 'large' | 'extra-large'>('regular');
   const [results, setResults] = useState<{ score: number; band: number; details: ResultDetail[] }>({
@@ -72,16 +75,52 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
   const correctAnswers = testData.correctAnswers as Record<string, string>;
   const passageConfigs = testData.passageConfigs;
 
-  const startExam = useCallback(() => {
-    setIsTestStarted(true);
-    initializeTest();
+  const requestFullscreen = useCallback(async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch (error) {
+      console.error('Error requesting fullscreen:', error);
+    }
   }, []);
 
-  const initializeTest = useCallback(() => {
-    startTimer();
-    initializeDragAndDrop();
-    setupEventListeners();
+  const startLoading = useCallback(() => {
+    setIsLoading(true);
+    setLoadingProgress(0);
+    
+    // Simulate loading progress
+    const interval = setInterval(() => {
+      setLoadingProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setTimeout(() => {
+            setIsLoading(false);
+            setIsTestStarted(true);
+          }, 500);
+          return 100;
+        }
+        return prev + 2; // Increment by 2% each time
+      });
+    }, 100); // Update every 100ms
   }, []);
+
+  const handleFullscreenYes = useCallback(async () => {
+    await requestFullscreen();
+    setShowFullscreenModal(false);
+    startLoading();
+  }, [requestFullscreen, startLoading]);
+
+  const handleFullscreenNo = useCallback(() => {
+    setShowFullscreenModal(false);
+    startLoading();
+  }, [startLoading]);
+
+  const startExam = useCallback(() => {
+    if (!isLoading) {
+      startLoading();
+    }
+  }, [isLoading, startLoading]);
 
   const startTimer = useCallback(() => {
     const interval = setInterval(() => {
@@ -116,9 +155,20 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
 
   const setupEventListeners = useCallback(() => {
     // Add input and change event listeners for updating indicators
-    document.addEventListener('input', updateAllIndicators);
-    document.addEventListener('change', updateAllIndicators);
+    // Note: updateAllIndicators is defined later, but we access it via closure
+    const updateIndicators = () => {
+      updateAnsweredIndicators();
+      updateAttemptedCounts();
+    };
+    document.addEventListener('input', updateIndicators);
+    document.addEventListener('change', updateIndicators);
   }, []);
+
+  const initializeTest = useCallback(() => {
+    startTimer();
+    initializeDragAndDrop();
+    setupEventListeners();
+  }, [startTimer, initializeDragAndDrop, setupEventListeners]);
 
   const clearSelection = useCallback(() => {
     window.getSelection()?.removeAllRanges();
@@ -235,85 +285,49 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
     updateAllIndicators();
   }, []);
 
-  const checkAnswers = useCallback(() => {
-    if (timerInterval) clearInterval(timerInterval);
-
-    let score = 0;
-    const resultDetails: ResultDetail[] = [];
-
-    for (let i = 1; i <= 40; i++) {
-      const { value, text } = getUserAnswer(i);
-      const correctAnswer = correctAnswers[i.toString()];
-      const isCorrect = checkValue(value, correctAnswer);
-
-      if (isCorrect) score++;
-
-      markQuestionContainer(i, isCorrect);
-      markSubQuestionButton(i, isCorrect);
-
-      if (!isCorrect) {
-        displayCorrectAnswer(i, correctAnswer);
-      }
-
-      resultDetails.push({
-        qNum: i,
-        userAnswer: text,
-        correctAnswer: correctAnswer || '',
-        isCorrect
-      });
-    }
-
-    const band = calculateIELTSBand(score);
-    setResults({ score, band, details: resultDetails });
-    // Don't show modal - let parent handle navigation to results page
-    // setShowResultsModal(true);
-
-    // Call the completion callback if provided
-    if (onTestComplete) {
-      onTestComplete({ score, band, details: resultDetails });
-    }
-
-    if (deliverButtonRef.current) {
-      deliverButtonRef.current.textContent = 'Checked';
-      deliverButtonRef.current.style.backgroundColor = '#dc3545';
-      deliverButtonRef.current.style.color = 'white';
-      deliverButtonRef.current.style.borderColor = '#dc3545';
-      deliverButtonRef.current.onclick = () => setShowResultsModal(true);
-    }
-  }, [timerInterval]);
-
   const getUserAnswer = useCallback((qNum: number): { value: string; text: string } => {
+    // Handle drag-and-drop questions (27-33)
     if (qNum >= 27 && qNum <= 33) {
       const dropBox = document.getElementById(`drop-box-3-${qNum}`);
       const droppedItem = dropBox ? dropBox.querySelector(`.${styles.headingItem}`) : null;
       if (droppedItem) {
-        return { value: droppedItem.getAttribute('data-value') || '', text: droppedItem.textContent?.trim() || '' };
+        const dataValue = droppedItem.getAttribute('data-value') || '';
+        const textValue = droppedItem.textContent?.trim() || '';
+        if (dataValue || textValue) {
+          return { value: dataValue || textValue, text: textValue || dataValue };
+        }
       }
       return { value: '', text: 'No Answer' };
     }
 
-    // First check userAnswers state
+    // First check userAnswers state (most reliable - this is updated by handleAnswerChange)
     const stateAnswer = userAnswers[qNum.toString()];
-    if (stateAnswer) {
-      return { value: stateAnswer, text: stateAnswer.trim() || 'No Answer' };
+    if (stateAnswer !== undefined && stateAnswer !== null && stateAnswer !== '') {
+      const trimmedValue = stateAnswer.trim();
+      return { value: trimmedValue, text: trimmedValue || 'No Answer' };
     }
 
     // Fallback to DOM for backwards compatibility
-    const textInput = document.getElementById(`q${qNum}`) as HTMLInputElement;
-    if (textInput) {
-      return { value: textInput.value, text: textInput.value.trim() || 'No Answer' };
+    // Check for text input fields by ID first (most common)
+    const textInputById = document.getElementById(`q${qNum}`) as HTMLInputElement;
+    if (textInputById && textInputById.type === 'text' && textInputById.value) {
+      const inputValue = textInputById.value.trim();
+      if (inputValue) {
+        return { value: inputValue, text: inputValue };
+    }
     }
 
+    // Check for radio buttons (multiple choice, true/false/not given, matching information)
     const radioInput = document.querySelector(`input[name="q${qNum}"]:checked`) as HTMLInputElement;
-    if (radioInput) {
+    if (radioInput && radioInput.value) {
       return { value: radioInput.value, text: radioInput.value };
     }
 
     return { value: '', text: 'No Answer' };
   }, [userAnswers]);
 
-  const checkValue = useCallback((userValue: string, correctValue: string): boolean => {
-    if (!userValue) return false;
+  const checkValue = useCallback((userValue: string, correctValue: string | undefined): boolean => {
+    if (!userValue || !correctValue) return false;
     return userValue.trim().toLowerCase() === correctValue.trim().toLowerCase();
   }, []);
 
@@ -348,7 +362,9 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
     }
   }, [findQuestionElement]);
 
-  const displayCorrectAnswer = useCallback((qNum: number, correctAnswer: string) => {
+  const displayCorrectAnswer = useCallback((qNum: number, correctAnswer: string | undefined) => {
+    if (!correctAnswer) return;
+    
     const inputEl = document.getElementById(`q${qNum}`) as HTMLInputElement;
     if (inputEl) {
       inputEl.classList.add(styles.incorrect);
@@ -380,7 +396,73 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
       }
     }
     return 0.0;
+  }, [testData.bandCalculation]);
+
+  const exitFullscreen = useCallback(async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      }
+    } catch (error) {
+      console.error('Error exiting fullscreen:', error);
+    }
   }, []);
+
+  const checkAnswers = useCallback(() => {
+    if (timerInterval) clearInterval(timerInterval);
+
+    let score = 0;
+    const resultDetails: ResultDetail[] = [];
+
+    for (let i = 1; i <= 40; i++) {
+      const { value, text } = getUserAnswer(i);
+      const correctAnswer = correctAnswers[i.toString()];
+      const isCorrect = checkValue(value, correctAnswer);
+
+      if (isCorrect) score++;
+
+      markQuestionContainer(i, isCorrect);
+      markSubQuestionButton(i, isCorrect);
+
+      if (!isCorrect && correctAnswer) {
+        displayCorrectAnswer(i, correctAnswer);
+      }
+
+      resultDetails.push({
+        qNum: i,
+        userAnswer: text,
+        correctAnswer: correctAnswer || '',
+        isCorrect
+      });
+    }
+
+    const band = calculateIELTSBand(score);
+    setResults({ score, band, details: resultDetails });
+    // Don't show modal - let parent handle navigation to results page
+    // setShowResultsModal(true);
+
+    // Exit fullscreen mode
+    exitFullscreen();
+
+    // Call the completion callback if provided
+    if (onTestComplete) {
+      try {
+        onTestComplete({ score, band, details: resultDetails });
+      } catch (error) {
+        console.error('Error in onTestComplete callback:', error);
+      }
+    } else {
+      console.warn('onTestComplete callback is not provided');
+    }
+
+    if (deliverButtonRef.current) {
+      deliverButtonRef.current.textContent = 'Checked';
+      deliverButtonRef.current.style.backgroundColor = '#dc3545';
+      deliverButtonRef.current.style.color = 'white';
+      deliverButtonRef.current.style.borderColor = '#dc3545';
+      deliverButtonRef.current.onclick = () => setShowResultsModal(true);
+    }
+  }, [timerInterval, getUserAnswer, correctAnswers, checkValue, markQuestionContainer, markSubQuestionButton, displayCorrectAnswer, calculateIELTSBand, onTestComplete, exitFullscreen]);
 
   const switchToPart = useCallback((partNumber: number) => {
     setCurrentPassage(partNumber);
@@ -952,6 +1034,13 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
     updateNavigation();
   }, [currentQuestion, currentPassage, updateNavigation]);
 
+  // Effect to initialize test when it starts
+  useEffect(() => {
+    if (isTestStarted) {
+      initializeTest();
+    }
+  }, [isTestStarted, initializeTest]);
+
   // Effect to setup bottom navigation when passage changes
   useEffect(() => {
     if (isTestStarted) {
@@ -1004,19 +1093,84 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
 
   return (
     <>
-      {/* Start Exam Modal */}
-      {!isTestStarted && (
+      {/* Fullscreen Modal */}
+      {showFullscreenModal && !isTestStarted && (
         <div className={styles.modalOverlay}>
-          <div className={styles.modalContent}>
-            <h2>IELTS Reading Practice Test</h2>
-            <p>You have 60 minutes to complete this test.</p>
-            <p>Click "Start Test" when you are ready to begin.</p>
-            <div className={styles.startModalButtons}>
-              <button id="start-exam-yes" onClick={startExam}>
-                Start Test
-              </button>
+          <div className={styles.fullscreenModal}>
+            <div className={styles.fullscreenModalHeader}>
+              <h2 className={styles.fullscreenModalTitle}>Alert!</h2>
+            </div>
+            <div className={styles.fullscreenModalBody}>
+              <p className={styles.fullscreenModalMessage}>
+                Would you like to attempt this test in fullscreen mode?
+              </p>
+              <div className={styles.fullscreenModalButtons}>
+                <button 
+                  className={styles.fullscreenModalButton}
+                  onClick={handleFullscreenYes}
+                >
+                  Yes
+                </button>
+                <button 
+                  className={styles.fullscreenModalButton}
+                  onClick={handleFullscreenNo}
+                >
+                  No
+                </button>
+              </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Loading Screen */}
+      {!showFullscreenModal && !isTestStarted && isLoading && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: '#2d2d2d',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 2000
+        }}>
+          <p style={{
+            color: 'white',
+            fontSize: '18px',
+            marginBottom: '30px',
+            textAlign: 'center',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif'
+          }}>
+            Please wait while we are loading the questions. This may take a while.
+          </p>
+          <div style={{
+            width: '400px',
+            maxWidth: '90%',
+            height: '20px',
+            backgroundColor: '#1a1a1a',
+            borderRadius: '10px',
+            overflow: 'hidden',
+            marginBottom: '15px'
+          }}>
+            <div style={{
+              width: `${loadingProgress}%`,
+              height: '100%',
+              backgroundColor: '#4CAF50',
+              transition: 'width 0.1s ease',
+              borderRadius: '10px'
+            }}></div>
+          </div>
+          <p style={{
+            color: 'white',
+            fontSize: '16px',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif'
+          }}>
+            {loadingProgress}%
+          </p>
         </div>
       )}
 

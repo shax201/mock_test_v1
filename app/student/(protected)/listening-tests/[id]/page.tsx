@@ -10,6 +10,7 @@ export default function StudentListeningTestPage({ params }: { params: Promise<{
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isRedirecting, setIsRedirecting] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -90,7 +91,10 @@ export default function StudentListeningTestPage({ params }: { params: Promise<{
               if (writingTestId) {
                 // Step 6: Navigate to writing test page
                 console.log('📝 Navigating to writing test:', writingTestId)
-                router.push(`/student/writing-tests/${writingTestId}`)
+                setIsRedirecting(true)
+                setTimeout(() => {
+                  router.push(`/student/writing-tests/${writingTestId}`)
+                }, 500)
                 return // Exit early on successful navigation
               }
             }
@@ -101,11 +105,17 @@ export default function StudentListeningTestPage({ params }: { params: Promise<{
           // Step 7: No writing test found, redirect to results page
           // Use reading test ID to show combined results
           console.log('ℹ️ No writing test found, redirecting to results')
-          router.push(`/student/results/${readingTestId}`)
+          setIsRedirecting(true)
+          setTimeout(() => {
+            router.push(`/student/results/${readingTestId}`)
+          }, 500)
         } else {
           // No reading test associated, redirect to listening test results using session ID
           console.log('ℹ️ No reading test associated, redirecting to results')
-          router.push(`/student/results/${sessionId}`)
+          setIsRedirecting(true)
+          setTimeout(() => {
+            router.push(`/student/results/${sessionId}`)
+          }, 500)
         }
       } else {
         // Step 8: Handle submission failure
@@ -128,10 +138,38 @@ export default function StudentListeningTestPage({ params }: { params: Promise<{
   }
 
   return (
-    <ListeningTestComponent
-      data={data}
-      onSubmit={handleTestCompletion}
-    />
+    <>
+      {/* Redirecting Loading Screen */}
+      {isRedirecting && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: '#2d2d2d',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999
+        }}>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
+          <p style={{
+            color: 'white',
+            fontSize: '18px',
+            textAlign: 'center',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif'
+          }}>
+            Redirecting to next test...
+          </p>
+        </div>
+      )}
+      <ListeningTestComponent
+        data={data}
+        onSubmit={handleTestCompletion}
+      />
+    </>
   )
 }
 
