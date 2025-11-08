@@ -52,9 +52,17 @@ interface ListeningTestFormProps {
   testId?: string
   initialData?: any
   mode?: 'create' | 'edit'
+  apiEndpoint?: string
+  onSuccess?: () => void
 }
 
-export default function ListeningTestForm({ testId, initialData, mode = 'create' }: ListeningTestFormProps) {
+export default function ListeningTestForm({ 
+  testId, 
+  initialData, 
+  mode = 'create',
+  apiEndpoint = '/api/admin/listening-tests',
+  onSuccess
+}: ListeningTestFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -198,7 +206,12 @@ export default function ListeningTestForm({ testId, initialData, mode = 'create'
   useEffect(() => {
     const fetchReadingTests = async () => {
       try {
-        const response = await fetch('/api/admin/reading-tests')
+        // Determine reading tests endpoint based on listening tests endpoint
+        const readingTestsEndpoint = apiEndpoint.includes('/instructor/')
+          ? '/api/instructor/reading-tests'
+          : '/api/admin/reading-tests'
+        
+        const response = await fetch(readingTestsEndpoint)
         const data = await response.json()
         if (response.ok) {
           setReadingTests(data.readingTests || [])
@@ -210,7 +223,7 @@ export default function ListeningTestForm({ testId, initialData, mode = 'create'
       }
     }
     fetchReadingTests()
-  }, [])
+  }, [apiEndpoint])
 
   const updatePart = (partIndex: number, updates: Partial<PartData>) => {
     setParts(parts.map((p, i) => i === partIndex ? { ...p, ...updates } : p))
@@ -470,8 +483,8 @@ export default function ListeningTestForm({ testId, initialData, mode = 'create'
       }
 
       const url = mode === 'edit' && testId 
-        ? `/api/admin/listening-tests/${testId}`
-        : '/api/admin/listening-tests'
+        ? `${apiEndpoint}/${testId}`
+        : apiEndpoint
       const method = mode === 'edit' ? 'PUT' : 'POST'
 
       const response = await fetch(url, {
@@ -490,12 +503,16 @@ export default function ListeningTestForm({ testId, initialData, mode = 'create'
       const result = await response.json()
       setMessage({
         type: 'success',
-        text: `Listening test "${result.listeningTest?.title || title}" ${mode === 'edit' ? 'updated' : 'created'} successfully! Redirecting...`
+        text: `Listening test "${result.listeningTest?.title || title}" ${mode === 'edit' ? 'updated' : 'created'} successfully!${onSuccess ? '' : ' Redirecting...'}`
       })
 
-      setTimeout(() => {
-        router.push('/admin/listening-tests')
-      }, 2000)
+      if (onSuccess) {
+        onSuccess()
+      } else {
+        setTimeout(() => {
+          router.push('/admin/listening-tests')
+        }, 2000)
+      }
     } catch (error) {
       console.error('Error creating listening test:', error)
       setMessage({
