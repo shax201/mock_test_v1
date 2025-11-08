@@ -90,7 +90,53 @@ export async function PUT(
     }
 
     const { id } = await params
-    const { title, readingTestId, totalTimeMinutes, isActive, passages, passageConfigs } = await request.json()
+    const body = await request.json()
+    const { title, readingTestId, totalTimeMinutes, isActive, passages, passageConfigs } = body
+
+    // Validate required fields
+    if (!title) {
+      return NextResponse.json({ error: 'Title is required' }, { status: 400 })
+    }
+
+    if (!readingTestId) {
+      return NextResponse.json({ error: 'Reading test ID is required' }, { status: 400 })
+    }
+
+    if (!passages || !Array.isArray(passages)) {
+      return NextResponse.json({ error: 'Passages array is required' }, { status: 400 })
+    }
+
+    if (!passageConfigs || !Array.isArray(passageConfigs)) {
+      return NextResponse.json({ error: 'Passage configs array is required' }, { status: 400 })
+    }
+
+    // Validate readingPassageId references if provided
+    const readingPassageIds = new Set<string>()
+    passages.forEach((passage: any) => {
+      (passage.questions || []).forEach((question: any) => {
+        if (question.readingPassageId && question.readingPassageId.trim() !== '') {
+          readingPassageIds.add(question.readingPassageId)
+        }
+      })
+    })
+
+    // Verify all reading passage IDs exist
+    if (readingPassageIds.size > 0) {
+      const existingPassages = await prisma.passage.findMany({
+        where: {
+          id: { in: Array.from(readingPassageIds) }
+        },
+        select: { id: true }
+      })
+      const existingIds = new Set(existingPassages.map(p => p.id))
+      const missingIds = Array.from(readingPassageIds).filter(id => !existingIds.has(id))
+      if (missingIds.length > 0) {
+        return NextResponse.json(
+          { error: `Invalid reading passage IDs: ${missingIds.join(', ')}` },
+          { status: 400 }
+        )
+      }
+    }
 
     // First, delete all existing passages, questions, contents, and configs
     await prisma.writingQuestion.deleteMany({
@@ -123,30 +169,49 @@ export async function PUT(
       where: { id },
       data: {
         title,
-        readingTestId: readingTestId || undefined,
-        totalTimeMinutes,
-        isActive,
+        readingTestId: readingTestId, // Required field, already validated above
+        totalTimeMinutes: totalTimeMinutes || 60,
+        isActive: isActive !== undefined ? isActive : true,
         passages: {
-          create: passages.map((passage: any, passageIndex: number) => ({
-            title: passage.title,
-            order: passage.order || passageIndex + 1,
-            contents: {
-              create: passage.contents?.map((content: any, contentIndex: number) => ({
-                contentId: content.contentId,
-                text: content.text,
-                order: contentIndex + 1
-              })) || []
-            },
-            questions: {
-              create: passage.questions?.map((question: any) => ({
-                questionNumber: question.questionNumber,
-                type: question.type,
-                questionText: question.questionText,
-                readingPassageId: question.readingPassageId || null,
-                points: question.points || 1
-              })) || []
+          create: passages.map((passage: any, passageIndex: number) => {
+            if (!passage.title) {
+              throw new Error(`Passage at index ${passageIndex} is missing a title`)
             }
-          }))
+            return {
+              title: passage.title,
+              order: passage.order || passageIndex + 1,
+              contents: {
+                create: (passage.contents || []).map((content: any, contentIndex: number) => {
+                  if (!content.contentId || !content.text) {
+                    throw new Error(`Content at index ${contentIndex} in passage "${passage.title}" is missing required fields`)
+                  }
+                  return {
+                    contentId: content.contentId,
+                    text: content.text,
+                    order: contentIndex + 1
+                  }
+                })
+              },
+              questions: {
+                create: (passage.questions || []).map((question: any, qIndex: number) => {
+                  if (!question.type || !question.questionText) {
+                    throw new Error(`Question at index ${qIndex} in passage "${passage.title}" is missing required fields (type or questionText)`)
+                  }
+                  // Validate question type
+                  if (!['TASK_1', 'TASK_2'].includes(question.type)) {
+                    throw new Error(`Question at index ${qIndex} in passage "${passage.title}" has invalid type: ${question.type}. Must be TASK_1 or TASK_2`)
+                  }
+                  return {
+                    questionNumber: question.questionNumber || qIndex + 1,
+                    type: question.type,
+                    questionText: question.questionText,
+                    readingPassageId: question.readingPassageId && question.readingPassageId.trim() !== '' ? question.readingPassageId : null,
+                    points: question.points || 1
+                  }
+                })
+              }
+            }
+          })
         },
         passageConfigs: {
           create: passageConfigs.map((config: any) => ({
@@ -184,18 +249,59 @@ export async function PUT(
     })
 
     // Update the reading test to store the writing test ID
+    // Only update if it's different from current value
     if (readingTestId) {
-      await prisma.readingTest.update({
+      const currentReadingTest = await prisma.readingTest.findUnique({
         where: { id: readingTestId },
-        data: { writingTestId: writingTest.id }
+        select: { writingTestId: true }
       })
+      
+      if (currentReadingTest && currentReadingTest.writingTestId !== writingTest.id) {
+        await prisma.readingTest.update({
+          where: { id: readingTestId },
+          data: { writingTestId: writingTest.id }
+        })
+      } else if (!currentReadingTest?.writingTestId) {
+        await prisma.readingTest.update({
+          where: { id: readingTestId },
+          data: { writingTestId: writingTest.id }
+        })
+      }
     }
 
     return NextResponse.json({ writingTest })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating writing test:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    const errorStack = error instanceof Error ? error.stack : undefined
+    const errorCode = error?.code || 'UNKNOWN'
+    const errorMeta = error?.meta || {}
+    
+    console.error('Error details:', { 
+      errorMessage, 
+      errorStack, 
+      errorCode,
+      errorMeta,
+      id 
+    })
+    
+    // Check for Prisma-specific errors
+    if (error?.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'Unique constraint violation', details: errorMessage, field: errorMeta?.target },
+        { status: 400 }
+      )
+    }
+    
+    if (error?.code === 'P2003') {
+      return NextResponse.json(
+        { error: 'Foreign key constraint violation', details: errorMessage, field: errorMeta?.field_name },
+        { status: 400 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: errorMessage, code: errorCode },
       { status: 500 }
     )
   }

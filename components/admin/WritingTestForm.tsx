@@ -12,7 +12,13 @@ import PassageSection from './sections/passage-section'
 import PassageConfigSection from './sections/passage-config-section'
 import WritingQuestionSection from './sections/writing-question-section'
 
-export default function WritingTestForm() {
+interface WritingTestFormProps {
+  testId?: string
+  initialData?: any
+  mode?: 'create' | 'edit'
+}
+
+export default function WritingTestForm({ testId, initialData, mode = 'create' }: WritingTestFormProps) {
   const router = useRouter()
   const [testData, setTestData] = useState({
     title: '',
@@ -42,24 +48,80 @@ export default function WritingTestForm() {
       .catch((err) => console.error('Error fetching reading tests:', err))
   }, [])
 
+  // Load initial data when in edit mode
+  useEffect(() => {
+    if (mode === 'edit' && initialData) {
+      setTestData({
+        title: initialData.title || '',
+        readingTestId: initialData.readingTestId || '',
+        totalQuestions: 0,
+        totalTimeMinutes: initialData.totalTimeMinutes || 60,
+        isActive: initialData.isActive !== undefined ? initialData.isActive : true
+      })
+
+      // Transform passages from database structure to form structure
+      if (initialData.passages && Array.isArray(initialData.passages)) {
+        const transformedPassages = initialData.passages.map((passage: any, index: number) => ({
+          id: passage.id || Date.now() + index,
+          title: passage.title || '',
+          order: passage.order || index + 1,
+          contents: (passage.contents || []).map((content: any) => ({
+            contentId: content.contentId || '',
+            text: content.text || ''
+          }))
+        }))
+        setPassages(transformedPassages)
+
+        // Transform questions - must be done after passages are set to ensure ID matching
+        const allQuestions: any[] = []
+        transformedPassages.forEach((transformedPassage: any) => {
+          // Find the original passage to get its questions
+          const originalPassage = initialData.passages.find((p: any) => p.id === transformedPassage.id)
+          if (originalPassage && originalPassage.questions && Array.isArray(originalPassage.questions)) {
+            originalPassage.questions.forEach((question: any) => {
+              allQuestions.push({
+                id: question.id || `q-${Date.now()}-${Math.random()}`,
+                passageId: String(transformedPassage.id), // Use the transformed passage ID (ensure it's a string)
+                questionNumber: question.questionNumber,
+                type: question.type,
+                questionText: question.questionText || '',
+                readingPassageId: question.readingPassageId || null,
+                points: question.points || 1
+              })
+            })
+          }
+        })
+        setQuestions(allQuestions)
+      }
+
+      // Transform passage configs
+      if (initialData.passageConfigs && Array.isArray(initialData.passageConfigs)) {
+        const transformedConfigs = initialData.passageConfigs.map((config: any, index: number) => ({
+          id: config.id || Date.now() + index,
+          part: config.part,
+          total: config.total,
+          start: config.start
+        }))
+        setPassageConfigs(transformedConfigs)
+      }
+    }
+  }, [mode, initialData])
+
   useEffect(() => {
     if (testData.readingTestId) {
-      const readingTest = readingTests.find((rt) => rt.id === testData.readingTestId)
-      if (readingTest) {
-        // Fetch full reading test details with passages
-        fetch(`/api/admin/reading-tests/${testData.readingTestId}`)
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.readingTest) {
-              setSelectedReadingTest(data.readingTest)
-            }
-          })
-          .catch((err) => console.error('Error fetching reading test details:', err))
-      }
+      // Always fetch full reading test details with passages
+      fetch(`/api/admin/reading-tests/${testData.readingTestId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.readingTest) {
+            setSelectedReadingTest(data.readingTest)
+          }
+        })
+        .catch((err) => console.error('Error fetching reading test details:', err))
     } else {
       setSelectedReadingTest(null)
     }
-  }, [testData.readingTestId, readingTests])
+  }, [testData.readingTestId])
 
   const handleBasicInfoChange = (field: string, value: any) => {
     setTestData((prev) => ({ ...prev, [field]: value }))
@@ -67,6 +129,10 @@ export default function WritingTestForm() {
 
   const handleAddPassage = (passage: any) => {
     setPassages([...passages, { ...passage, id: Date.now() }])
+  }
+
+  const handleUpdatePassage = (id: number, passage: any) => {
+    setPassages(passages.map((p) => p.id === id ? { ...p, ...passage } : p))
   }
 
   const handleRemovePassage = (id: number) => {
@@ -77,6 +143,10 @@ export default function WritingTestForm() {
     setPassageConfigs([...passageConfigs, { ...config, id: Date.now() }])
   }
 
+  const handleUpdatePassageConfig = (id: number, config: any) => {
+    setPassageConfigs(passageConfigs.map((c) => c.id === id ? { ...c, ...config } : c))
+  }
+
   const handleRemovePassageConfig = (id: number) => {
     setPassageConfigs(passageConfigs.filter((c) => c.id !== id))
   }
@@ -85,7 +155,11 @@ export default function WritingTestForm() {
     setQuestions([...questions, { ...question, id: Date.now() }])
   }
 
-  const handleRemoveQuestion = (id: number) => {
+  const handleUpdateQuestion = (id: number | string, question: any) => {
+    setQuestions(questions.map((q) => q.id === id ? { ...q, ...question } : q))
+  }
+
+  const handleRemoveQuestion = (id: number | string) => {
     setQuestions(questions.filter((q) => q.id !== id))
   }
 
@@ -118,29 +192,69 @@ export default function WritingTestForm() {
         return
       }
 
+      // Build passages with their questions
+      const passagesWithQuestions = passages.map((passage) => {
+        const passageId = String(passage.id)
+        const passageQuestions = questions
+          .filter((q) => String(q.passageId) === passageId)
+          .map(({ id: qId, passageId: pId, ...question }) => ({
+            questionNumber: question.questionNumber,
+            type: question.type,
+            questionText: question.questionText || '',
+            readingPassageId: question.readingPassageId || null,
+            points: question.points || 1
+          }))
+
+        return {
+          title: passage.title || '',
+          order: passage.order || 1,
+          contents: (passage.contents || []).map((content: any) => ({
+            contentId: content.contentId || '',
+            text: content.text || ''
+          })),
+          questions: passageQuestions
+        }
+      })
+
       const payload = {
         title: testData.title,
-        readingTestId: testData.readingTestId,
-        totalTimeMinutes: testData.totalTimeMinutes,
-        passages: passages.map(({ id, ...p }) => ({
-          ...p,
-          questions: questions.filter((q) => q.passageId === String(id)).map(({ id: qId, passageId, ...q }) => q)
-        })),
-        passageConfigs: passageConfigs.map(({ id, ...c }) => c)
+        readingTestId: testData.readingTestId, // Required, already validated above
+        totalTimeMinutes: testData.totalTimeMinutes || 60,
+        isActive: testData.isActive !== undefined ? testData.isActive : true,
+        passages: passagesWithQuestions,
+        passageConfigs: passageConfigs.map(({ id, ...config }) => ({
+          part: config.part,
+          total: config.total,
+          start: config.start
+        }))
       }
 
-      const response = await fetch('/api/admin/writing-tests', {
-        method: 'POST',
+      const url = mode === 'edit' && testId 
+        ? `/api/admin/writing-tests/${testId}`
+        : '/api/admin/writing-tests'
+      const method = mode === 'edit' ? 'PUT' : 'POST'
+
+      console.log('Submitting payload:', JSON.stringify(payload, null, 2))
+
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to create test')
+        let errorData
+        try {
+          errorData = await response.json()
+        } catch (e) {
+          errorData = { error: `HTTP ${response.status}: ${response.statusText}` }
+        }
+        console.error('Error response:', errorData)
+        const errorMessage = errorData.details || errorData.error || `Failed to ${mode === 'edit' ? 'update' : 'create'} test`
+        throw new Error(errorMessage)
       }
 
-      alert('Writing test created successfully!')
+      alert(`Writing test ${mode === 'edit' ? 'updated' : 'created'} successfully!`)
       router.push('/admin/writing-tests')
     } catch (error) {
       alert('Error creating test: ' + (error as Error).message)
@@ -189,7 +303,12 @@ export default function WritingTestForm() {
         </TabsContent>
 
         <TabsContent value="passages" className="space-y-4">
-          <PassageSection passages={passages} onAdd={handleAddPassage} onRemove={handleRemovePassage} />
+          <PassageSection 
+            passages={passages} 
+            onAdd={handleAddPassage} 
+            onRemove={handleRemovePassage}
+            onUpdate={handleUpdatePassage}
+          />
         </TabsContent>
 
         <TabsContent value="questions" className="space-y-4">
@@ -200,6 +319,7 @@ export default function WritingTestForm() {
             readingPassages={selectedReadingTest?.passages || []}
             onAdd={handleAddQuestion}
             onRemove={handleRemoveQuestion}
+            onUpdate={handleUpdateQuestion}
           />
         </TabsContent>
 
@@ -208,13 +328,17 @@ export default function WritingTestForm() {
             configs={passageConfigs}
             onAdd={handleAddPassageConfig}
             onRemove={handleRemovePassageConfig}
+            onUpdate={handleUpdatePassageConfig}
           />
         </TabsContent>
       </Tabs>
 
       <div className="flex gap-3 mt-8 pt-6 border-t">
         <Button onClick={handleSubmit} disabled={isLoading} className="gap-2">
-          {isLoading ? 'Creating...' : 'Create Writing Test'}
+          {isLoading 
+            ? (mode === 'edit' ? 'Updating...' : 'Creating...') 
+            : (mode === 'edit' ? 'Update Writing Test' : 'Create Writing Test')
+          }
         </Button>
       </div>
     </Card>

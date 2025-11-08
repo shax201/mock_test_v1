@@ -88,21 +88,21 @@ export async function POST(request: NextRequest) {
             index: part.index || partIndex + 1,
             title: part.title,
             prompt: part.prompt || [],
-            sectionTitle: part.sectionTitle,
-            courseRequired: part.courseRequired,
-            matchingHeading: part.matching?.heading,
-            matchingOptions: part.matching?.options,
-            notesSections: part.notes,
+            sectionTitle: part.sectionTitle || null,
+            courseRequired: part.courseRequired || null,
+            matchingHeading: part.matchingHeading || part.matching?.heading || null,
+            matchingOptions: part.matchingOptions || part.matching?.options || null,
+            notesSections: part.notesSections || part.notes || null,
             questions: {
               create: part.questions?.map((question: any) => ({
                 number: question.number,
                 type: question.type,
-                labelPrefix: question.labelPrefix,
-                textPrefix: question.textPrefix,
-                textSuffix: question.textSuffix,
-                questionText: question.questionText,
-                options: question.options,
-                matchingLabel: question.matchingLabel,
+                labelPrefix: question.labelPrefix || null,
+                textPrefix: question.textPrefix || null,
+                textSuffix: question.textSuffix || null,
+                questionText: question.questionText || null,
+                options: question.options || null,
+                matchingLabel: question.matchingLabel || null,
                 correctAnswer: question.correctAnswer ? {
                   create: {
                     answer: question.correctAnswer

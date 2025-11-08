@@ -1,38 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-
-interface ReadingTest {
-  id: string
-  title: string
-}
+import ListeningTestForm from '@/components/admin/ListeningTestForm'
 
 export default function CreateListeningTestPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [readingTests, setReadingTests] = useState<ReadingTest[]>([])
-  const [selectedReadingTestId, setSelectedReadingTestId] = useState<string>('')
-  const [loadingReadingTests, setLoadingReadingTests] = useState(true)
-
-  useEffect(() => {
-    const fetchReadingTests = async () => {
-      try {
-        const response = await fetch('/api/admin/reading-tests')
-        const data = await response.json()
-        if (response.ok) {
-          setReadingTests(data.readingTests || [])
-        }
-      } catch (error) {
-        console.error('Error fetching reading tests:', error)
-      } finally {
-        setLoadingReadingTests(false)
-      }
-    }
-    fetchReadingTests()
-  }, [])
 
   const loadFromJson = async () => {
     if (!confirm('Are you sure you want to load data from listening-test-data.json? This will create a new listening test with all parts and questions.')) {
@@ -50,9 +26,7 @@ export default function CreateListeningTestPage() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          readingTestId: selectedReadingTestId || null
-        })
+        body: JSON.stringify({})
       })
 
       console.log('📡 Response status:', response.status)
@@ -90,14 +64,14 @@ export default function CreateListeningTestPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header with JSON Load Option */}
       <div className="md:flex md:items-center md:justify-between">
         <div className="flex-1 min-w-0">
           <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
             Create Listening Test
           </h2>
           <p className="mt-1 text-sm text-gray-500">
-            Create a new IELTS listening test with parts and questions. You can load from the JSON file.
+            Create a new IELTS listening test with parts and questions. You can use the form below or load from JSON.
           </p>
         </div>
         <div className="mt-4 flex md:mt-0 md:ml-4">
@@ -181,49 +155,8 @@ export default function CreateListeningTestPage() {
         </div>
       )}
 
-      {/* Reading Test Selection */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Associate with Reading Test (Optional)</h3>
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="reading-test-select" className="block text-sm font-medium text-gray-700 mb-2">
-              Select Reading Test
-            </label>
-            <select
-              id="reading-test-select"
-              value={selectedReadingTestId}
-              onChange={(e) => setSelectedReadingTestId(e.target.value)}
-              disabled={loadingReadingTests}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-            >
-              <option value="">None (Standalone Listening Test)</option>
-              {readingTests.map((test) => (
-                <option key={test.id} value={test.id}>
-                  {test.title}
-                </option>
-              ))}
-            </select>
-            <p className="mt-2 text-sm text-gray-500">
-              Optionally associate this listening test with a reading test. This allows linking tests together in the student portal.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Info Card */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h3 className="text-lg font-medium text-blue-900 mb-2">How to Create a Listening Test</h3>
-        <p className="text-sm text-blue-800 mb-4">
-          Currently, you can create a listening test by loading data from the JSON file. The system will automatically:
-        </p>
-        <ul className="list-disc list-inside text-sm text-blue-800 space-y-1">
-          <li>Parse all 4 parts with their questions</li>
-          <li>Create fill-in-the-blank questions (Part 1 & 4)</li>
-          <li>Create single choice questions (Part 2 & 3)</li>
-          <li>Create matching questions (Part 2 & 3)</li>
-          <li>Store correct answers for all questions</li>
-        </ul>
-      </div>
+      {/* Listening Test Form */}
+      <ListeningTestForm />
     </div>
   )
 }

@@ -32,61 +32,43 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // TODO: Fetch real stats from API
-    // For now, using mock data
-    setTimeout(() => {
-      setStats({
-        pendingSubmissions: 12,
-        totalStudents: 48,
-        completedTests: 36,
-        averageScore: 6.8,
-        thisWeekTests: 8
-      })
-      
-      setRecentActivity([
-        {
-          id: '1',
-          type: 'test_completed',
-          description: 'Full exam test completed',
-          timestamp: '2 hours ago',
-          studentName: 'John Doe',
-          testName: 'IELTS Reading Test'
-        },
-        {
-          id: '2',
-          type: 'test_assigned',
-          description: 'Full exam test assigned',
-          timestamp: '4 hours ago',
-          studentName: 'Jane Smith',
-          testName: 'IELTS Listening Test'
-        },
-        {
-          id: '3',
-          type: 'test_created',
-          description: 'New test template created',
-          timestamp: '1 day ago',
-          testName: 'Writing Task 1 Template'
-        },
-        {
-          id: '4',
-          type: 'test_completed',
-          description: 'Full exam test completed',
-          timestamp: '2 days ago',
-          studentName: 'Mike Johnson',
-          testName: 'IELTS Speaking Test'
-        }
-      ])
-      
-      setLoading(false)
-    }, 1000)
+    fetchDashboardData()
   }, [])
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    )
+  const fetchDashboardData = async () => {
+    setLoading(true)
+    try {
+      const response = await fetch('/api/admin/dashboard')
+      if (response.ok) {
+        const data = await response.json()
+        setStats(data.stats)
+        setRecentActivity(data.recentActivity || [])
+      } else {
+        console.error('Failed to fetch dashboard data')
+        // Set default values on error
+        setStats({
+          pendingSubmissions: 0,
+          totalStudents: 0,
+          completedTests: 0,
+          averageScore: 0,
+          thisWeekTests: 0
+        })
+        setRecentActivity([])
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error)
+      // Set default values on error
+      setStats({
+        pendingSubmissions: 0,
+        totalStudents: 0,
+        completedTests: 0,
+        averageScore: 0,
+        thisWeekTests: 0
+      })
+      setRecentActivity([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -104,7 +86,26 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      {loading ? (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-gray-200 rounded-lg animate-pulse"></div>
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <div className="h-4 bg-gray-200 rounded w-20 animate-pulse mb-2"></div>
+                    <div className="h-6 bg-gray-200 rounded w-12 animate-pulse"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
 
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="p-5">
@@ -206,16 +207,75 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        {/* Recent Activity */}
-        <div className="bg-white shadow rounded-lg">
-          <div className="px-4 py-5 sm:p-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Recent Activity</h3>
-            <div className="flow-root">
-              <ul className="-mb-8">
-                {recentActivity.map((activity, activityIdx) => (
+      {loading ? (
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+          {/* Recent Activity Skeleton */}
+          <div className="bg-white shadow rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <div className="h-6 bg-gray-200 rounded w-32 animate-pulse mb-4"></div>
+              <div className="flow-root">
+                <ul className="-mb-8">
+                  {[1, 2, 3, 4].map((i) => (
+                    <li key={i}>
+                      <div className="relative pb-8">
+                        {i !== 4 && (
+                          <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true" />
+                        )}
+                        <div className="relative flex space-x-3">
+                          <div>
+                            <div className="h-8 w-8 bg-gray-200 rounded-full animate-pulse"></div>
+                          </div>
+                          <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
+                            <div className="flex-1">
+                              <div className="h-4 bg-gray-200 rounded w-full animate-pulse mb-2"></div>
+                              <div className="h-4 bg-gray-200 rounded w-3/4 animate-pulse"></div>
+                            </div>
+                            <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Actions Skeleton */}
+          <div className="bg-white shadow rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <div className="h-6 bg-gray-200 rounded w-32 animate-pulse mb-4"></div>
+              <div className="space-y-4">
+                {[1, 2].map((i) => (
+                  <div key={i} className="flex items-center p-4 border border-gray-200 rounded-lg">
+                    <div className="flex-shrink-0">
+                      <div className="w-10 h-10 bg-gray-200 rounded-lg animate-pulse"></div>
+                    </div>
+                    <div className="ml-4 flex-1">
+                      <div className="h-4 bg-gray-200 rounded w-32 animate-pulse mb-2"></div>
+                      <div className="h-4 bg-gray-200 rounded w-48 animate-pulse"></div>
+                    </div>
+                    <div className="ml-auto">
+                      <div className="h-5 w-5 bg-gray-200 rounded animate-pulse"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+          {/* Recent Activity */}
+          <div className="bg-white shadow rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Recent Activity</h3>
+              <div className="flow-root">
+                <ul className="-mb-8">
+                  {recentActivity.map((activity, activityIdx) => (
                   <li key={activity.id}>
                     <div className="relative pb-8">
                       {activityIdx !== recentActivity.length - 1 ? (
@@ -290,19 +350,41 @@ export default function AdminDashboard() {
               </Link>
 
               <Link
-                href="/admin/results"
+                href="/admin/assignments"
+                className="group relative flex items-center p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:shadow-md transition-all duration-200"
+              >
+                <div className="flex-shrink-0">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="ml-4">
+                  <h4 className="text-sm font-medium text-gray-900">Manage Assignments</h4>
+                  <p className="text-sm text-gray-500">Assign reading tests to students with dates</p>
+                </div>
+                <div className="ml-auto">
+                  <svg className="h-5 w-5 text-gray-400 group-hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </Link>
+
+              <Link
+                href="/admin/writing-tests/submissions"
                 className="group relative flex items-center p-4 border border-gray-200 rounded-lg hover:border-purple-300 hover:shadow-md transition-all duration-200"
               >
                 <div className="flex-shrink-0">
                   <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
                     <svg className="h-6 w-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                   </div>
                 </div>
                 <div className="ml-4">
-                  <h4 className="text-sm font-medium text-gray-900">View Results</h4>
-                  <p className="text-sm text-gray-500">Review student submissions and band scores</p>
+                  <h4 className="text-sm font-medium text-gray-900">Writing Submissions</h4>
+                  <p className="text-sm text-gray-500">Review and evaluate writing test submissions</p>
                 </div>
                 <div className="ml-auto">
                   <svg className="h-5 w-5 text-gray-400 group-hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -314,6 +396,7 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
+      )}
     </div>
   )
 }

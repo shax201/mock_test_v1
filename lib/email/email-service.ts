@@ -172,10 +172,10 @@ class EmailService {
             
             <h3>📋 Test Instructions</h3>
             <ul>
-                <li><strong>Listening (30 minutes):</strong> You will hear recordings and answer questions</li>
-                <li><strong>Reading (60 minutes):</strong> Read passages and answer comprehension questions</li>
-                <li><strong>Writing (60 minutes):</strong> Complete two writing tasks</li>
-                <li><strong>Speaking (11-14 minutes):</strong> Face-to-face interview with an examiner</li>
+                <li><strong>Reading Test (60 minutes):</strong> Read passages and answer comprehension questions. You'll need to answer 40 questions across 3 passages.</li>
+                <li>Answer all questions within the time limit</li>
+                <li>You can navigate between questions and passages</li>
+                <li>Review your answers before submitting</li>
             </ul>
             
             <h3>💡 Tips for Success</h3>
@@ -221,10 +221,11 @@ Valid Until: ${new Date(data.validUntil).toLocaleDateString('en-US', {
 Test Link: ${data.testLink}
 
 Test Instructions:
-- Listening (30 minutes): You will hear recordings and answer questions
-- Reading (60 minutes): Read passages and answer comprehension questions  
-- Writing (60 minutes): Complete two writing tasks
-- Speaking (11-14 minutes): Face-to-face interview with an examiner
+- Reading Test (60 minutes): Read passages and answer comprehension questions
+- You'll need to answer 40 questions across 3 passages
+- Answer all questions within the time limit
+- You can navigate between questions and passages
+- Review your answers before submitting
 
 Tips for Success:
 - Find a quiet place with no distractions

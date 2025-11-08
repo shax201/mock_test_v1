@@ -27,26 +27,10 @@ export default function ListeningTestsPage() {
   const [listeningTests, setListeningTests] = useState<ListeningTest[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [editingTestId, setEditingTestId] = useState<string | null>(null)
-  const [readingTests, setReadingTests] = useState<Array<{ id: string; title: string }>>([])
-  const [selectedReadingTestId, setSelectedReadingTestId] = useState<string>('')
 
   useEffect(() => {
     fetchListeningTests()
-    fetchReadingTests()
   }, [])
-
-  const fetchReadingTests = async () => {
-    try {
-      const response = await fetch('/api/admin/reading-tests')
-      const data = await response.json()
-      if (response.ok) {
-        setReadingTests(data.readingTests || [])
-      }
-    } catch (error) {
-      console.error('Error fetching reading tests:', error)
-    }
-  }
 
   const fetchListeningTests = async () => {
     try {
@@ -63,46 +47,6 @@ export default function ListeningTestsPage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleEdit = (testId: string) => {
-    const test = listeningTests.find(t => t.id === testId)
-    if (test) {
-      setSelectedReadingTestId(test.readingTest?.id || '')
-      setEditingTestId(testId)
-    }
-  }
-
-  const handleSaveEdit = async () => {
-    if (!editingTestId) return
-
-    try {
-      const response = await fetch(`/api/admin/listening-tests/${editingTestId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          readingTestId: selectedReadingTestId || null
-        })
-      })
-
-      if (response.ok) {
-        await fetchListeningTests()
-        setEditingTestId(null)
-        setSelectedReadingTestId('')
-        alert('Listening test updated successfully!')
-      } else {
-        alert('Failed to update listening test')
-      }
-    } catch (error) {
-      alert('Network error. Please try again.')
-    }
-  }
-
-  const handleCancelEdit = () => {
-    setEditingTestId(null)
-    setSelectedReadingTestId('')
   }
 
   const handleDelete = async (testId: string, title: string) => {
@@ -170,49 +114,6 @@ export default function ListeningTestsPage() {
             <div className="ml-3">
               <h3 className="text-sm font-medium text-red-800">Error</h3>
               <div className="mt-2 text-sm text-red-700">{error}</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Modal */}
-      {editingTestId && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" onClick={handleCancelEdit}>
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white" onClick={(e) => e.stopPropagation()}>
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Edit Reading Test Association</h3>
-              <div className="mb-4">
-                <label htmlFor="edit-reading-test-select" className="block text-sm font-medium text-gray-700 mb-2">
-                  Select Reading Test
-                </label>
-                <select
-                  id="edit-reading-test-select"
-                  value={selectedReadingTestId}
-                  onChange={(e) => setSelectedReadingTestId(e.target.value)}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                >
-                  <option value="">None (Standalone Listening Test)</option>
-                  {readingTests.map((test) => (
-                    <option key={test.id} value={test.id}>
-                      {test.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex justify-end space-x-3">
-                <button
-                  onClick={handleCancelEdit}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveEdit}
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-                >
-                  Save
-                </button>
-              </div>
             </div>
           </div>
         </div>
@@ -302,15 +203,15 @@ export default function ListeningTestsPage() {
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => handleEdit(test.id)}
+                        <Link
+                          href={`/admin/listening-tests/${test.id}/edit`}
                           className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                         >
                           <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
                           Edit
-                        </button>
+                        </Link>
                         <button
                           onClick={() => handleDelete(test.id, test.title)}
                           className="inline-flex items-center px-3 py-1.5 border border-red-300 shadow-sm text-sm font-medium rounded text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"

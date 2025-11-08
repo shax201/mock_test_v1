@@ -75,14 +75,6 @@ export default function StudentsPage() {
     return matchesSearch
   })
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -140,18 +132,53 @@ export default function StudentsPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               placeholder="Search by name or email..."
+              disabled={loading}
             />
           </div>
           <div className="flex items-end">
-            <div className="text-sm text-gray-500">
-              Showing {filteredStudents.length} of {students.length} students
-            </div>
+            {loading ? (
+              <div className="h-4 bg-gray-200 rounded w-48 animate-pulse"></div>
+            ) : (
+              <div className="text-sm text-gray-500">
+                Showing {filteredStudents.length} of {students.length} students
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* Students List */}
-      {filteredStudents.length === 0 ? (
+      {loading ? (
+        <div className="bg-white shadow overflow-hidden sm:rounded-md">
+          <ul className="divide-y divide-gray-200">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <li key={i}>
+                <div className="px-4 py-4 sm:px-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <div className="h-10 w-10 bg-gray-200 rounded-full animate-pulse"></div>
+                      </div>
+                      <div className="ml-4">
+                        <div className="h-5 bg-gray-200 rounded w-48 animate-pulse mb-2"></div>
+                        <div className="h-4 bg-gray-200 rounded w-64 animate-pulse mb-2"></div>
+                        <div className="flex items-center mt-1">
+                          <div className="h-4 bg-gray-200 rounded w-32 animate-pulse"></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="h-8 bg-gray-200 rounded w-16 animate-pulse"></div>
+                      <div className="h-8 bg-gray-200 rounded w-24 animate-pulse"></div>
+                      <div className="h-8 bg-gray-200 rounded w-20 animate-pulse"></div>
+                    </div>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : filteredStudents.length === 0 ? (
         <div className="text-center py-12">
           <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
