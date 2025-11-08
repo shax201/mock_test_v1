@@ -77,6 +77,7 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let id: string | undefined
   try {
     const token = request.cookies.get('auth-token')?.value
 
@@ -89,7 +90,8 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const { id } = await params
+    const resolvedParams = await params
+    id = resolvedParams.id
     const body = await request.json()
     const { title, readingTestId, totalTimeMinutes, isActive, passages, passageConfigs } = body
 

@@ -76,6 +76,7 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let id: string | undefined
   try {
     const token = request.cookies.get('auth-token')?.value
 
@@ -88,7 +89,8 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const resolvedParams = await params
+    const { id: paramId } = await params
+    id = paramId
     const body = await request.json()
     const { title, readingTestId, totalTimeMinutes, isActive, passages, passageConfigs } = body
 
@@ -141,31 +143,31 @@ export async function PUT(
     await prisma.writingQuestion.deleteMany({
       where: {
         passage: {
-          writingTestId: resolvedParams.id
+          writingTestId: id
         }
       }
     })
     await prisma.writingPassageContent.deleteMany({
       where: {
         passage: {
-          writingTestId: resolvedParams.id
+          writingTestId: id
         }
       }
     })
     await prisma.writingPassage.deleteMany({
       where: {
-        writingTestId: resolvedParams.id
+        writingTestId: id
       }
     })
     await prisma.writingPassageConfig.deleteMany({
       where: {
-        writingTestId: resolvedParams.id
+        writingTestId: id
       }
     })
 
     // Update the writing test and recreate passages and configs
     const writingTest = await prisma.writingTest.update({
-      where: { id: resolvedParams.id },
+      where: { id: id },
       data: {
         title,
         readingTestId: readingTestId, // Required field, already validated above
@@ -281,7 +283,7 @@ export async function PUT(
       errorStack, 
       errorCode,
       errorMeta,
-      id: resolvedParams.id
+      id
     })
     
     // Check for Prisma-specific errors

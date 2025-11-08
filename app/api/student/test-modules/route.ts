@@ -41,19 +41,20 @@ export async function GET(request: NextRequest) {
     const readingTest = await prisma.readingTest.findUnique({
       where: { id: readingTestId },
       include: {
-        listeningTest: {
+        listeningTests: {
           select: {
             id: true,
-            title: true,
-            totalTimeMinutes: true
-          }
+            title: true
+          },
+          take: 1
         },
-        writingTest: {
+        writingTests: {
           select: {
             id: true,
             title: true,
             totalTimeMinutes: true
-          }
+          },
+          take: 1
         }
       }
     })
@@ -69,9 +70,8 @@ export async function GET(request: NextRequest) {
     const readingSession = await prisma.testSession.findFirst({
       where: {
         studentId,
-        assignmentId: assignment.id,
         testType: 'READING',
-        readingTestId
+        testId: readingTestId
       },
       orderBy: { createdAt: 'desc' }
     })
@@ -87,19 +87,19 @@ export async function GET(request: NextRequest) {
     })
 
     // Add LISTENING module if available
-    if (readingTest.listeningTest) {
+    const listeningTest = readingTest.listeningTests?.[0]
+    if (listeningTest) {
       const listeningSession = await prisma.testSession.findFirst({
         where: {
           studentId,
-          assignmentId: assignment.id,
           testType: 'LISTENING',
-          listeningTestId: readingTest.listeningTest.id
+          testId: listeningTest.id
         },
         orderBy: { createdAt: 'desc' }
       })
 
       modules.push({
-        id: `listening-${readingTest.listeningTest.id}`,
+        id: `listening-${listeningTest.id}`,
         type: 'LISTENING',
         duration: 30, // Default duration for listening tests (typically 30 minutes)
         instructions: 'Complete the listening test. You will hear each recording once only.',
@@ -110,21 +110,21 @@ export async function GET(request: NextRequest) {
     }
 
     // Add WRITING module if available
-    if (readingTest.writingTest) {
+    const writingTest = readingTest.writingTests?.[0]
+    if (writingTest) {
       const writingSession = await prisma.testSession.findFirst({
         where: {
           studentId,
-          assignmentId: assignment.id,
           testType: 'WRITING',
-          writingTestId: readingTest.writingTest.id
+          testId: writingTest.id
         },
         orderBy: { createdAt: 'desc' }
       })
 
       modules.push({
-        id: `writing-${readingTest.writingTest.id}`,
+        id: `writing-${writingTest.id}`,
         type: 'WRITING',
-        duration: readingTest.writingTest.totalTimeMinutes || 60,
+        duration: writingTest.totalTimeMinutes || 60,
         instructions: 'Complete the writing test. Your answers will be graded by an instructor.',
         isCompleted: writingSession?.isCompleted || false,
         submittedAt: writingSession?.completedAt || null,

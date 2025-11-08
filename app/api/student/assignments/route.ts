@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
         const testSession = await prisma.testSession.findFirst({
           where: {
             studentId,
-            assignmentId: assignment.id,
+            testId: assignment.readingTestId,
             isCompleted: true
           },
           select: {
