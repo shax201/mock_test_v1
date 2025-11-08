@@ -292,6 +292,13 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
       return { value: '', text: 'No Answer' };
     }
 
+    // First check userAnswers state
+    const stateAnswer = userAnswers[qNum.toString()];
+    if (stateAnswer) {
+      return { value: stateAnswer, text: stateAnswer.trim() || 'No Answer' };
+    }
+
+    // Fallback to DOM for backwards compatibility
     const textInput = document.getElementById(`q${qNum}`) as HTMLInputElement;
     if (textInput) {
       return { value: textInput.value, text: textInput.value.trim() || 'No Answer' };
@@ -303,7 +310,7 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
     }
 
     return { value: '', text: 'No Answer' };
-  }, []);
+  }, [userAnswers]);
 
   const checkValue = useCallback((userValue: string, correctValue: string): boolean => {
     if (!userValue) return false;
@@ -432,10 +439,6 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
     if (nextBtnRef.current) nextBtnRef.current.disabled = currentQuestion === 40;
   }, [currentQuestion]);
 
-  const updateAllIndicators = useCallback(() => {
-    updateAnsweredIndicators();
-    updateAttemptedCounts();
-  }, []);
 
   const updateAnsweredIndicators = useCallback(() => {
     // This is now handled by React rendering based on userAnswers state
@@ -458,7 +461,21 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
     });
 
     setAttemptedCounts(newCounts);
-  }, [getUserAnswer]);
+  }, [getUserAnswer, passageConfigs]);
+
+  const updateAllIndicators = useCallback(() => {
+    updateAnsweredIndicators();
+    updateAttemptedCounts();
+  }, [updateAnsweredIndicators, updateAttemptedCounts]);
+
+  const handleAnswerChange = useCallback((qNum: number, value: string) => {
+    setUserAnswers(prev => {
+      const updated = { ...prev, [qNum.toString()]: value };
+      return updated;
+    });
+    // Update indicators after state update
+    setTimeout(() => updateAllIndicators(), 0);
+  }, [updateAllIndicators]);
 
   const scrollIntoViewIfNeeded = useCallback((element: HTMLElement) => {
     const panel = element.closest(`.${styles.questionsPanel}, .${styles.passagePanel}`);
@@ -659,6 +676,8 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
                         name={`q${questionId}`} 
                         value={option}
                         id={`q${questionId}_${option}`}
+                        checked={userAnswers[questionId] === option}
+                        onChange={(e) => handleAnswerChange(parseInt(questionId), e.target.value)}
                       />
                     </td>
                   ))}
@@ -692,13 +711,56 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
       case 'summary-completion':
         // Check if this is a multi-blank summary completion
         if (questionData.subQuestions) {
-          let summaryHtml = questionData.summaryText;
-          questionData.subQuestions.forEach((subQ: string) => {
-            summaryHtml = summaryHtml.replace(
-              new RegExp(`\\[${subQ}\\]`, 'g'),
-              `<input type="text" class="${styles.answerInput}" placeholder="${subQ}" id="q${subQ}" size="12" spellCheck="false" autoCorrect="off" />`
+          // Split the summary text by placeholders and render with React inputs
+          const renderSummaryWithInputs = () => {
+            let summaryText = questionData.summaryText;
+            const parts: Array<{ type: 'text' | 'input'; content?: string; qNum?: string }> = [];
+            
+            // Find all placeholders
+            const placeholderRegex = new RegExp(`\\[(${questionData.subQuestions.join('|')})\\]`, 'g');
+            let lastIndex = 0;
+            let match;
+            
+            while ((match = placeholderRegex.exec(summaryText)) !== null) {
+              // Add text before placeholder
+              if (match.index > lastIndex) {
+                parts.push({ type: 'text', content: summaryText.substring(lastIndex, match.index) });
+              }
+              // Add input placeholder
+              parts.push({ type: 'input', qNum: match[1] });
+              lastIndex = match.index + match[0].length;
+            }
+            
+            // Add remaining text
+            if (lastIndex < summaryText.length) {
+              parts.push({ type: 'text', content: summaryText.substring(lastIndex) });
+            }
+            
+            return (
+              <p>
+                {parts.map((part, index) => {
+                  if (part.type === 'input' && part.qNum) {
+                    const qNum = parseInt(part.qNum);
+                    return (
+                      <input
+                        key={`input-${part.qNum}-${index}`}
+                        type="text"
+                        className={styles.answerInput}
+                        placeholder={part.qNum}
+                        id={`q${part.qNum}`}
+                        size={12}
+                        spellCheck={false}
+                        autoCorrect="off"
+                        value={userAnswers[part.qNum] || ''}
+                        onChange={(e) => handleAnswerChange(qNum, e.target.value)}
+                      />
+                    );
+                  }
+                  return <span key={`text-${index}`} dangerouslySetInnerHTML={{ __html: part.content || '' }} />;
+                })}
+              </p>
             );
-          });
+          };
 
           return (
             <div
@@ -711,12 +773,57 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
                 <p>{questionData.questionText}</p>
               </div>
               <div className={styles.summaryText}>
-                <p dangerouslySetInnerHTML={{ __html: summaryHtml }} />
+                {renderSummaryWithInputs()}
               </div>
             </div>
           );
         } else {
           // Single blank summary completion
+          const renderSingleSummaryWithInput = () => {
+            const summaryText = questionData.summaryText;
+            const placeholderRegex = new RegExp(`\\[${questionId}\\]`, 'g');
+            const parts: Array<{ type: 'text' | 'input'; content?: string }> = [];
+            let lastIndex = 0;
+            let match;
+            
+            while ((match = placeholderRegex.exec(summaryText)) !== null) {
+              if (match.index > lastIndex) {
+                parts.push({ type: 'text', content: summaryText.substring(lastIndex, match.index) });
+              }
+              parts.push({ type: 'input' });
+              lastIndex = match.index + match[0].length;
+            }
+            
+            if (lastIndex < summaryText.length) {
+              parts.push({ type: 'text', content: summaryText.substring(lastIndex) });
+            }
+            
+            return (
+              <p>
+                {parts.map((part, index) => {
+                  if (part.type === 'input') {
+                    const qNum = parseInt(questionId);
+                    return (
+                      <input
+                        key={`input-${questionId}-${index}`}
+                        type="text"
+                        className={styles.answerInput}
+                        placeholder={questionId}
+                        id={`q${questionId}`}
+                        size={12}
+                        spellCheck={false}
+                        autoCorrect="off"
+                        value={userAnswers[questionId] || ''}
+                        onChange={(e) => handleAnswerChange(qNum, e.target.value)}
+                      />
+                    );
+                  }
+                  return <span key={`text-${index}`} dangerouslySetInnerHTML={{ __html: part.content || '' }} />;
+                })}
+              </p>
+            );
+          };
+
           return (
             <div
               key={questionId}
@@ -728,12 +835,7 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
                 <p>{questionData.questionText}</p>
               </div>
               <div className={styles.summaryText}>
-                <p dangerouslySetInnerHTML={{
-                  __html: questionData.summaryText.replace(
-                    new RegExp(`\\[${questionId}\\]`, 'g'),
-                    `<input type="text" class="${styles.answerInput}" placeholder="${questionId}" id="q${questionId}" size="12" spellCheck="false" autoCorrect="off" />`
-                  )
-                }} />
+                {renderSingleSummaryWithInput()}
               </div>
             </div>
           );
@@ -759,15 +861,36 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
               <p><b>{questionId}</b> {questionData.questionText}</p>
               <ul className={styles.tfngOptions}>
                 <li className={styles.tfngOption}>
-                  <input type="radio" id={`q${questionId}_true`} name={`q${questionId}`} value="TRUE" />
+                  <input 
+                    type="radio" 
+                    id={`q${questionId}_true`} 
+                    name={`q${questionId}`} 
+                    value="TRUE"
+                    checked={userAnswers[questionId] === 'TRUE'}
+                    onChange={(e) => handleAnswerChange(parseInt(questionId), e.target.value)}
+                  />
                   <label htmlFor={`q${questionId}_true`}>TRUE</label>
                 </li>
                 <li className={styles.tfngOption}>
-                  <input type="radio" id={`q${questionId}_false`} name={`q${questionId}`} value="FALSE" />
+                  <input 
+                    type="radio" 
+                    id={`q${questionId}_false`} 
+                    name={`q${questionId}`} 
+                    value="FALSE"
+                    checked={userAnswers[questionId] === 'FALSE'}
+                    onChange={(e) => handleAnswerChange(parseInt(questionId), e.target.value)}
+                  />
                   <label htmlFor={`q${questionId}_false`}>FALSE</label>
                 </li>
                 <li className={styles.tfngOption}>
-                  <input type="radio" id={`q${questionId}_notgiven`} name={`q${questionId}`} value="NOT GIVEN" />
+                  <input 
+                    type="radio" 
+                    id={`q${questionId}_notgiven`} 
+                    name={`q${questionId}`} 
+                    value="NOT GIVEN"
+                    checked={userAnswers[questionId] === 'NOT GIVEN'}
+                    onChange={(e) => handleAnswerChange(parseInt(questionId), e.target.value)}
+                  />
                   <label htmlFor={`q${questionId}_notgiven`}>NOT GIVEN</label>
                 </li>
               </ul>
@@ -798,6 +921,8 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
                         id={`q${questionId}_${letter.toLowerCase()}`}
                         name={`q${questionId}`}
                         value={letter}
+                        checked={userAnswers[questionId] === letter}
+                        onChange={(e) => handleAnswerChange(parseInt(questionId), e.target.value)}
                       />
                       <label htmlFor={`q${questionId}_${letter.toLowerCase()}`}>
                         {letter}. {option}
