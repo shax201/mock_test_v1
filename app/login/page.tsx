@@ -162,17 +162,18 @@ function LoginForm() {
   const colors = colorClasses[config.colorScheme]
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
+        <div className="bg-white rounded-lg shadow-xl p-8">
         {/* User Type Selector */}
-        <div className="flex justify-center space-x-4 mb-6">
+        <div className="flex justify-center space-x-2 mb-8">
           <button
             type="button"
             onClick={() => setUserType('student')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
               userType === 'student'
-                ? 'bg-blue-100 text-blue-700 border-2 border-blue-300'
-                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                ? 'bg-blue-600 text-white shadow-md scale-105'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400'
             }`}
           >
             Student
@@ -180,10 +181,10 @@ function LoginForm() {
           <button
             type="button"
             onClick={() => setUserType('instructor')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
               userType === 'instructor'
-                ? 'bg-green-100 text-green-700 border-2 border-green-300'
-                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                ? 'bg-green-600 text-white shadow-md scale-105'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400'
             }`}
           >
             Instructor
@@ -191,10 +192,10 @@ function LoginForm() {
           <button
             type="button"
             onClick={() => setUserType('admin')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
               userType === 'admin'
-                ? 'bg-purple-100 text-purple-700 border-2 border-purple-300'
-                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                ? 'bg-purple-600 text-white shadow-md scale-105'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400'
             }`}
           >
             Admin
@@ -202,6 +203,30 @@ function LoginForm() {
         </div>
 
         <div>
+          <div className="flex justify-center mb-4">
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
+              config.colorScheme === 'blue' ? 'bg-blue-100' :
+              config.colorScheme === 'green' ? 'bg-green-100' :
+              'bg-purple-100'
+            }`}>
+              {config.colorScheme === 'blue' && (
+                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+              )}
+              {config.colorScheme === 'green' && (
+                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              )}
+              {config.colorScheme === 'purple' && (
+                <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              )}
+            </div>
+          </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             {config.title}
           </h2>
@@ -275,10 +300,16 @@ function LoginForm() {
           )}
 
           {config.showDefaultCredentials && config.defaultCredentials && (
-            <div className="text-sm text-gray-600">
-              <p>Default credentials:</p>
-              <p>Email: {config.defaultCredentials.email}</p>
-              <p>Password: {config.defaultCredentials.password}</p>
+            <div className="rounded-md bg-gray-50 p-4 border border-gray-200">
+              <p className="text-xs font-medium text-gray-700 mb-2">Default Test Credentials:</p>
+              <div className="text-xs text-gray-600 space-y-1">
+                <p className="font-mono">
+                  <span className="font-semibold">Email:</span> {config.defaultCredentials.email}
+                </p>
+                <p className="font-mono">
+                  <span className="font-semibold">Password:</span> {config.defaultCredentials.password}
+                </p>
+              </div>
             </div>
           )}
 
@@ -290,6 +321,7 @@ function LoginForm() {
             </div>
           )}
         </form>
+        </div>
       </div>
     </div>
   )

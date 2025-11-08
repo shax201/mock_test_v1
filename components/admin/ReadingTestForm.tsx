@@ -11,7 +11,12 @@ import BandScoreSection from "./sections/band-score-section"
 import PassageConfigSection from "./sections/passage-config-section"
 import QuestionSection from "./sections/question-section"
 
-export default function ReadingTestForm() {
+interface ReadingTestFormProps {
+  apiEndpoint?: string
+  onSuccess?: () => void
+}
+
+export default function ReadingTestForm({ apiEndpoint = "/api/admin/reading-tests", onSuccess }: ReadingTestFormProps = {}) {
   const [testData, setTestData] = useState({
     title: "",
     totalQuestions: 40,
@@ -101,21 +106,30 @@ export default function ReadingTestForm() {
         passageConfigs: passageConfigs.map(({ id, ...c }) => c),
       }
 
-      const response = await fetch("/api/admin/reading-tests", {
+      const response = await fetch(apiEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       })
 
-      if (!response.ok) throw new Error("Failed to create test")
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || "Failed to create test")
+      }
 
       alert("Reading test created successfully!")
-      // Reset form
-      setTestData({ title: "", totalQuestions: 40, totalTimeMinutes: 60, isActive: true })
-      setPassages([])
-      setBandScores([])
-      setPassageConfigs([])
-      setQuestions([])
+      
+      // Call onSuccess callback if provided
+      if (onSuccess) {
+        onSuccess()
+      } else {
+        // Reset form
+        setTestData({ title: "", totalQuestions: 40, totalTimeMinutes: 60, isActive: true })
+        setPassages([])
+        setBandScores([])
+        setPassageConfigs([])
+        setQuestions([])
+      }
     } catch (error) {
       alert("Error creating test: " + (error as Error).message)
     } finally {

@@ -37,9 +37,10 @@ export default function InstructorDashboard() {
   }, [])
 
   const fetchData = async () => {
+    setLoading(true)
     try {
       const [statsRes, submissionsRes] = await Promise.all([
-        fetch('/api/instructor/stats'),
+        fetch('/api/instructor/dashboard'),
         fetch('/api/instructor/submissions?status=pending')
       ])
 
@@ -61,8 +62,55 @@ export default function InstructorDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600"></div>
+      <div className="space-y-8">
+        {/* Header Skeleton */}
+        <div className="md:flex md:items-center md:justify-between">
+          <div className="flex-1 min-w-0">
+            <div className="h-8 bg-gray-200 rounded w-64 animate-pulse"></div>
+            <div className="mt-2 h-4 bg-gray-200 rounded w-96 animate-pulse"></div>
+          </div>
+          <div className="mt-4 flex md:mt-0 md:ml-4">
+            <div className="h-10 bg-gray-200 rounded w-32 animate-pulse"></div>
+          </div>
+        </div>
+
+        {/* Stats Grid Skeleton */}
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-gray-200 rounded-lg animate-pulse"></div>
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <div className="h-4 bg-gray-200 rounded w-24 animate-pulse mb-2"></div>
+                    <div className="h-6 bg-gray-200 rounded w-16 animate-pulse"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Recent Submissions Skeleton */}
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-4 py-5 sm:p-6">
+            <div className="h-6 bg-gray-200 rounded w-48 animate-pulse mb-4"></div>
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center space-x-4">
+                  <div className="h-12 bg-gray-200 rounded w-12 animate-pulse"></div>
+                  <div className="flex-1">
+                    <div className="h-4 bg-gray-200 rounded w-32 animate-pulse mb-2"></div>
+                    <div className="h-3 bg-gray-200 rounded w-24 animate-pulse"></div>
+                  </div>
+                  <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     )
   }

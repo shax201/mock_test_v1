@@ -13,8 +13,8 @@ interface Submission {
   moduleTitle: string
   submittedAt: string
   status: 'PENDING' | 'COMPLETED'
-  overallBand: number | null
-  markedAt: string | null
+  band: number | null
+  updatedAt: string
 }
 
 export default function CompletedSubmissionsPage() {
@@ -164,16 +164,16 @@ export default function CompletedSubmissionsPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {submission.overallBand !== null ? (
+                      {submission.band !== null && submission.band !== undefined ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          Band {submission.overallBand.toFixed(1)}
+                          Band {submission.band.toFixed(1)}
                         </span>
                       ) : (
                         <span className="text-sm text-gray-400">N/A</span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {submission.markedAt ? formatDate(submission.markedAt) : 'N/A'}
+                      {submission.updatedAt ? formatDate(submission.updatedAt) : 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <Link

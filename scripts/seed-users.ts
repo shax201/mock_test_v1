@@ -61,6 +61,15 @@ async function main() {
 
   const instructorUsers = [
     {
+      name: 'Instructor',
+      email: 'instructor@radiance.edu',
+      password: 'instructor123',
+      phone: '+1-555-0199',
+      address: '100 Instructor Way, Education City, EC 12345',
+      dateOfBirth: new Date('1985-01-01'),
+      notes: 'Primary instructor account for testing and grading'
+    },
+    {
       name: 'Dr. Sarah Johnson',
       email: 'sarah.johnson@radiance.edu',
       password: 'instructor123',
@@ -316,6 +325,7 @@ async function main() {
   console.log('\n🔐 Login Credentials:')
   console.log('👑 Admin: admin@radiance.edu / admin123')
   console.log('👑 Admin: coordinator@radiance.edu / coord123')
+  console.log('🎓 Instructor: instructor@radiance.edu / instructor123')
   console.log('🎓 Instructors: [name]@radiance.edu / instructor123')
   console.log('📚 Students: [name]@student.radiance.edu / student123')
 }

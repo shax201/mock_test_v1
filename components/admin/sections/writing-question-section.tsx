@@ -125,9 +125,9 @@ export default function WritingQuestionSection({
                 Cancel
               </Button>
             )}
-            <button onClick={() => setIsExpanded(!isExpanded)}>
-              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
+          <button onClick={() => setIsExpanded(!isExpanded)}>
+            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
           </div>
         </div>
 
@@ -225,8 +225,8 @@ export default function WritingQuestionSection({
                 </>
               ) : (
                 <>
-                  <Plus className="w-4 h-4" />
-                  Add Question
+              <Plus className="w-4 h-4" />
+              Add Question
                 </>
               )}
             </Button>
@@ -263,9 +263,9 @@ export default function WritingQuestionSection({
                         <Edit2 className="w-4 h-4" />
                       </Button>
                     )}
-                    <Button variant="ghost" size="sm" onClick={() => onRemove(question.id)}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                  <Button variant="ghost" size="sm" onClick={() => onRemove(question.id)}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                   </div>
                 </div>
               )
