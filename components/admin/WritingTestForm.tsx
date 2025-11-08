@@ -16,9 +16,17 @@ interface WritingTestFormProps {
   testId?: string
   initialData?: any
   mode?: 'create' | 'edit'
+  apiEndpoint?: string
+  onSuccess?: () => void
 }
 
-export default function WritingTestForm({ testId, initialData, mode = 'create' }: WritingTestFormProps) {
+export default function WritingTestForm({ 
+  testId, 
+  initialData, 
+  mode = 'create',
+  apiEndpoint = '/api/admin/writing-tests',
+  onSuccess
+}: WritingTestFormProps) {
   const router = useRouter()
   const [testData, setTestData] = useState({
     title: '',
@@ -37,8 +45,13 @@ export default function WritingTestForm({ testId, initialData, mode = 'create' }
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
+    // Determine reading tests endpoint based on writing tests endpoint
+    const readingTestsEndpoint = apiEndpoint.includes('/instructor/')
+      ? '/api/instructor/reading-tests'
+      : '/api/admin/reading-tests'
+    
     // Fetch reading tests
-    fetch('/api/admin/reading-tests')
+    fetch(readingTestsEndpoint)
       .then((res) => res.json())
       .then((data) => {
         if (data.readingTests) {
@@ -46,7 +59,7 @@ export default function WritingTestForm({ testId, initialData, mode = 'create' }
         }
       })
       .catch((err) => console.error('Error fetching reading tests:', err))
-  }, [])
+  }, [apiEndpoint])
 
   // Load initial data when in edit mode
   useEffect(() => {
@@ -230,8 +243,8 @@ export default function WritingTestForm({ testId, initialData, mode = 'create' }
       }
 
       const url = mode === 'edit' && testId 
-        ? `/api/admin/writing-tests/${testId}`
-        : '/api/admin/writing-tests'
+        ? `${apiEndpoint}/${testId}`
+        : apiEndpoint
       const method = mode === 'edit' ? 'PUT' : 'POST'
 
       console.log('Submitting payload:', JSON.stringify(payload, null, 2))
@@ -254,8 +267,12 @@ export default function WritingTestForm({ testId, initialData, mode = 'create' }
         throw new Error(errorMessage)
       }
 
-      alert(`Writing test ${mode === 'edit' ? 'updated' : 'created'} successfully!`)
-      router.push('/admin/writing-tests')
+      if (onSuccess) {
+        onSuccess()
+      } else {
+        alert(`Writing test ${mode === 'edit' ? 'updated' : 'created'} successfully!`)
+        router.push('/admin/writing-tests')
+      }
     } catch (error) {
       alert('Error creating test: ' + (error as Error).message)
     } finally {
