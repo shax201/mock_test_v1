@@ -2,6 +2,61 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyJWT } from '@/lib/auth/jwt'
 
+interface WritingNote {
+  id: string
+  start: number
+  end: number
+  text: string
+  category: string
+  comment: string
+}
+
+interface NormalizedWritingAnswer {
+  text: string
+  notes: WritingNote[]
+}
+
+const normalizeWritingAnswer = (raw: unknown): NormalizedWritingAnswer => {
+  if (!raw) {
+    return { text: '', notes: [] }
+  }
+
+  if (typeof raw === 'string') {
+    return { text: raw, notes: [] }
+  }
+
+  if (typeof raw === 'object') {
+    const record = raw as Record<string, unknown>
+    const text = typeof record.text === 'string' ? record.text : ''
+    const rawNotes = Array.isArray(record.notes) ? record.notes : []
+    const notes: WritingNote[] = rawNotes
+      .map((note) => {
+        if (typeof note !== 'object' || note === null) return null
+        const ref = note as Record<string, unknown>
+        const id = typeof ref.id === 'string' ? ref.id : `${Date.now()}-${Math.random().toString(16).slice(2)}`
+        const start = typeof ref.start === 'number' ? ref.start : 0
+        const end = typeof ref.end === 'number' ? ref.end : start
+        const snippet = typeof ref.text === 'string' ? ref.text : ''
+        const category = typeof ref.category === 'string' ? ref.category : 'Other'
+        const comment = typeof ref.comment === 'string' ? ref.comment : ''
+
+        return {
+          id,
+          start,
+          end: Math.max(end, start),
+          text: snippet,
+          category,
+          comment
+        } as WritingNote
+      })
+      .filter(Boolean) as WritingNote[]
+
+    return { text, notes }
+  }
+
+  return { text: '', notes: [] }
+}
+
 /**
  * GET /api/student/results/[testId]
  * Fetches test results for a student
@@ -146,8 +201,17 @@ export async function GET(
         band: session.band ?? 0
       },
       questionDetails: {} as any,
-      generatedAt: session.completedAt?.toISOString() || new Date().toISOString(),
-      status: 'completed'
+    feedback: {
+      writing: [] as Array<{
+        questionId: string
+        category: string
+        text: string
+        comment: string
+        range: [number, number]
+      }>
+    },
+    generatedAt: session.completedAt?.toISOString() || new Date().toISOString(),
+    status: 'completed'
     }
 
     // Step 5: Format question details based on test type
@@ -193,24 +257,38 @@ export async function GET(
         results.questionDetails.reading = readingQuestions
       }
     } else if (session.testType === 'WRITING') {
+      const writingFeedback = results.feedback.writing
       // For writing tests, format the writing questions
       if (testDetails && testDetails.passages) {
         const writingQuestions: any[] = []
         testDetails.passages.forEach((passage: any) => {
           passage.questions.forEach((question: any) => {
-            const studentAnswer = (session.answers as any)?.[question.id] || ''
+            const normalized = normalizeWritingAnswer((session.answers as any)?.[question.id])
             
             writingQuestions.push({
               id: question.id,
               question: question.questionText,
               type: question.type,
               part: passage.order,
-              studentAnswer: studentAnswer,
+              studentAnswer: normalized.text,
+              notes: normalized.notes,
               correctAnswer: 'Evaluation pending',
               isCorrect: null, // Writing is evaluated by instructor
               explanation: '',
-              wordCount: studentAnswer ? studentAnswer.split(/\s+/).filter(Boolean).length : 0
+              wordCount: normalized.text ? normalized.text.split(/\s+/).filter(Boolean).length : 0
             })
+
+            if (normalized.notes.length) {
+              normalized.notes.forEach((note) => {
+                writingFeedback.push({
+                  questionId: question.id,
+                  category: note.category,
+                  text: note.text,
+                  comment: note.comment,
+                  range: [note.start, note.end]
+                })
+              })
+            }
           })
         })
         results.questionDetails.writing = writingQuestions

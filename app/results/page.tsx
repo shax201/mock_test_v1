@@ -15,6 +15,8 @@ interface ResultData {
   }
   feedback: {
     writing: Array<{
+      questionId: string
+      category: string
       text: string
       comment: string
       range: [number, number]
@@ -220,10 +222,13 @@ export default function ResultsPage() {
                   {results.feedback.writing.map((feedback, index) => (
                     <div key={index} className="border-l-4 border-blue-500 pl-4">
                       <div className="bg-blue-50 p-3 rounded">
-                        <p className="text-sm text-blue-800 mb-2">
+                        <p className="text-xs text-blue-600 uppercase tracking-wide">
+                          Question {feedback.questionId} · {feedback.category}
+                        </p>
+                        <p className="mt-2 text-sm text-blue-800">
                           <strong>Comment:</strong> {feedback.comment}
                         </p>
-                        <p className="text-sm text-gray-700">
+                        <p className="mt-2 text-sm text-gray-700">
                           <strong>Text:</strong> "{feedback.text}"
                         </p>
                       </div>

@@ -4,6 +4,15 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import QuestionWiseResults from './QuestionWiseResults'
 
+interface WritingNote {
+  id: string
+  start: number
+  end: number
+  text: string
+  category: string
+  comment: string
+}
+
 interface TestResultsData {
   testTitle: string
   testDate: string
@@ -47,6 +56,7 @@ interface TestResultsData {
       type: string
       part: number
       studentAnswer: string
+      notes?: WritingNote[]
       correctAnswer: string
       isCorrect: boolean | null
       explanation?: string
@@ -55,6 +65,8 @@ interface TestResultsData {
   }
   feedback?: {
     writing: Array<{
+      questionId: string
+      category: string
       text: string
       comment: string
       range: [number, number]
@@ -335,9 +347,40 @@ export default function TestResultsAnalysis({ testId, initialTab, initialResults
 
           {/* Writing Analysis */}
           {activeSubTab === 'writing' && (
-            <div className="text-center py-12">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Writing Analysis</h3>
-              <p className="text-gray-600">Detailed writing analysis will be available here.</p>
+            <div className="space-y-6">
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">Writing Feedback Summary</h3>
+                <p className="text-sm text-gray-600">
+                  Highlighted notes show the exact sections your instructor commented on. Review each note to understand how to improve.
+                </p>
+              </div>
+
+              {results.feedback?.writing && results.feedback.writing.length > 0 ? (
+                <div className="space-y-4">
+                  {results.feedback.writing.map((feedback, index) => (
+                    <div key={`${feedback.questionId}-${feedback.range.join('-')}-${index}`} className="border border-blue-100 bg-blue-50 rounded-lg p-5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Question {feedback.questionId}</p>
+                          <p className="mt-1 text-sm font-medium text-blue-900">{feedback.category}</p>
+                        </div>
+                        <span className="text-xs text-blue-500">
+                          Characters {feedback.range[0] + 1}–{feedback.range[1]}
+                        </span>
+                      </div>
+                      <p className="mt-3 text-sm text-blue-900 italic">&ldquo;{feedback.text}&rdquo;</p>
+                      <p className="mt-3 text-sm text-blue-900">{feedback.comment}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-white border border-dashed border-gray-300 rounded-lg p-8 text-center">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-2">No instructor notes yet</h4>
+                  <p className="text-sm text-gray-500">
+                    Once your instructor reviews your writing, detailed feedback will appear here.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>

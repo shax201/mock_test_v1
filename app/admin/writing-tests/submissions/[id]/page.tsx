@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -58,11 +58,47 @@ interface Submission {
 
 type CriteriaKey = 'taskAchievement' | 'coherence' | 'lexical' | 'grammar'
 
+interface WritingNote {
+  id: string
+  start: number
+  end: number
+  text: string
+  category: string
+  comment: string
+}
+
+interface WritingAnswer {
+  text: string
+  notes: WritingNote[]
+}
+
+interface SelectionInfo {
+  questionId: string
+  start: number
+  end: number
+  rawText: string
+}
+
+interface NoteComposerState extends SelectionInfo {
+  category: string
+  comment: string
+}
+
 const WRITING_CRITERIA: { key: CriteriaKey; label: string }[] = [
   { key: 'taskAchievement', label: 'Task Achievement' },
   { key: 'coherence', label: 'Coherence & Cohesion' },
   { key: 'lexical', label: 'Lexical Resource' },
   { key: 'grammar', label: 'Grammatical Range & Accuracy' }
+]
+
+const NOTE_CATEGORIES = [
+  'Grammar',
+  'Vocabulary',
+  'Task Achievement',
+  'Coherence & Cohesion',
+  'Spelling',
+  'Punctuation',
+  'Other'
 ]
 
 const createEmptyScores = (): Record<CriteriaKey, string> =>
@@ -124,6 +160,48 @@ const formatBand = (band: number | null): string => {
   return band.toFixed(1)
 }
 
+const normalizeWritingAnswer = (raw: unknown): WritingAnswer => {
+  if (!raw) {
+    return { text: '', notes: [] }
+  }
+
+  if (typeof raw === 'string') {
+    return { text: raw, notes: [] }
+  }
+
+  if (typeof raw === 'object') {
+    const candidate = raw as Record<string, unknown>
+    const text = typeof candidate.text === 'string' ? candidate.text : ''
+    const rawNotes = Array.isArray(candidate.notes) ? candidate.notes : []
+
+    const notes: WritingNote[] = rawNotes
+      .map((note) => {
+        if (typeof note !== 'object' || note === null) return null
+        const record = note as Record<string, unknown>
+        const id = typeof record.id === 'string' ? record.id : `${Date.now()}-${Math.random().toString(16).slice(2)}`
+        const start = typeof record.start === 'number' ? record.start : 0
+        const end = typeof record.end === 'number' ? record.end : start
+        const snippet = typeof record.text === 'string' ? record.text : ''
+        const category = typeof record.category === 'string' ? record.category : 'Other'
+        const comment = typeof record.comment === 'string' ? record.comment : ''
+
+        return {
+          id,
+          start,
+          end,
+          text: snippet,
+          category,
+          comment
+        } as WritingNote
+      })
+      .filter(Boolean) as WritingNote[]
+
+    return { text, notes }
+  }
+
+  return { text: '', notes: [] }
+}
+
 export default function WritingTestSubmissionDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -140,12 +218,35 @@ export default function WritingTestSubmissionDetailPage() {
   const [task2Scores, setTask2Scores] = useState<Record<CriteriaKey, string>>(() => createEmptyScores())
   const [overallBandInput, setOverallBandInput] = useState<string>('')
   const [deleting, setDeleting] = useState(false)
+  const [answersWithNotes, setAnswersWithNotes] = useState<Record<string, WritingAnswer>>({})
+  const answerRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const [pendingSelection, setPendingSelection] = useState<SelectionInfo | null>(null)
+  const [noteComposer, setNoteComposer] = useState<NoteComposerState | null>(null)
+  const [notesSavingFor, setNotesSavingFor] = useState<string | null>(null)
+  const [notesMessage, setNotesMessage] = useState<{ questionId: string | null; type: 'error' | 'success'; message: string } | null>(null)
 
   useEffect(() => {
     if (submissionId) {
       fetchSubmission()
     }
   }, [submissionId])
+
+  useEffect(() => {
+    if (!notesMessage || notesMessage.type !== 'success') {
+      return
+    }
+
+    const timeout = setTimeout(() => {
+      setNotesMessage((prev) => {
+        if (prev && prev.type === 'success') {
+          return null
+        }
+        return prev
+      })
+    }, 4000)
+
+    return () => clearTimeout(timeout)
+  }, [notesMessage])
 
   const handleCriteriaChange = (task: 'task1' | 'task2', key: CriteriaKey, value: string) => {
     const sanitized = value.replace(/[^0-9.]/g, '')
@@ -194,9 +295,312 @@ export default function WritingTestSubmissionDetailPage() {
     return text.trim().split(/\s+/).filter(word => word.length > 0).length
   }
 
-  const getAnswerForQuestion = (questionId: string): string => {
-    if (!submission?.answers || typeof submission.answers !== 'object') return ''
-    return submission.answers[questionId] || ''
+  const getAnnotatedAnswer = (questionId: string): WritingAnswer => {
+    if (answersWithNotes[questionId]) {
+      return answersWithNotes[questionId]
+    }
+
+    const rawAnswer = submission?.answers ? (submission.answers as Record<string, unknown>)[questionId] : null
+    const normalized = normalizeWritingAnswer(rawAnswer)
+
+    return normalized
+  }
+
+  const computeTextOffset = (container: HTMLElement, node: Node | null, offset: number): number | null => {
+    if (!node) return null
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT)
+    let total = 0
+    let current = walker.nextNode()
+
+    while (current) {
+      const textContent = current.textContent || ''
+      if (current === node) {
+        return total + Math.min(offset, textContent.length)
+      }
+      total += textContent.length
+      current = walker.nextNode()
+    }
+
+    return null
+  }
+
+  const handleAnswerSelection = (questionId: string) => {
+    if (typeof window === 'undefined') return
+
+    const container = answerRefs.current[questionId]
+    if (!container) return
+
+    const selection = window.getSelection()
+    if (!selection || selection.isCollapsed) return
+
+    try {
+      const range = selection.getRangeAt(0)
+
+      if (!container.contains(range.startContainer) || !container.contains(range.endContainer)) {
+        return
+      }
+
+      const answer = getAnnotatedAnswer(questionId)
+      if (!answer.text) {
+        return
+      }
+
+      const startOffset = computeTextOffset(container, range.startContainer, range.startOffset)
+      const endOffset = computeTextOffset(container, range.endContainer, range.endOffset)
+
+      if (startOffset === null || endOffset === null) {
+        return
+      }
+
+      const rawStart = Math.max(0, Math.min(startOffset, endOffset))
+      const rawEnd = Math.max(0, Math.max(startOffset, endOffset))
+
+      if (rawEnd <= rawStart) {
+        return
+      }
+
+      const selectedSlice = answer.text.slice(rawStart, rawEnd)
+      if (!selectedSlice.trim()) {
+        return
+      }
+
+      const leadingTrim = selectedSlice.length - selectedSlice.trimStart().length
+      const trailingTrim = selectedSlice.length - selectedSlice.trimEnd().length
+      const adjustedStart = rawStart + leadingTrim
+      const adjustedEnd = rawEnd - trailingTrim
+
+      if (adjustedEnd <= adjustedStart) {
+        return
+      }
+
+      const trimmedText = answer.text.slice(adjustedStart, adjustedEnd)
+
+      setPendingSelection({
+        questionId,
+        start: adjustedStart,
+        end: adjustedEnd,
+        rawText: trimmedText
+      })
+      setNotesMessage(null)
+    } catch (error) {
+      console.error('Error while capturing selection for notes:', error)
+    } finally {
+      selection.removeAllRanges()
+    }
+  }
+
+  const startNoteComposer = (questionId: string) => {
+    if (!pendingSelection || pendingSelection.questionId !== questionId) {
+      setNotesMessage({
+        questionId,
+        type: 'error',
+        message: 'Select the specific text in the answer you want to annotate before adding a note.'
+      })
+      return
+    }
+
+    setNoteComposer({
+      questionId,
+      start: pendingSelection.start,
+      end: pendingSelection.end,
+      rawText: pendingSelection.rawText,
+      category: NOTE_CATEGORIES[0],
+      comment: ''
+    })
+    setPendingSelection(null)
+    setNotesMessage(null)
+  }
+
+  const cancelNoteComposer = () => {
+    setNoteComposer(null)
+    setNotesMessage(null)
+  }
+
+  const persistNotes = async (questionId: string, updatedAnswer: WritingAnswer) => {
+    if (!submissionId) return
+
+    setNotesSavingFor(questionId)
+    setNotesMessage(null)
+
+    try {
+      const response = await fetch(`/api/admin/writing-tests/submissions/${submissionId}/notes`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          questionId,
+          text: updatedAnswer.text,
+          notes: updatedAnswer.notes
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save note')
+      }
+
+      const normalized = normalizeWritingAnswer(data.answer)
+      setAnswersWithNotes((prev) => ({
+        ...prev,
+        [questionId]: normalized
+      }))
+
+      setSubmission((prev) => {
+        if (!prev) return prev
+
+        const nextAnswers = {
+          ...(prev.answers || {}),
+          [questionId]: {
+            text: normalized.text,
+            notes: normalized.notes
+          }
+        }
+
+        return { ...prev, answers: nextAnswers }
+      })
+
+      setNotesMessage({
+        questionId,
+        type: 'success',
+        message: 'Note saved successfully.'
+      })
+    } catch (error) {
+      console.error('Failed to persist notes', error)
+      setNotesMessage({
+        questionId,
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Failed to save note. Please try again.'
+      })
+      throw error
+    } finally {
+      setNotesSavingFor(null)
+    }
+  }
+
+  const handleCreateNote = async () => {
+    if (!noteComposer) return
+
+    if (!noteComposer.comment.trim()) {
+      setNotesMessage({
+        questionId: noteComposer.questionId,
+        type: 'error',
+        message: 'Please add a comment describing the issue.'
+      })
+      return
+    }
+
+    const baseAnswer = getAnnotatedAnswer(noteComposer.questionId)
+    if (!baseAnswer.text) {
+      setNotesMessage({
+        questionId: noteComposer.questionId,
+        type: 'error',
+        message: 'Cannot add a note to an empty answer.'
+      })
+      return
+    }
+
+    const generateId = () => {
+      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID()
+      }
+      return `${Date.now()}-${Math.random().toString(16).slice(2)}`
+    }
+
+    const newNote: WritingNote = {
+      id: generateId(),
+      start: noteComposer.start,
+      end: noteComposer.end,
+      text: noteComposer.rawText,
+      category: noteComposer.category,
+      comment: noteComposer.comment.trim()
+    }
+
+    const updatedAnswer: WritingAnswer = {
+      text: baseAnswer.text,
+      notes: [...baseAnswer.notes.filter((note) => note.id !== newNote.id), newNote].sort((a, b) => a.start - b.start)
+    }
+
+    try {
+      await persistNotes(noteComposer.questionId, updatedAnswer)
+      setNoteComposer(null)
+    } catch {
+      // persistNotes handles error messaging
+    }
+  }
+
+  const handleDeleteNote = async (questionId: string, noteId: string) => {
+    const baseAnswer = getAnnotatedAnswer(questionId)
+    const updatedAnswer: WritingAnswer = {
+      text: baseAnswer.text,
+      notes: baseAnswer.notes.filter((note) => note.id !== noteId)
+    }
+
+    try {
+      await persistNotes(questionId, updatedAnswer)
+    } catch {
+      // Error message handled in persistNotes
+    }
+  }
+
+  const updateNoteComposerField = <Key extends keyof NoteComposerState>(key: Key, value: NoteComposerState[Key]) => {
+    setNoteComposer((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        [key]: value
+      }
+    })
+  }
+
+  const renderAnnotatedText = (questionId: string, annotated: WritingAnswer) => {
+    if (!annotated.text) {
+      return <span className="text-slate-400 italic">No answer provided</span>
+    }
+
+    if (!annotated.notes.length) {
+      return <>{annotated.text}</>
+    }
+
+    const segments: JSX.Element[] = []
+    let cursor = 0
+    const sortedNotes = [...annotated.notes].sort((a, b) => a.start - b.start)
+
+    sortedNotes.forEach((note, index) => {
+      const safeStart = Math.max(0, Math.min(note.start, annotated.text.length))
+      const safeEnd = Math.max(safeStart, Math.min(note.end, annotated.text.length))
+
+      if (cursor < safeStart) {
+        segments.push(
+          <span key={`plain-${questionId}-${index}`}>
+            {annotated.text.slice(cursor, safeStart)}
+          </span>
+        )
+      }
+
+      segments.push(
+        <mark
+          key={`${note.id}`}
+          className="rounded bg-yellow-200/70 px-0.5 py-0.5 text-slate-900 no-underline"
+          title={`${note.category}: ${note.comment}`}
+        >
+          {annotated.text.slice(safeStart, safeEnd)}
+        </mark>
+      )
+
+      cursor = safeEnd
+    })
+
+    if (cursor < annotated.text.length) {
+      segments.push(
+        <span key={`plain-end-${questionId}`}>
+          {annotated.text.slice(cursor)}
+        </span>
+      )
+    }
+
+    return segments
   }
 
   const task1Band = useMemo(() => computeBandFromScores(task1Scores), [task1Scores])
@@ -221,13 +625,13 @@ export default function WritingTestSubmissionDetailPage() {
 
     testDetails.passages.forEach((passage) => {
       passage.questions.forEach((question) => {
-        const answer = getAnswerForQuestion(question.id)
-        totalWords += getWordCount(answer)
+        const annotated = getAnnotatedAnswer(question.id)
+        totalWords += getWordCount(annotated.text)
       })
     })
 
     return totalWords
-  }, [submission, testDetails])
+  }, [answersWithNotes, submission, testDetails])
 
   const expiryLabel = useMemo(() => {
     if (!submission?.completedAt) {
@@ -258,6 +662,14 @@ export default function WritingTestSubmissionDetailPage() {
       if (response.ok) {
         setSubmission(data.submission)
         setTestDetails(data.testDetails)
+        const rawAnswers: Record<string, unknown> = data.submission?.answers || {}
+        const normalized: Record<string, WritingAnswer> = {}
+
+        Object.entries(rawAnswers).forEach(([questionId, answerValue]) => {
+          normalized[questionId] = normalizeWritingAnswer(answerValue)
+        })
+
+        setAnswersWithNotes(normalized)
       } else {
         setError(data.error || 'Failed to fetch submission')
       }
@@ -824,9 +1236,9 @@ export default function WritingTestSubmissionDetailPage() {
               )}
 
               <div className="mt-6 space-y-6">
-                {passage.questions.map((question) => {
-                  const answer = getAnswerForQuestion(question.id)
-                  const wordCount = getWordCount(answer)
+            {passage.questions.map((question) => {
+              const annotatedAnswer = getAnnotatedAnswer(question.id)
+              const wordCount = getWordCount(annotatedAnswer.text)
 
                   return (
                     <div
@@ -854,17 +1266,173 @@ export default function WritingTestSubmissionDetailPage() {
                         </div>
                       )}
 
-                      <div className="mt-5 rounded-2xl border border-white bg-white p-5 shadow-sm">
-                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                          Student&apos;s Answer
-                        </span>
-                        <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-800">
-                          {answer ? (
-                            answer
-                          ) : (
-                            <span className="text-slate-400 italic">No answer provided</span>
+                      <div className="mt-5 space-y-5">
+                        <div className="rounded-2xl border border-white bg-white p-5 shadow-sm">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                            Student&apos;s Answer
+                          </span>
+                          <div
+                            ref={(element) => {
+                              answerRefs.current[question.id] = element
+                            }}
+                            onMouseUp={() => handleAnswerSelection(question.id)}
+                            className="mt-3 min-h-[200px] whitespace-pre-wrap text-sm leading-relaxed text-slate-800"
+                          >
+                            {annotatedAnswer.text ? (
+                              renderAnnotatedText(question.id, annotatedAnswer)
+                            ) : (
+                              <span className="text-slate-400 italic">No answer provided</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <h5 className="text-sm font-semibold text-slate-900">Instructor Notes</h5>
+                              <p className="text-xs text-slate-500">
+                                Highlight text above to annotate grammar, vocabulary, or coherence issues.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => startNoteComposer(question.id)}
+                              className="inline-flex items-center gap-2 rounded-full border border-blue-600 px-3 py-1.5 text-xs font-semibold text-blue-600 transition hover:bg-blue-600 hover:text-white"
+                            >
+                              <span>+ Add Note</span>
+                            </button>
+                          </div>
+
+                          {pendingSelection && pendingSelection.questionId === question.id && !noteComposer && (
+                            <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                              <span className="font-medium text-blue-900">Selected text:</span>{' '}
+                              <span className="italic">
+                                &ldquo;
+                                {pendingSelection.rawText.slice(0, 140)}
+                                {pendingSelection.rawText.length > 140 ? '…' : ''}
+                                &rdquo;
+                              </span>
+                            </div>
                           )}
-                        </p>
+
+                          {noteComposer && noteComposer.questionId === question.id && (
+                            <div className="mt-4 space-y-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                              <div>
+                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Annotated text</p>
+                                <p className="mt-2 rounded-lg border border-slate-200 bg-white p-3 text-sm leading-relaxed text-slate-800">
+                                  {noteComposer.rawText}
+                                </p>
+                              </div>
+                              <div className="flex flex-col gap-3 sm:flex-row">
+                                <div className="sm:w-48">
+                                  <label className="block text-xs font-medium uppercase tracking-wide text-slate-500">
+                                    Category
+                                  </label>
+                                  <select
+                                    value={noteComposer.category}
+                                    onChange={(event) => updateNoteComposerField('category', event.target.value)}
+                                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                  >
+                                    {NOTE_CATEGORIES.map((category) => (
+                                      <option key={category} value={category}>
+                                        {category}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="flex-1">
+                                  <label className="block text-xs font-medium uppercase tracking-wide text-slate-500">
+                                    Instructor comment
+                                  </label>
+                                  <textarea
+                                    value={noteComposer.comment}
+                                    onChange={(event) => updateNoteComposerField('comment', event.target.value)}
+                                    rows={3}
+                                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                    placeholder="Explain the issue and give the student guidance."
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-3">
+                                <button
+                                  type="button"
+                                  onClick={handleCreateNote}
+                                  disabled={notesSavingFor === question.id}
+                                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                                >
+                                  {notesSavingFor === question.id ? (
+                                    <>
+                                      <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                      </svg>
+                                      Saving...
+                                    </>
+                                  ) : (
+                                    'Save Note'
+                                  )}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={cancelNoteComposer}
+                                  className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {notesMessage && notesMessage.questionId === question.id && (
+                            <div
+                              className={`mt-4 rounded-xl border px-3 py-2 text-xs ${
+                                notesMessage.type === 'success'
+                                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                  : 'border-red-200 bg-red-50 text-red-700'
+                              }`}
+                            >
+                              {notesMessage.message}
+                            </div>
+                          )}
+
+                          <div className="mt-4 space-y-3">
+                            {annotatedAnswer.notes.length > 0 ? (
+                              annotatedAnswer.notes.map((note) => (
+                                <div
+                                  key={note.id}
+                                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm"
+                                >
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2">
+                                      <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+                                        {note.category}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteNote(question.id, note.id)}
+                                        className="text-xs font-semibold text-red-500 transition hover:text-red-600"
+                                        disabled={notesSavingFor === question.id}
+                                      >
+                                        Remove
+                                      </button>
+                                    </div>
+                                    <span className="text-xs text-slate-400">
+                                      Characters {note.start + 1}–{note.end}
+                                    </span>
+                                  </div>
+                                  <p className="mt-2 whitespace-pre-wrap text-xs text-slate-500">
+                                    “{note.text}”
+                                  </p>
+                                  <p className="mt-2 text-sm text-slate-800">{note.comment}</p>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/80 px-4 py-3 text-xs text-slate-500">
+                                No notes added yet. Highlight a portion of the answer to leave targeted feedback.
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )

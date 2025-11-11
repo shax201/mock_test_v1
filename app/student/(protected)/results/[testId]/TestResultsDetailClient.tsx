@@ -5,6 +5,15 @@ import { useEffect, useState } from 'react'
 import TestResultsAnalysis from '@/components/test/TestResultsAnalysis'
 import StudentHeader from '@/components/student/StudentHeader'
 
+interface WritingNote {
+  id: string
+  start: number
+  end: number
+  text: string
+  category: string
+  comment: string
+}
+
 interface TestResultsData {
   testTitle: string
   testDate: string
@@ -48,6 +57,7 @@ interface TestResultsData {
       type: string
       part: number
       studentAnswer: string
+      notes?: WritingNote[]
       correctAnswer: string
       isCorrect: boolean | null
       explanation?: string
@@ -56,6 +66,8 @@ interface TestResultsData {
   }
   feedback?: {
     writing: Array<{
+      questionId: string
+      category: string
       text: string
       comment: string
       range: [number, number]

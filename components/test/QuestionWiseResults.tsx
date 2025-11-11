@@ -2,6 +2,15 @@
 
 import { useState, useEffect, useRef } from 'react'
 
+interface WritingNote {
+  id: string
+  start: number
+  end: number
+  text: string
+  category: string
+  comment: string
+}
+
 interface Question {
   id: string
   question: string
@@ -9,6 +18,7 @@ interface Question {
   part: number
   options?: string[]
   studentAnswer: string
+  notes?: WritingNote[]
   correctAnswer: string
   isCorrect: boolean | null
   explanation?: string
@@ -33,6 +43,51 @@ export default function QuestionWiseResults({ testId, questions, totalQuestions 
   const filteredQuestions = questions.filter(q => 
     filterType === 'all' || q.moduleType === filterType
   )
+
+  const renderAnnotatedText = (text: string, notes?: WritingNote[]) => {
+    if (!text) {
+      return <span className="text-gray-400 italic">No answer provided</span>
+    }
+
+    if (!notes || !notes.length) {
+      return <>{text}</>
+    }
+
+    const sorted = [...notes].sort((a, b) => a.start - b.start)
+    const segments: JSX.Element[] = []
+    let cursor = 0
+
+    sorted.forEach((note, index) => {
+      const safeStart = Math.max(0, Math.min(note.start, text.length))
+      const safeEnd = Math.max(safeStart, Math.min(note.end, text.length))
+
+      if (cursor < safeStart) {
+        segments.push(
+          <span key={`plain-${index}`}>{text.slice(cursor, safeStart)}</span>
+        )
+      }
+
+      segments.push(
+        <mark
+          key={`note-${note.id}`}
+          className="rounded bg-yellow-200/70 px-0.5 py-0.5 text-slate-900"
+          title={`${note.category}: ${note.comment}`}
+        >
+          {text.slice(safeStart, safeEnd)}
+        </mark>
+      )
+
+      cursor = safeEnd
+    })
+
+    if (cursor < text.length) {
+      segments.push(
+        <span key="plain-tail">{text.slice(cursor)}</span>
+      )
+    }
+
+    return segments
+  }
 
   // Set initial question
   useEffect(() => {
@@ -290,10 +345,31 @@ export default function QuestionWiseResults({ testId, questions, totalQuestions 
                 </div>
                 <div className="p-4 rounded-lg bg-white border border-gray-200 min-h-[200px]">
                   <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">
-                    {selectedQuestion.studentAnswer || 'No answer provided'}
+                    {renderAnnotatedText(selectedQuestion.studentAnswer, selectedQuestion.notes)}
                   </p>
                 </div>
               </div>
+              {selectedQuestion.notes && selectedQuestion.notes.length > 0 && (
+                <div className="bg-white border border-dashed border-blue-200 rounded-lg p-6">
+                  <h4 className="text-sm font-semibold text-blue-900 mb-3 uppercase tracking-wide">Instructor Notes</h4>
+                  <div className="space-y-3">
+                    {selectedQuestion.notes.map((note) => (
+                      <div key={note.id} className="rounded-md border border-blue-100 bg-blue-50 px-4 py-3 text-left">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-800">
+                            {note.category}
+                          </span>
+                          <span className="text-xs text-blue-700">
+                            Characters {note.start + 1}–{note.end}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-xs text-blue-900 italic">“{note.text}”</p>
+                        <p className="mt-2 text-sm text-blue-900">{note.comment}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               {selectedQuestion.correctAnswer && selectedQuestion.correctAnswer !== 'Evaluation pending' && (
                 <div className="bg-gray-50 rounded-lg p-6">
                   <h4 className="text-lg font-semibold text-gray-900 mb-4">Evaluation:</h4>
