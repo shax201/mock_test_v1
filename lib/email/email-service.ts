@@ -11,6 +11,24 @@ interface AssignmentEmailData {
   testLink: string
 }
 
+interface ResultModuleSummary {
+  name: string
+  status: string
+  band: number | null
+  score: number | null
+  completedAt?: string | null
+  testTitle?: string | null
+}
+
+interface ResultsEmailData {
+  studentName: string
+  studentEmail: string
+  mockTitle?: string | null
+  overallBand?: number | null
+  modules: ResultModuleSummary[]
+  message?: string | null
+}
+
 class EmailService {
   private resend: Resend
 
@@ -41,6 +59,34 @@ class EmailService {
       return true
     } catch (error) {
       console.error('Error sending assignment email:', error)
+      return false
+    }
+  }
+
+  async sendResultsSummaryEmail(emailData: ResultsEmailData): Promise<boolean> {
+    try {
+      if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 'dummy-key-for-build') {
+        console.log('Email service not configured - skipping results email send')
+        return true
+      }
+
+      const subjectParts = ['Your IELTS Mock Test Results']
+      if (emailData.mockTitle) {
+        subjectParts.push(`– ${emailData.mockTitle}`)
+      }
+
+      const { data: sendData, error } = await this.resend.emails.send({
+        from: process.env.EMAIL_FROM || 'IELTS Mock Test <noreply@yourdomain.com>',
+        to: emailData.studentEmail,
+        subject: subjectParts.join(' '),
+        html: this.generateResultsEmailHTML(emailData),
+        text: this.generateResultsEmailText(emailData)
+      })
+      if (error) throw error
+      console.log('Results email sent successfully:', sendData?.id)
+      return true
+    } catch (error) {
+      console.error('Error sending results email:', error)
       return false
     }
   }
@@ -243,6 +289,220 @@ Good luck with your test!
 ---
 IELTS Mock Test System
     `
+  }
+
+  private generateResultsEmailHTML(data: ResultsEmailData): string {
+    const overallBand = data.overallBand !== null && data.overallBand !== undefined
+      ? data.overallBand.toFixed(1)
+      : 'Pending'
+
+    const moduleRows = data.modules.map((module) => {
+      const bandDisplay = module.band !== null && module.band !== undefined ? module.band.toFixed(1) : 'Pending'
+      const scoreDisplay = module.score !== null && module.score !== undefined ? module.score : 'Pending'
+      const completedAt = module.completedAt
+        ? new Date(module.completedAt).toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        : '—'
+      return `
+        <tr>
+          <td style="padding: 12px; border-bottom: 1px solid #e9ecef; font-weight: 600; color: #12355b;">${module.name}</td>
+          <td style="padding: 12px; border-bottom: 1px solid #e9ecef;">${module.testTitle ?? '—'}</td>
+          <td style="padding: 12px; border-bottom: 1px solid #e9ecef;">${module.status}</td>
+          <td style="padding: 12px; border-bottom: 1px solid #e9ecef;">${bandDisplay}</td>
+          <td style="padding: 12px; border-bottom: 1px solid #e9ecef;">${scoreDisplay}</td>
+          <td style="padding: 12px; border-bottom: 1px solid #e9ecef;">${completedAt}</td>
+        </tr>
+      `
+    }).join('')
+
+    return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>IELTS Mock Test Results</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          background-color: #f5f7fb;
+          margin: 0;
+          padding: 0;
+        }
+        .container {
+          max-width: 640px;
+          margin: 0 auto;
+          padding: 20px;
+        }
+        .card {
+          background-color: #ffffff;
+          border-radius: 10px;
+          box-shadow: 0 10px 40px rgba(18, 53, 91, 0.12);
+          overflow: hidden;
+        }
+        .card-header {
+          background: linear-gradient(135deg, #12355b 0%, #1f6feb 100%);
+          color: #ffffff;
+          padding: 32px;
+          text-align: center;
+        }
+        .card-header h1 {
+          margin: 0;
+          font-size: 24px;
+          letter-spacing: 0.5px;
+        }
+        .card-header p {
+          margin: 8px 0 0;
+          font-size: 16px;
+          opacity: 0.85;
+        }
+        .card-body {
+          padding: 32px;
+        }
+        .modules-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 20px;
+        }
+        .modules-table thead th {
+          text-align: left;
+          font-size: 13px;
+          text-transform: uppercase;
+          letter-spacing: 0.6px;
+          padding: 12px;
+          background-color: #f1f5fb;
+          color: #53657d;
+        }
+        .highlight {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: #eaf4ff;
+          color: #1f6feb;
+          border-radius: 999px;
+          padding: 8px 16px;
+          font-weight: 600;
+          margin-top: 12px;
+        }
+        .message {
+          margin-top: 24px;
+          padding: 20px;
+          background: #f8fafc;
+          border-radius: 8px;
+          border-left: 4px solid #1f6feb;
+          color: #12355b;
+        }
+        .footer {
+          text-align: center;
+          padding: 20px;
+          color: #7a8ca8;
+          font-size: 12px;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="card">
+          <div class="card-header">
+            <h1>Your IELTS Mock Test Results</h1>
+            <p>${data.mockTitle ?? 'Overall Performance Summary'}</p>
+            <div class="highlight">
+              Overall Band: <span style="margin-left: 8px; font-size: 18px;">${overallBand}</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <p>Dear <strong>${data.studentName}</strong>,</p>
+            <p>Thank you for completing your IELTS practice modules. Below is a snapshot of your performance across Reading, Listening, and Writing. Use this summary to celebrate progress and identify focus areas for your next study session.</p>
+
+            <table class="modules-table">
+              <thead>
+                <tr>
+                  <th>Module</th>
+                  <th>Test</th>
+                  <th>Status</th>
+                  <th>Band</th>
+                  <th>Score</th>
+                  <th>Completed</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${moduleRows}
+              </tbody>
+            </table>
+
+            ${data.message ? `<div class="message">${data.message}</div>` : ''}
+
+            <p style="margin-top: 24px;">📝 <strong>Next Steps:</strong></p>
+            <ul style="color: #12355b;">
+              <li>Review modules with pending evaluations to complete the full experience.</li>
+              <li>Revisit areas with lower bands and practice targeted exercises.</li>
+              <li>Schedule a feedback session with your instructor to discuss improvement strategies.</li>
+            </ul>
+
+            <p>Keep up the excellent work—consistent practice is the key to achieving your target IELTS band score!</p>
+          </div>
+        </div>
+        <div class="footer">
+          This email was sent by the Radiance Education IELTS Mock Test platform. If you have any questions, please contact your instructor.
+        </div>
+      </div>
+    </body>
+    </html>
+    `
+  }
+
+  private generateResultsEmailText(data: ResultsEmailData): string {
+    const overallBand = data.overallBand !== null && data.overallBand !== undefined
+      ? data.overallBand.toFixed(1)
+      : 'Pending'
+
+    const moduleLines = data.modules.map((module) => {
+      const bandDisplay = module.band !== null && module.band !== undefined ? module.band.toFixed(1) : 'Pending'
+      const scoreDisplay = module.score !== null && module.score !== undefined ? module.score : 'Pending'
+      const completedAt = module.completedAt
+        ? new Date(module.completedAt).toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        : 'Pending'
+
+      return [
+        `Module      : ${module.name}`,
+        `Test        : ${module.testTitle ?? '—'}`,
+        `Status      : ${module.status}`,
+        `Band        : ${bandDisplay}`,
+        `Score       : ${scoreDisplay}`,
+        `Completed   : ${completedAt}`
+      ].join('\n')
+    }).join('\n\n')
+
+    return `
+IELTS Mock Test Results
+
+Student : ${data.studentName}
+Overall Band : ${overallBand}
+Test : ${data.mockTitle ?? 'IELTS Mock Test'}
+
+${moduleLines}
+
+${data.message ? `Message:\n${data.message}\n\n` : ''}
+Next Steps:
+- Review modules marked as pending to complete your evaluation.
+- Focus on areas with lower band scores for targeted improvement.
+- Reach out to your instructor if you would like additional guidance.
+
+Keep practising—steady progress will lead to your goal score!
+
+Radiance Education
+`
   }
 
   async testConnection(): Promise<boolean> {

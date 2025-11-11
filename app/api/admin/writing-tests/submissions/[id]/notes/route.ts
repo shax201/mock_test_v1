@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyJWT } from '@/lib/auth/jwt'
 import { prisma } from '@/lib/db'
@@ -83,17 +84,28 @@ export async function PUT(
       )
     }
 
-    const existingAnswers = (session.answers as Record<string, unknown>) || {}
+    const existingAnswers = (session.answers as Prisma.JsonObject) ?? {}
+    const notesPayload = normalizedNotes.map((note) => ({
+      id: note.id,
+      start: note.start,
+      end: note.end,
+      text: note.text,
+      category: note.category,
+      comment: note.comment
+    })) satisfies Prisma.JsonArray
 
-    existingAnswers[questionId] = {
-      text,
-      notes: normalizedNotes
-    }
+    const updatedAnswers = {
+      ...existingAnswers,
+      [questionId]: {
+        text,
+        notes: notesPayload
+      }
+    } satisfies Prisma.JsonObject
 
     await prisma.testSession.update({
       where: { id: resolvedParams.id },
       data: {
-        answers: existingAnswers
+        answers: updatedAnswers
       }
     })
 
@@ -104,7 +116,7 @@ export async function PUT(
 
     return NextResponse.json({
       success: true,
-      answer: existingAnswers[questionId]
+      answer: updatedAnswers[questionId]
     })
   } catch (error) {
     console.error('Error saving writing notes:', error)

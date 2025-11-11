@@ -45,7 +45,7 @@ function LoginForm() {
           title: 'Student Portal Login',
           subtitle: 'Sign in to access your IELTS test results and history',
           apiEndpoint: '/api/student/auth/login',
-          redirectPath: '/student',
+          redirectPath: '/student/tests',
           colorScheme: 'blue' as const,
           showDemoButton: true,
           demoCredentials: {
