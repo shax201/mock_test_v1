@@ -193,12 +193,9 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
         userAnswer = (element as HTMLInputElement).value?.trim() || ''
         const accepted = Array.isArray(correctAnswers[key]) ? (correctAnswers[key] as string[]) : [String(correctAnswers[key])]
         isCorrect = accepted.some(a => a.toLowerCase() === userAnswer.toLowerCase())
+        // Do not display or inject correct answers in the UI after submission
         correctAnswerText = accepted.join(' / ')
         element.classList.add(isCorrect ? 'correct' : 'incorrect')
-        const correctSpan = document.createElement('span')
-        correctSpan.className = 'correct-answer-text'
-        correctSpan.innerHTML = isCorrect ? ' ✔' : `&nbsp;✔ (${correctAnswerText})`
-        element.parentElement?.insertBefore(correctSpan, element.nextSibling)
       } else {
         const radioChecked = document.querySelector(`input[name="${key}"]:checked`) as HTMLInputElement | null
         const radios = document.querySelectorAll(`input[name="${key}"]`) as NodeListOf<HTMLInputElement>
@@ -207,10 +204,7 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
         correctAnswerText = correct
         isCorrect = userAnswer.toLowerCase() === correct.toLowerCase()
         radios.forEach(r => {
-          const label = r.closest('label')
-          if (!label) return
-          if (r.value.toLowerCase() === correct.toLowerCase()) label.innerHTML += ' <span class="result-correct">✔</span>'
-          else if (r.checked) label.innerHTML += ` <span class="result-incorrect">✖ (${correct})</span>`
+          // Disable selection without revealing the correct option
           r.setAttribute('disabled', 'true')
         })
       }

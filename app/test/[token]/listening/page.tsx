@@ -301,6 +301,13 @@ export default function ListeningPage({ params }: { params: Promise<{ token: str
     }
   }, [isDragging])
 
+  // Sanitize correct answers after submission to avoid revealing them in UI components
+  const sanitizeCorrectAnswer = (correctAnswer: Question['correctAnswer']) => {
+    if (Array.isArray(correctAnswer)) return []
+    if (correctAnswer && typeof correctAnswer === 'object') return {}
+    return ''
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -588,7 +595,7 @@ export default function ListeningPage({ params }: { params: Promise<{ token: str
                         )}
                         
                         <IELTSQuestionRenderer
-                          question={question}
+                          question={submitted ? { ...question, correctAnswer: sanitizeCorrectAnswer(question.correctAnswer) } : question}
                           questionNumber={index + 1}
                           onAnswerChange={handleAnswerChange}
                           initialAnswer={answers[question.id]}

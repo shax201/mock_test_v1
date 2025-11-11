@@ -424,9 +424,7 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
       markQuestionContainer(i, isCorrect);
       markSubQuestionButton(i, isCorrect);
 
-      if (!isCorrect && correctAnswer) {
-        displayCorrectAnswer(i, correctAnswer);
-      }
+      // Do not display correct answers after submission
 
       resultDetails.push({
         qNum: i,
