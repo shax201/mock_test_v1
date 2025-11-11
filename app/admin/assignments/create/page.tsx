@@ -107,7 +107,8 @@ export default function CreateAssignmentPage() {
       const data = await response.json()
 
       if (response.ok) {
-        router.push('/admin/assignments')
+        // Force a full page reload to ensure fresh data from server
+        window.location.href = '/admin/assignments'
       } else {
         setError(data.error || 'Failed to create assignment')
       }

@@ -96,6 +96,51 @@ export default function TestResultsAnalysis({ testId, initialTab, initialResults
     }
   }, [initialTab])
 
+  const renderAnnotatedAnswer = (text: string, notes?: WritingNote[]) => {
+    if (!text) {
+      return <span className="text-gray-400 italic">No answer provided</span>
+    }
+
+    if (!notes || !notes.length) {
+      return <>{text}</>
+    }
+
+    const sortedNotes = [...notes].sort((a, b) => a.start - b.start)
+    const segments: React.ReactNode[] = []
+    let cursor = 0
+
+    sortedNotes.forEach((note, index) => {
+      const safeStart = Math.max(0, Math.min(note.start, text.length))
+      const safeEnd = Math.max(safeStart, Math.min(note.end, text.length))
+
+      if (cursor < safeStart) {
+        segments.push(
+          <span key={`plain-${index}`}>{text.slice(cursor, safeStart)}</span>
+        )
+      }
+
+      segments.push(
+        <mark
+          key={`note-${note.id}`}
+          className="rounded bg-yellow-200/70 px-0.5 py-0.5 text-slate-900"
+          title={`${note.category}: ${note.comment}`}
+        >
+          {text.slice(safeStart, safeEnd)}
+        </mark>
+      )
+
+      cursor = safeEnd
+    })
+
+    if (cursor < text.length) {
+      segments.push(
+        <span key="plain-tail">{text.slice(cursor)}</span>
+      )
+    }
+
+    return segments
+  }
+
   useEffect(() => {
     // Only fetch if we don't have initial results
     if (initialResults) {
@@ -379,6 +424,62 @@ export default function TestResultsAnalysis({ testId, initialTab, initialResults
                   <p className="text-sm text-gray-500">
                     Once your instructor reviews your writing, detailed feedback will appear here.
                   </p>
+                </div>
+              )}
+
+              {results.questionDetails?.writing && results.questionDetails.writing.length > 0 && (
+                <div className="space-y-6">
+                  {results.questionDetails.writing.map((question) => (
+                    <div key={question.id} className="border border-gray-200 bg-white rounded-lg p-6 shadow-sm">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">
+                            {question.type === 'TASK_1' ? 'Task 1' : 'Task 2'} · Question {question.part}
+                          </p>
+                          <p className="mt-1 text-sm text-gray-600">{question.question}</p>
+                        </div>
+                        {question.wordCount !== undefined && (
+                          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-600">
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h3m13 0a1 1 0 011 1v3m0 13a1 1 0 01-1 1h-3M4 21a1 1 0 01-1-1v-3M8 2h8m-8 20h8M2 8h20M2 16h20" />
+                            </svg>
+                            {question.wordCount} words
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-5">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Your Answer
+                        </span>
+                        <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-gray-800">
+                          {renderAnnotatedAnswer(question.studentAnswer, question.notes)}
+                        </p>
+                      </div>
+
+                      {question.notes && question.notes.length > 0 && (
+                        <div className="mt-4 space-y-3">
+                          {question.notes.map((note) => (
+                            <div
+                              key={note.id}
+                              className="rounded-md border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900"
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-3">
+                                <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+                                  {note.category}
+                                </span>
+                                <span className="text-xs text-blue-600">
+                                  Hover the highlighted text above to revisit this note
+                                </span>
+                              </div>
+                              <p className="mt-2 italic text-blue-900">&ldquo;{note.text}&rdquo;</p>
+                              <p className="mt-2 text-sm text-blue-900">{note.comment}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

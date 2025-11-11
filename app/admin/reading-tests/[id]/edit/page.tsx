@@ -30,6 +30,7 @@ export default function EditReadingTestPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [originalData, setOriginalData] = useState<any>(null)
 
   useEffect(() => {
     if (params.id) {
@@ -96,8 +97,9 @@ export default function EditReadingTestPage() {
         setBandScores(transformedBandScores)
 
         // Transform passage configs
+        let transformedConfigs: any[] = []
         if (test.passageConfigs && test.passageConfigs.length > 0) {
-          const transformedConfigs = test.passageConfigs.map((config: any, index: number) => ({
+          transformedConfigs = test.passageConfigs.map((config: any, index: number) => ({
             id: Date.now() + index,
             part: config.part ?? (index + 1),
             total: config.total ?? 0,
@@ -109,6 +111,20 @@ export default function EditReadingTestPage() {
           // Let the user add them manually
           setPassageConfigs([])
         }
+
+        // Store original data for comparison
+        setOriginalData({
+          testData: {
+            title: test.title || '',
+            totalQuestions: test.totalQuestions || 40,
+            totalTimeMinutes: test.totalTimeMinutes || 60,
+            isActive: test.isActive !== undefined ? test.isActive : true,
+          },
+          passages: transformedPassages,
+          questions: transformedQuestions,
+          bandScores: transformedBandScores,
+          passageConfigs: transformedConfigs
+        })
       } else {
         setError(data.error || 'Failed to load test data')
       }
@@ -171,25 +187,30 @@ export default function EditReadingTestPage() {
 
   const handleSubmit = async () => {
     setIsLoading(true)
+    setError('')
     try {
       // Validate
       if (!testData.title) {
-        alert('Please enter a test title')
+        setError('Please enter a test title')
+        setIsLoading(false)
         return
       }
 
       if (passages.length === 0) {
-        alert('Please add at least one passage')
+        setError('Please add at least one passage')
+        setIsLoading(false)
         return
       }
 
       if (bandScores.length === 0) {
-        alert('Please add band score ranges')
+        setError('Please add band score ranges')
+        setIsLoading(false)
         return
       }
 
       if (questions.length === 0) {
-        alert('Please add at least one question')
+        setError('Please add at least one question')
+        setIsLoading(false)
         return
       }
 
@@ -245,10 +266,98 @@ export default function EditReadingTestPage() {
         throw new Error(errorData.error || 'Failed to update test')
       }
 
+      const result = await response.json()
+      
+      // Refresh data from response
+      if (result.readingTest) {
+        const test = result.readingTest
+        
+        // Update state with fresh data
+        setTestData({
+          title: test.title || '',
+          totalQuestions: test.totalQuestions || 40,
+          totalTimeMinutes: test.totalTimeMinutes || 60,
+          isActive: test.isActive !== undefined ? test.isActive : true,
+        })
+
+        // Transform and update passages
+        const transformedPassages = (test.passages || []).map((passage: any, index: number) => ({
+          id: Date.now() + index,
+          title: passage.title || '',
+          order: passage.order || index + 1,
+          contents: (passage.contents || []).map((content: any) => ({
+            contentId: content.contentId || '',
+            text: content.text || '',
+            order: content.order || 0
+          }))
+        }))
+        setPassages(transformedPassages)
+
+        // Transform and update questions
+        const transformedQuestions: any[] = []
+        test.passages.forEach((passage: any, passageIndex: number) => {
+          (passage.questions || []).forEach((question: any) => {
+            transformedQuestions.push({
+              id: Date.now() + transformedQuestions.length,
+              passageId: String(transformedPassages[passageIndex].id),
+              questionNumber: question.questionNumber || 0,
+              type: question.type || 'multiple-choice',
+              questionText: question.questionText || '',
+              options: question.options || [],
+              headingsList: question.headingsList || [],
+              summaryText: question.summaryText || '',
+              subQuestions: question.subQuestions || [],
+              points: question.points || 1,
+              correctAnswer: question.correctAnswer?.answer || ''
+            })
+          })
+        })
+        setQuestions(transformedQuestions)
+
+        // Transform and update band scores
+        const transformedBandScores = (test.bandScoreRanges || []).map((range: any, index: number) => ({
+          id: Date.now() + index,
+          minScore: range.minScore || 0,
+          band: range.band || 0
+        }))
+        setBandScores(transformedBandScores)
+
+        // Transform and update passage configs
+        if (test.passageConfigs && test.passageConfigs.length > 0) {
+          const transformedConfigs = test.passageConfigs.map((config: any, index: number) => ({
+            id: Date.now() + index,
+            part: config.part ?? (index + 1),
+            total: config.total ?? 0,
+            start: config.start ?? 1
+          }))
+          setPassageConfigs(transformedConfigs)
+        } else {
+          setPassageConfigs([])
+        }
+
+        // Update original data
+        setOriginalData({
+          testData: {
+            title: test.title || '',
+            totalQuestions: test.totalQuestions || 40,
+            totalTimeMinutes: test.totalTimeMinutes || 60,
+            isActive: test.isActive !== undefined ? test.isActive : true,
+          },
+          passages: transformedPassages,
+          questions: transformedQuestions,
+          bandScores: transformedBandScores,
+          passageConfigs: test.passageConfigs || []
+        })
+      }
+
+      // Show success message
       alert('Reading test updated successfully!')
-      router.push('/admin/reading-tests')
+      
+      // Optionally redirect after a short delay, or let user stay on page
+      // router.push('/admin/reading-tests')
     } catch (error) {
-      alert('Error updating test: ' + (error as Error).message)
+      setError('Error updating test: ' + (error as Error).message)
+      console.error('Update error:', error)
     } finally {
       setIsLoading(false)
     }
@@ -362,6 +471,20 @@ export default function EditReadingTestPage() {
           </TabsContent>
         </Tabs>
 
+        {error && (
+          <div className="mt-4 rounded-md bg-red-50 p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <div className="text-sm text-red-700">{error}</div>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="flex gap-3 mt-8 pt-6 border-t">
           <Button onClick={handleSubmit} disabled={isLoading} className="gap-2">
             <Save className="w-4 h-4" />

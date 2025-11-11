@@ -39,18 +39,10 @@ export async function GET(request: NextRequest) {
     const now = new Date()
     const assignmentsWithStatus = await Promise.all(
       assignments.map(async (assignment) => {
-        let status = assignment.status
+        const validFrom = new Date(assignment.validFrom)
+        const validUntil = new Date(assignment.validUntil)
 
-        // Auto-update status based on dates
-        if (new Date(assignment.validFrom) > now) {
-          status = 'PENDING'
-        } else if (new Date(assignment.validUntil) < now) {
-          status = 'EXPIRED'
-        } else if (status === 'PENDING' && new Date(assignment.validFrom) <= now) {
-          status = 'ACTIVE'
-        }
-
-        // Check if there's a completed test session for this assignment
+        // Check if there's a completed test session for this assignment first
         const testSession = await prisma.testSession.findFirst({
           where: {
             studentId,
@@ -66,9 +58,32 @@ export async function GET(request: NextRequest) {
           }
         })
 
-        // If there's a completed session, mark as completed
+        // If there's a completed session, mark as completed (takes priority)
         if (testSession && testSession.band) {
-          status = 'COMPLETED'
+          return {
+            id: assignment.id,
+            testTitle: assignment.readingTest.title,
+            status: 'COMPLETED' as const,
+            assignedAt: assignment.createdAt,
+            validFrom: assignment.validFrom,
+            validUntil: assignment.validUntil,
+            accessToken: assignment.accessToken,
+            hasResult: true,
+            overallBand: testSession.band
+          }
+        }
+
+        // Auto-update status based on dates (check in priority order)
+        let status: 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'EXPIRED'
+        if (validUntil < now) {
+          // Expired
+          status = 'EXPIRED'
+        } else if (validFrom > now) {
+          // Not yet started
+          status = 'PENDING'
+        } else {
+          // Within valid time range - should be active
+          status = 'ACTIVE'
         }
 
         return {

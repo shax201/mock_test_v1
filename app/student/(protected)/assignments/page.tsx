@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import StudentHeader from '@/components/student/StudentHeader'
 
@@ -22,18 +22,42 @@ export default function StudentAssignmentsPage() {
   const [error, setError] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'EXPIRED'>('all')
 
-  useEffect(() => {
-    fetchAssignments()
-  }, [])
-
-  const fetchAssignments = async () => {
+  const fetchAssignments = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const response = await fetch('/api/student/assignments')
+      // Add cache-busting to ensure fresh data
+      const response = await fetch('/api/student/assignments', {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      })
       if (response.ok) {
         const data = await response.json()
-        setAssignments(data.assignments || [])
+        // Recalculate status on client side based on current time
+        const now = new Date()
+        const assignmentsWithRecalculatedStatus = (data.assignments || []).map((assignment: Assignment) => {
+          const validFrom = assignment.validFrom ? new Date(assignment.validFrom) : null
+          const validUntil = assignment.validUntil ? new Date(assignment.validUntil) : null
+          
+          // If already completed, keep it as completed
+          if (assignment.status === 'COMPLETED') {
+            return assignment
+          }
+          
+          // Recalculate status based on current time
+          if (validUntil && validUntil < now) {
+            return { ...assignment, status: 'EXPIRED' as const }
+          } else if (validFrom && validFrom > now) {
+            return { ...assignment, status: 'PENDING' as const }
+          } else if (validFrom && validFrom <= now && validUntil && validUntil >= now) {
+            return { ...assignment, status: 'ACTIVE' as const }
+          }
+          
+          return assignment
+        })
+        setAssignments(assignmentsWithRecalculatedStatus)
       } else {
         const errorData = await response.json()
         setError(errorData.error || 'Failed to load assignments')
@@ -43,7 +67,17 @@ export default function StudentAssignmentsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchAssignments()
+    // Auto-refresh every 30 seconds to update status
+    const interval = setInterval(() => {
+      fetchAssignments()
+    }, 30000)
+    
+    return () => clearInterval(interval)
+  }, [fetchAssignments])
 
   const filteredAssignments = assignments.filter(assignment => 
     statusFilter === 'all' || assignment.status === statusFilter
@@ -151,7 +185,7 @@ export default function StudentAssignmentsPage() {
   return (
     <>
       <StudentHeader />
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-7">
       {/* Header */}
       <div className="bg-white overflow-hidden shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
@@ -181,8 +215,8 @@ export default function StudentAssignmentsPage() {
 
       {/* Filter */}
       <div className="bg-white p-4 rounded-lg shadow">
-        <div className="flex items-center gap-4">
-          <div>
+        <div className="flex items-center gap-4 justify-between">
+          <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
             <select
               value={statusFilter}
@@ -195,6 +229,18 @@ export default function StudentAssignmentsPage() {
               <option value="COMPLETED">Completed</option>
               <option value="EXPIRED">Expired</option>
             </select>
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={fetchAssignments}
+              disabled={loading}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              <svg className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh
+            </button>
           </div>
         </div>
       </div>

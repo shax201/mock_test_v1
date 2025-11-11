@@ -91,101 +91,118 @@ export async function PUT(
       )
     }
 
-    // Update reading test
-    const readingTest = await prisma.readingTest.update({
-      where: { id },
-      data: {
-        title,
-        totalQuestions: totalQuestions || 40,
-        totalTimeMinutes: totalTimeMinutes || 60
+    // Use transaction for atomic updates with increased timeout
+    await prisma.$transaction(async (tx) => {
+      // Get current test data to compare
+      const currentTest = await tx.readingTest.findUnique({
+        where: { id },
+        select: {
+          title: true,
+          totalQuestions: true,
+          totalTimeMinutes: true,
+        }
+      })
+
+      if (!currentTest) {
+        throw new Error('Reading test not found')
       }
-    })
 
-    // If passages are provided, update them (this is a simplified version)
-    if (passages) {
-      // Delete existing passages, questions, and contents
-      await prisma.question.deleteMany({
-        where: {
-          passage: {
-            readingTestId: id
-          }
-        }
-      })
-      await prisma.passageContent.deleteMany({
-        where: {
-          passage: {
-            readingTestId: id
-          }
-        }
-      })
-      await prisma.passage.deleteMany({
-        where: { readingTestId: id }
-      })
+      // Only update basic fields if they changed
+      const updateData: any = {}
+      if (currentTest.title !== title) updateData.title = title
+      if (currentTest.totalQuestions !== (totalQuestions || 40)) {
+        updateData.totalQuestions = totalQuestions || 40
+      }
+      if (currentTest.totalTimeMinutes !== (totalTimeMinutes || 60)) {
+        updateData.totalTimeMinutes = totalTimeMinutes || 60
+      }
 
-      // Create new passages
-      for (const passage of passages) {
-        await prisma.passage.create({
-          data: {
-            readingTestId: id,
-            title: passage.title,
-            order: passage.order,
-            contents: {
-              create: passage.contents?.create?.map((content: any) => ({
-                contentId: content.contentId,
-                text: content.text,
-                order: content.order
-              })) || []
-            },
-            questions: {
-              create: passage.questions?.create?.map((question: any) => ({
-                questionNumber: question.questionNumber,
-                type: question.type,
-                questionText: question.questionText,
-                options: question.options,
-                headingsList: question.headingsList,
-                summaryText: question.summaryText,
-                subQuestions: question.subQuestions,
-                points: question.points || 1,
-                correctAnswer: question.correctAnswer
-              })) || []
-            }
-          }
+      if (Object.keys(updateData).length > 0) {
+        await tx.readingTest.update({
+          where: { id },
+          data: updateData
         })
       }
-    }
 
-    // If band score ranges are provided, update them
-    if (bandScoreRanges) {
-      await prisma.bandScoreRange.deleteMany({
-        where: { readingTestId: id }
-      })
+      // Update passages if provided
+      if (passages && Array.isArray(passages)) {
+        // Delete existing passages (cascade will handle questions and contents)
+        await tx.passage.deleteMany({
+          where: { readingTestId: id }
+        })
 
-      await prisma.bandScoreRange.createMany({
-        data: bandScoreRanges.map((range: any) => ({
-          readingTestId: id,
-          minScore: range.minScore,
-          band: range.band
-        }))
-      })
-    }
+        // Create new passages sequentially (nested creates require this)
+        for (const passage of passages) {
+          await tx.passage.create({
+            data: {
+              readingTestId: id,
+              title: passage.title,
+              order: passage.order,
+              contents: {
+                create: passage.contents?.create?.map((content: any) => ({
+                  contentId: content.contentId,
+                  text: content.text,
+                  order: content.order
+                })) || []
+              },
+              questions: {
+                create: passage.questions?.create?.map((question: any) => ({
+                  questionNumber: question.questionNumber,
+                  type: question.type,
+                  questionText: question.questionText,
+                  options: question.options,
+                  headingsList: question.headingsList,
+                  summaryText: question.summaryText,
+                  subQuestions: question.subQuestions,
+                  points: question.points || 1,
+                  correctAnswer: question.correctAnswer
+                })) || []
+              }
+            }
+          })
+        }
+      }
 
-    // If passage configs are provided, update them
-    if (passageConfigs) {
-      await prisma.passageConfig.deleteMany({
-        where: { readingTestId: id }
-      })
+      // Update band score ranges if provided
+      if (bandScoreRanges && Array.isArray(bandScoreRanges)) {
+        await tx.bandScoreRange.deleteMany({
+          where: { readingTestId: id }
+        })
 
-      await prisma.passageConfig.createMany({
-        data: passageConfigs.map((config: any) => ({
-          readingTestId: id,
-          part: config.part,
-          total: config.total,
-          start: config.start
-        }))
-      })
-    }
+        if (bandScoreRanges.length > 0) {
+          await tx.bandScoreRange.createMany({
+            data: bandScoreRanges.map((range: any) => ({
+              readingTestId: id,
+              minScore: range.minScore,
+              band: range.band
+            }))
+          })
+        }
+      }
 
-    // Fetch updated reading test with all relations
+      // Update passage configs if provided
+      if (passageConfigs && Array.isArray(passageConfigs)) {
+        await tx.passageConfig.deleteMany({
+          where: { readingTestId: id }
+        })
+
+        if (passageConfigs.length > 0) {
+          await tx.passageConfig.createMany({
+            data: passageConfigs.map((config: any) => ({
+              readingTestId: id,
+              part: config.part,
+              total: config.total,
+              start: config.start
+            }))
+          })
+        }
+      }
+    }, {
+      maxWait: 10000, // Maximum time to wait for a transaction slot
+      timeout: 30000, // Maximum time the transaction can run (30 seconds)
+    })
+
+    // Fetch updated reading test with all relations (outside transaction for better performance)
     const updatedReadingTest = await prisma.readingTest.findUnique({
       where: { id },
       include: {
@@ -220,10 +237,19 @@ export async function PUT(
     revalidateTag('reading-tests')
 
     return NextResponse.json({ readingTest: updatedReadingTest })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating reading test:', error)
+    
+    // Handle specific errors
+    if (error.message === 'Reading test not found') {
+      return NextResponse.json(
+        { error: 'Reading test not found' },
+        { status: 404 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error?.message || 'Unknown error' },
       { status: 500 }
     )
   }
