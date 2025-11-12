@@ -355,6 +355,25 @@ export default function TestResultsAnalysis({ testId, initialTab, initialResults
                 </>
               )}
             </div>
+
+            {/* Speaking Card */}
+            {results.bandScores?.speaking !== undefined && results.bandScores.speaking !== null && (
+              <div className="bg-white border border-gray-300 rounded-lg p-6 text-center min-w-[150px]">
+                {results.bandScores.speaking > 0 ? (
+                  <>
+                    <div className="text-4xl font-bold text-purple-900 mb-2">{results.bandScores.speaking.toFixed(1)}</div>
+                    <div className="text-sm text-gray-600 mb-1">Band Score</div>
+                    <div className="text-sm font-medium text-purple-800">SPEAKING</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-lg font-medium text-gray-400 mb-2">Pending</div>
+                    <div className="text-sm text-gray-600 mb-1">Band Score</div>
+                    <div className="text-sm font-medium text-gray-800">SPEAKING</div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
               {/* Review Link */}

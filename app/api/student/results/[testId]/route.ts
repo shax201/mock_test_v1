@@ -193,7 +193,8 @@ export async function GET(
       bandScores: {
         listening: 0,
         reading: session.testType === 'READING' ? (session.band ?? 0) : 0,
-        writing: session.testType === 'WRITING' ? (session.band ?? null) : 0
+        writing: session.testType === 'WRITING' ? (session.band ?? null) : 0,
+        speaking: undefined as number | undefined
       },
       overallBand: session.band ?? 0,
       detailedScores: {
@@ -353,9 +354,30 @@ export async function GET(
             // Update band scores to include reading
             results.bandScores.reading = readingSession.band || 0
             
-            // Update overall band (average of reading and writing if both exist)
-            if (session.band && readingSession.band) {
-              results.overallBand = (session.band + readingSession.band) / 2
+            // Fetch speaking session for this reading test
+            const speakingSession = await prisma.testSession.findFirst({
+              where: {
+                testId: testDetails.readingTestId,
+                studentId: payload.userId,
+                testType: 'SPEAKING',
+                isCompleted: true
+              },
+              orderBy: { completedAt: 'desc' }
+            })
+
+            if (speakingSession && speakingSession.band) {
+              results.bandScores.speaking = speakingSession.band
+            }
+
+            // Calculate overall band including speaking if available
+            const bands: number[] = []
+            if (session.band) bands.push(session.band)
+            if (readingSession.band) bands.push(readingSession.band)
+            if (speakingSession?.band) bands.push(speakingSession.band)
+
+            if (bands.length > 0) {
+              results.overallBand = bands.reduce((sum, band) => sum + band, 0) / bands.length
+              results.overallBand = Math.round(results.overallBand * 2) / 2 // Round to nearest 0.5
             } else if (readingSession.band) {
               results.overallBand = readingSession.band
             }
@@ -364,6 +386,31 @@ export async function GET(
             if (testDetails.readingTest) {
               results.testTitle = `${testDetails.readingTest.title} + ${testTitle}`
             }
+          }
+        }
+      } else if (session.testType === 'READING') {
+        // For reading tests, also check for speaking session
+        const speakingSession = await prisma.testSession.findFirst({
+          where: {
+            testId: session.testId,
+            studentId: payload.userId,
+            testType: 'SPEAKING',
+            isCompleted: true
+          },
+          orderBy: { completedAt: 'desc' }
+        })
+
+        if (speakingSession && speakingSession.band) {
+          results.bandScores.speaking = speakingSession.band
+          
+          // Recalculate overall band if speaking is available
+          const bands: number[] = []
+          if (session.band) bands.push(session.band)
+          if (speakingSession.band) bands.push(speakingSession.band)
+          
+          if (bands.length > 0) {
+            results.overallBand = bands.reduce((sum, band) => sum + band, 0) / bands.length
+            results.overallBand = Math.round(results.overallBand * 2) / 2
           }
         }
       }
