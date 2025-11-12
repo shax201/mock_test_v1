@@ -279,6 +279,31 @@ const getCachedResultDetail = unstable_cache(
         })
         results.questionDetails = results.questionDetails || {}
         results.questionDetails.reading = readingQuestions
+
+        // Check for speaking session for reading tests
+        const speakingSession = await prisma.testSession.findFirst({
+          where: {
+            testId: session.testId,
+            studentId: studentId,
+            testType: 'SPEAKING',
+            isCompleted: true
+          },
+          orderBy: { completedAt: 'desc' }
+        })
+
+        if (speakingSession && speakingSession.band) {
+          results.bandScores.speaking = speakingSession.band
+          
+          // Recalculate overall band if speaking is available
+          const bands: number[] = []
+          if (session.band) bands.push(session.band)
+          if (speakingSession.band) bands.push(speakingSession.band)
+          
+          if (bands.length > 0) {
+            results.overallBand = bands.reduce((sum, band) => sum + band, 0) / bands.length
+            results.overallBand = Math.round(results.overallBand * 2) / 2
+          }
+        }
       }
     } else if (session.testType === 'WRITING') {
       const writingFeedback = results.feedback?.writing || []
@@ -406,31 +431,6 @@ const getCachedResultDetail = unstable_cache(
             if (testDetails.readingTest) {
               results.testTitle = `${testDetails.readingTest.title} + ${testTitle}`
             }
-          }
-        }
-      } else if (session.testType === 'READING') {
-        // For reading tests, also check for speaking session
-        const speakingSession = await prisma.testSession.findFirst({
-          where: {
-            testId: session.testId,
-            studentId: studentId,
-            testType: 'SPEAKING',
-            isCompleted: true
-          },
-          orderBy: { completedAt: 'desc' }
-        })
-
-        if (speakingSession && speakingSession.band) {
-          results.bandScores.speaking = speakingSession.band
-          
-          // Recalculate overall band if speaking is available
-          const bands: number[] = []
-          if (session.band) bands.push(session.band)
-          if (speakingSession.band) bands.push(speakingSession.band)
-          
-          if (bands.length > 0) {
-            results.overallBand = bands.reduce((sum, band) => sum + band, 0) / bands.length
-            results.overallBand = Math.round(results.overallBand * 2) / 2
           }
         }
       }
