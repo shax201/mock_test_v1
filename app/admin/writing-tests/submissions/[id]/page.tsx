@@ -52,11 +52,13 @@ interface Submission {
   completedAt: string | null
   score: number | null
   band: number | null
+  speakingBand: number | null
   createdAt: string
   updatedAt: string
 }
 
 type CriteriaKey = 'taskAchievement' | 'coherence' | 'lexical' | 'grammar'
+type SpeakingCriteriaKey = 'fluency' | 'lexical' | 'grammar' | 'pronunciation'
 
 interface WritingNote {
   id: string
@@ -91,6 +93,13 @@ const WRITING_CRITERIA: { key: CriteriaKey; label: string }[] = [
   { key: 'grammar', label: 'Grammatical Range & Accuracy' }
 ]
 
+const SPEAKING_CRITERIA: { key: SpeakingCriteriaKey; label: string }[] = [
+  { key: 'fluency', label: 'Fluency & Coherence' },
+  { key: 'lexical', label: 'Lexical Resource' },
+  { key: 'grammar', label: 'Grammatical Range & Accuracy' },
+  { key: 'pronunciation', label: 'Pronunciation' }
+]
+
 const NOTE_CATEGORIES = [
   'Grammar',
   'Vocabulary',
@@ -106,6 +115,12 @@ const createEmptyScores = (): Record<CriteriaKey, string> =>
     acc[criterion.key] = ''
     return acc
   }, {} as Record<CriteriaKey, string>)
+
+const createEmptySpeakingScores = (): Record<SpeakingCriteriaKey, string> =>
+  SPEAKING_CRITERIA.reduce((acc, criterion) => {
+    acc[criterion.key] = ''
+    return acc
+  }, {} as Record<SpeakingCriteriaKey, string>)
 
 const sanitizeScoreInput = (rawValue: string): string => {
   if (rawValue.trim() === '') {
@@ -128,6 +143,34 @@ const computeBandFromScores = (scores: Record<CriteriaKey, string>): number | nu
   const values: number[] = []
 
   for (const criterion of WRITING_CRITERIA) {
+    const raw = scores[criterion.key]
+
+    if (raw === '') {
+      return null
+    }
+
+    const parsed = parseFloat(raw)
+
+    if (Number.isNaN(parsed)) {
+      return null
+    }
+
+    values.push(parsed)
+  }
+
+  if (!values.length) {
+    return null
+  }
+
+  const average = values.reduce((total, value) => total + value, 0) / values.length
+
+  return Math.round(average * 2) / 2
+}
+
+const computeSpeakingBandFromScores = (scores: Record<SpeakingCriteriaKey, string>): number | null => {
+  const values: number[] = []
+
+  for (const criterion of SPEAKING_CRITERIA) {
     const raw = scores[criterion.key]
 
     if (raw === '') {
@@ -216,7 +259,9 @@ export default function WritingTestSubmissionDetailPage() {
   const [evaluationSuccess, setEvaluationSuccess] = useState(false)
   const [task1Scores, setTask1Scores] = useState<Record<CriteriaKey, string>>(() => createEmptyScores())
   const [task2Scores, setTask2Scores] = useState<Record<CriteriaKey, string>>(() => createEmptyScores())
+  const [speakingScores, setSpeakingScores] = useState<Record<SpeakingCriteriaKey, string>>(() => createEmptySpeakingScores())
   const [overallBandInput, setOverallBandInput] = useState<string>('')
+  const [speakingBandInput, setSpeakingBandInput] = useState<string>('')
   const [deleting, setDeleting] = useState(false)
   const [answersWithNotes, setAnswersWithNotes] = useState<Record<string, WritingAnswer>>({})
   const answerRefs = useRef<Record<string, HTMLDivElement | null>>({})
@@ -280,6 +325,22 @@ export default function WritingTestSubmissionDetailPage() {
     }
   }
 
+  const handleSpeakingCriteriaChange = (key: SpeakingCriteriaKey, value: string) => {
+    const sanitized = value.replace(/[^0-9.]/g, '')
+    setSpeakingScores((prev) => ({
+      ...prev,
+      [key]: sanitized
+    }))
+  }
+
+  const handleSpeakingCriteriaBlur = (key: SpeakingCriteriaKey, value: string) => {
+    const normalized = sanitizeScoreInput(value)
+    setSpeakingScores((prev) => ({
+      ...prev,
+      [key]: normalized
+    }))
+  }
+
   const handleOverallBandChange = (value: string) => {
     const sanitized = value.replace(/[^0-9.]/g, '')
 
@@ -288,6 +349,15 @@ export default function WritingTestSubmissionDetailPage() {
 
   const handleOverallBandBlur = () => {
     setOverallBandInput((prev) => sanitizeScoreInput(prev))
+  }
+
+  const handleSpeakingBandChange = (value: string) => {
+    const sanitized = value.replace(/[^0-9.]/g, '')
+    setSpeakingBandInput(sanitized)
+  }
+
+  const handleSpeakingBandBlur = () => {
+    setSpeakingBandInput((prev) => sanitizeScoreInput(prev))
   }
 
   const getWordCount = (text: string | null | undefined): number => {
@@ -605,6 +675,7 @@ export default function WritingTestSubmissionDetailPage() {
 
   const task1Band = useMemo(() => computeBandFromScores(task1Scores), [task1Scores])
   const task2Band = useMemo(() => computeBandFromScores(task2Scores), [task2Scores])
+  const speakingBand = useMemo(() => computeSpeakingBandFromScores(speakingScores), [speakingScores])
 
   const weightedOverallBand = useMemo(() => {
     if (task1Band === null || task2Band === null) {
@@ -670,6 +741,11 @@ export default function WritingTestSubmissionDetailPage() {
         })
 
         setAnswersWithNotes(normalized)
+        
+        // Load existing speaking band if available
+        if (data.submission?.speakingBand !== null && data.submission?.speakingBand !== undefined) {
+          setSpeakingBandInput(data.submission.speakingBand.toFixed(1))
+        }
       } else {
         setError(data.error || 'Failed to fetch submission')
       }
@@ -736,6 +812,16 @@ export default function WritingTestSubmissionDetailPage() {
         }
       }
 
+      // Add speaking band if provided
+      if (speakingBandInput.trim()) {
+        const normalizedSpeaking = sanitizeScoreInput(speakingBandInput)
+        if (normalizedSpeaking) {
+          body.speakingBand = parseFloat(normalizedSpeaking)
+        }
+      } else if (speakingBand !== null) {
+        body.speakingBand = speakingBand
+      }
+
       if (body.band === undefined && body.task1Band === undefined && body.task2Band === undefined) {
         setEvaluationError('Please enter an overall band or complete the task criteria.')
         setEvaluating(false)
@@ -766,7 +852,9 @@ export default function WritingTestSubmissionDetailPage() {
         // Reset form
         setTask1Scores(createEmptyScores())
         setTask2Scores(createEmptyScores())
+        setSpeakingScores(createEmptySpeakingScores())
         setOverallBandInput('')
+        setSpeakingBandInput('')
         // Clear success message after 3 seconds
         setTimeout(() => setEvaluationSuccess(false), 3000)
       } else {
@@ -1087,6 +1175,43 @@ export default function WritingTestSubmissionDetailPage() {
                 ))}
               </div>
             </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-6 py-5">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">Speaking</h3>
+                  <p className="mt-1 text-sm text-slate-500">IELTS Speaking evaluation</p>
+                </div>
+                <span className="inline-flex items-center rounded-full bg-purple-50 px-3 py-1 text-sm font-medium text-purple-700">
+                  Band {formatBand(speakingBand)}
+                </span>
+              </div>
+              <div className="divide-y divide-slate-200">
+                {SPEAKING_CRITERIA.map((criterion) => (
+                  <div
+                    key={`speaking-${criterion.key}`}
+                    className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">{criterion.label}</p>
+                      <p className="text-xs text-slate-500">Score (0-9 in 0.5 steps)</p>
+                    </div>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      max="9"
+                      step="0.5"
+                      value={speakingScores[criterion.key]}
+                      onChange={(event) => handleSpeakingCriteriaChange(criterion.key, event.target.value)}
+                      onBlur={(event) => handleSpeakingCriteriaBlur(criterion.key, event.target.value)}
+                      className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-2 text-right text-sm font-medium text-slate-900 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
+                      placeholder="--"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div className="space-y-6">
@@ -1121,6 +1246,14 @@ export default function WritingTestSubmissionDetailPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500">Last Evaluated</span>
                     <span className="text-slate-900">{lastEvaluatedLabel}</span>
+                  </div>
+                )}
+                {(speakingBand !== null || speakingBandInput.trim()) && (
+                  <div className="flex items-center justify-between border-t border-slate-200 pt-4">
+                    <span className="text-slate-500 font-medium">Speaking Band</span>
+                    <span className="inline-flex items-center rounded-full bg-purple-50 px-3 py-1 text-sm font-semibold text-purple-700">
+                      {formatBand(speakingBandInput.trim() ? parseFloat(speakingBandInput) || null : speakingBand)}
+                    </span>
                   </div>
                 )}
               </div>
@@ -1185,6 +1318,35 @@ export default function WritingTestSubmissionDetailPage() {
                       placeholder="e.g., 6.5"
                     />
                     <span className="text-xs text-slate-500">Leave blank to accept computed band.</span>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-purple-200 bg-purple-50 px-4 py-3 text-sm text-purple-600">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-purple-700">Computed Speaking Band</span>
+                    <span className="text-base font-semibold text-purple-900">{formatBand(speakingBand)}</span>
+                  </div>
+                  <p className="mt-1 text-xs text-purple-500">Calculated automatically from speaking criteria scores.</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">
+                    Speaking Band Override (optional)
+                  </label>
+                  <div className="mt-2 flex items-center gap-3">
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      max="9"
+                      step="0.5"
+                      value={speakingBandInput}
+                      onChange={(event) => handleSpeakingBandChange(event.target.value)}
+                      onBlur={handleSpeakingBandBlur}
+                      className="w-32 rounded-xl border border-slate-200 bg-white px-3 py-2 text-right text-sm font-medium text-slate-900 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
+                      placeholder="e.g., 7.0"
+                    />
+                    <span className="text-xs text-slate-500">Leave blank to accept computed speaking band.</span>
                   </div>
                 </div>
               </div>

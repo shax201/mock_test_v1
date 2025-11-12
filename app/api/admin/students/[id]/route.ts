@@ -127,10 +127,10 @@ export async function PUT(
 
     // Revalidate the students list page and cache tags
     revalidatePath('/admin/students')
-    revalidateTag('students')
+    revalidateTag('students', 'max')
     // Also revalidate dashboard since it shows student stats
     revalidatePath('/admin')
-    revalidateTag('admin-dashboard')
+    revalidateTag('admin-dashboard', 'max')
 
     return NextResponse.json({ student })
   } catch (error) {
@@ -183,10 +183,10 @@ export async function DELETE(
 
     // Revalidate the students list page and cache tags
     revalidatePath('/admin/students')
-    revalidateTag('students')
+    revalidateTag('students', 'max')
     // Also revalidate dashboard since it shows student stats
     revalidatePath('/admin')
-    revalidateTag('admin-dashboard')
+    revalidateTag('admin-dashboard', 'max')
 
     return NextResponse.json({ message: 'Student deleted successfully' })
   } catch (error) {

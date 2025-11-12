@@ -237,12 +237,12 @@ export async function PUT(
 
     // Revalidate admin dashboard since it shows completed tests stats
     revalidatePath('/admin')
-    revalidateTag('admin-dashboard')
+    revalidateTag('admin-dashboard', 'max')
     // Revalidate student dashboard and results pages
     revalidatePath('/student')
-    revalidateTag('student-dashboard')
-    revalidateTag('student-results')
-    revalidateTag('student-assignments')
+    revalidateTag('student-dashboard', 'max')
+    revalidateTag('student-results', 'max')
+    revalidateTag('student-assignments', 'max')
 
     return NextResponse.json({
       id: updatedSession.id,

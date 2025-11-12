@@ -123,10 +123,10 @@ export async function POST(request: NextRequest) {
 
     // Revalidate the reading tests list page and cache tags
     revalidatePath('/admin/reading-tests')
-    revalidateTag('reading-tests')
+    revalidateTag('reading-tests', 'max')
     // Also revalidate dashboard since it shows test creation activity
     revalidatePath('/admin')
-    revalidateTag('admin-dashboard')
+    revalidateTag('admin-dashboard', 'max')
 
     return NextResponse.json({ readingTest }, { status: 201 })
   } catch (error) {

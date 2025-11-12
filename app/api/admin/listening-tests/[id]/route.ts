@@ -147,7 +147,7 @@ export async function PUT(
 
       // Revalidate the listening tests list page and cache tags
       revalidatePath('/admin/listening-tests')
-      revalidateTag('listening-tests')
+      revalidateTag('listening-tests', 'max')
 
       return NextResponse.json({ listeningTest })
     } else {
@@ -185,7 +185,7 @@ export async function PUT(
 
       // Revalidate the listening tests list page and cache tags
       revalidatePath('/admin/listening-tests')
-      revalidateTag('listening-tests')
+      revalidateTag('listening-tests', 'max')
 
       return NextResponse.json({ listeningTest })
     }
@@ -235,9 +235,9 @@ export async function DELETE(
 
     // Revalidate the listening tests list page and cache tags
     revalidatePath('/admin/listening-tests')
-    revalidateTag('listening-tests')
+    revalidateTag('listening-tests', 'max')
     revalidatePath('/admin')
-    revalidateTag('admin-dashboard')
+    revalidateTag('admin-dashboard', 'max')
 
     return NextResponse.json({ message: 'Listening test deleted successfully' })
   } catch (error: any) {

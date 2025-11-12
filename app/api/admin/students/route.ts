@@ -94,10 +94,10 @@ export async function POST(request: NextRequest) {
 
     // Revalidate the students list page and cache tags
     revalidatePath('/admin/students')
-    revalidateTag('students')
+    revalidateTag('students', 'max')
     // Also revalidate dashboard since it shows student stats
     revalidatePath('/admin')
-    revalidateTag('admin-dashboard')
+    revalidateTag('admin-dashboard', 'max')
 
     return NextResponse.json({ student }, { status: 201 })
   } catch (error) {

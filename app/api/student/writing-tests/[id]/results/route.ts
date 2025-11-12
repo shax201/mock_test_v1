@@ -96,15 +96,15 @@ export async function POST(
 
     // Revalidate admin dashboard since it shows completed tests and pending submissions stats
     revalidatePath('/admin')
-    revalidateTag('admin-dashboard')
+    revalidateTag('admin-dashboard', 'max')
     // Also revalidate writing submissions page
     revalidatePath('/admin/writing-tests/submissions')
-    revalidateTag('writing-submissions')
+    revalidateTag('writing-submissions', 'max')
     // Revalidate student dashboard and results pages
     revalidatePath('/student')
-    revalidateTag('student-dashboard')
-    revalidateTag('student-results')
-    revalidateTag('student-assignments')
+    revalidateTag('student-dashboard', 'max')
+    revalidateTag('student-results', 'max')
+    revalidateTag('student-assignments', 'max')
 
     // Step 7: Return success response
     // Send back the session data to confirm successful submission

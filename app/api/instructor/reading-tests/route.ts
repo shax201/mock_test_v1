@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
 
     // Revalidate instructor reading tests page and cache tags
     revalidatePath('/instructor/reading-tests')
-    revalidateTag('instructor-reading-tests')
+    revalidateTag('instructor-reading-tests', 'max')
 
     return NextResponse.json({ readingTest }, { status: 201 })
   } catch (error) {

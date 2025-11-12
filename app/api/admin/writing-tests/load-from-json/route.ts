@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
 
     // Revalidate the writing tests list page and cache tags
     revalidatePath('/admin/writing-tests')
-    revalidateTag('writing-tests')
+    revalidateTag('writing-tests', 'max')
 
     return NextResponse.json({
       message: 'Writing test created successfully from JSON data',

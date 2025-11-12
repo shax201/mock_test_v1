@@ -274,7 +274,7 @@ export async function PUT(
 
     // Revalidate the writing tests list page and cache tags
     revalidatePath('/admin/writing-tests')
-    revalidateTag('writing-tests')
+    revalidateTag('writing-tests', 'max')
 
     return NextResponse.json({ writingTest })
   } catch (error: any) {
@@ -363,9 +363,9 @@ export async function DELETE(
 
     // Revalidate the writing tests list page and cache tags
     revalidatePath('/admin/writing-tests')
-    revalidateTag('writing-tests')
+    revalidateTag('writing-tests', 'max')
     revalidatePath('/admin')
-    revalidateTag('admin-dashboard')
+    revalidateTag('admin-dashboard', 'max')
 
     return NextResponse.json({ success: true })
   } catch (error: any) {

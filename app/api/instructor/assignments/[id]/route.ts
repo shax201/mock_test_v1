@@ -76,7 +76,7 @@ export async function DELETE(
 
     // Revalidate instructor assignments page and cache tags
     revalidatePath('/instructor/assignments')
-    revalidateTag('instructor-assignments')
+    revalidateTag('instructor-assignments', 'max')
 
     return NextResponse.json({ success: true })
   } catch (error) {

@@ -6,8 +6,6 @@ import StudentHeader from '@/components/student/StudentHeader'
 
 interface Assignment {
   id: string
-  readingTestId: string
-  testId: string // Session ID if completed, otherwise reading test ID
   testTitle: string
   status: 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'EXPIRED'
   assignedAt: string
@@ -18,23 +16,22 @@ interface Assignment {
   overallBand?: number
 }
 
-export default function StudentAssignmentsPage() {
+export default function StudentReadingTestsPage() {
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'EXPIRED'>('all')
 
   const fetchAssignments = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      // Add cache-busting to ensure fresh data
       const response = await fetch('/api/student/assignments', {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache'
         }
       })
+      
       if (response.ok) {
         const data = await response.json()
         // Recalculate status on client side based on current time
@@ -43,9 +40,9 @@ export default function StudentAssignmentsPage() {
           const validFrom = assignment.validFrom ? new Date(assignment.validFrom) : null
           const validUntil = assignment.validUntil ? new Date(assignment.validUntil) : null
           
-          // If already completed or has results, keep it as completed
-          if (assignment.status === 'COMPLETED' || assignment.hasResult) {
-            return { ...assignment, status: 'COMPLETED' as const }
+          // If already completed, keep it as completed
+          if (assignment.status === 'COMPLETED') {
+            return assignment
           }
           
           // Recalculate status based on current time
@@ -80,10 +77,6 @@ export default function StudentAssignmentsPage() {
     
     return () => clearInterval(interval)
   }, [fetchAssignments])
-
-  const filteredAssignments = assignments.filter(assignment => 
-    statusFilter === 'all' || assignment.status === statusFilter
-  )
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -126,8 +119,7 @@ export default function StudentAssignmentsPage() {
   }
 
   const isTestAccessible = (assignment: Assignment) => {
-    // If completed or has results, test is not accessible
-    if (assignment.status === 'COMPLETED' || assignment.hasResult) return false
+    if (assignment.status === 'COMPLETED') return false
     if (assignment.status === 'EXPIRED') return false
     if (assignment.status === 'PENDING') return false
     
@@ -140,13 +132,11 @@ export default function StudentAssignmentsPage() {
   }
 
   const getActionButton = (assignment: Assignment) => {
-    // Check if test is completed (either by status or hasResult flag)
-    if (assignment.status === 'COMPLETED' || assignment.hasResult) {
-      // Use testId (session ID if available, otherwise reading test ID) for results link
+    if (assignment.status === 'COMPLETED') {
       return (
         <Link
-          href={`/student/results/${assignment.testId}`}
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+          href={`/student/results/${assignment.id}`}
+          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
           View Results
         </Link>
@@ -172,9 +162,12 @@ export default function StudentAssignmentsPage() {
     if (isTestAccessible(assignment)) {
       return (
         <Link
-          href={`/student/assignments/reading-tests/${assignment.id}`}
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700"
+          href={`/test/${assignment.accessToken}/reading`}
+          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
+          <svg className="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
           Start Test
         </Link>
       )
@@ -187,16 +180,26 @@ export default function StudentAssignmentsPage() {
     )
   }
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
   return (
-    <>
+    <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
       <StudentHeader />
-      <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-7">
+      <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white overflow-hidden shadow rounded-lg">
-        <div className="px-4 py-5 sm:p-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">My Assigned Tests</h1>
-          <p className="text-gray-600">
-            View and access your assigned IELTS mock tests.
+      <div className="md:flex md:items-center md:justify-between">
+        <div className="flex-1 min-w-0">
+          <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            IELTS Reading Tests
+          </h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Practice your reading skills with our comprehensive IELTS reading tests.
           </p>
         </div>
       </div>
@@ -207,7 +210,7 @@ export default function StudentAssignmentsPage() {
           <div className="flex">
             <div className="flex-shrink-0">
               <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
               </svg>
             </div>
             <div className="ml-3">
@@ -218,60 +221,19 @@ export default function StudentAssignmentsPage() {
         </div>
       )}
 
-      {/* Filter */}
-      <div className="bg-white p-4 rounded-lg shadow">
-        <div className="flex items-center gap-4 justify-between">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-              className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            >
-              <option value="all">All Assignments</option>
-              <option value="ACTIVE">Active</option>
-              <option value="PENDING">Pending</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="EXPIRED">Expired</option>
-            </select>
-          </div>
-          <div className="flex items-end">
-            <button
-              onClick={fetchAssignments}
-              disabled={loading}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-            >
-              <svg className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Refresh
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Loading State */}
-      {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-      ) : filteredAssignments.length === 0 ? (
+      {/* Assignments List */}
+      {assignments.length === 0 ? (
         <div className="text-center py-12">
           <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No assignments found</h3>
-          <p className="mt-1 text-sm text-gray-500">
-            {statusFilter === 'all' 
-              ? "You don't have any assigned tests yet." 
-              : `No ${statusFilter.toLowerCase()} assignments found.`
-            }
-          </p>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">No reading test assignments available</h3>
+          <p className="mt-1 text-sm text-gray-500">Check back later for new reading test assignments.</p>
         </div>
       ) : (
         <div className="bg-white shadow overflow-hidden sm:rounded-md">
           <ul className="divide-y divide-gray-200">
-            {filteredAssignments.map((assignment) => (
+            {assignments.map((assignment) => (
               <li key={assignment.id}>
                 <div className="px-4 py-4 sm:px-6">
                   <div className="flex items-center justify-between">
@@ -301,8 +263,10 @@ export default function StudentAssignmentsPage() {
                           )}
                         </div>
                       </div>
+                      <p className="mt-2 text-sm text-gray-600">
+                        Practice your IELTS reading skills with this comprehensive test covering various question types including matching headings, true/false/not given, summary completion, and multiple choice questions.
+                      </p>
                     </div>
-                    
                     <div className="ml-4 flex-shrink-0">
                       {getActionButton(assignment)}
                     </div>
@@ -314,6 +278,6 @@ export default function StudentAssignmentsPage() {
         </div>
       )}
     </div>
-    </>
+    </div>
   )
 }

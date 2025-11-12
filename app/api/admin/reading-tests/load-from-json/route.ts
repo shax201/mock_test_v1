@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
 
     // Revalidate the reading tests list page and cache tags
     revalidatePath('/admin/reading-tests')
-    revalidateTag('reading-tests')
+    revalidateTag('reading-tests', 'max')
 
     return NextResponse.json({
       message: 'Reading test created successfully from JSON data',

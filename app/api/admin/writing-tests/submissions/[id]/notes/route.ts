@@ -111,8 +111,8 @@ export async function PUT(
 
     // Revalidate caches so admin/student views update
     revalidatePath(`/admin/writing-tests/submissions/${resolvedParams.id}`)
-    revalidateTag('writing-submissions')
-    revalidateTag('student-results')
+    revalidateTag('writing-submissions', 'max')
+    revalidateTag('student-results', 'max')
 
     return NextResponse.json({
       success: true,

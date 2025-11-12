@@ -82,6 +82,23 @@ export async function GET(
       )
     }
 
+    // Check if there's a speaking session for this student and reading test
+    const speakingSession = await prisma.testSession.findFirst({
+      where: {
+        studentId: session.studentId,
+        testId: writingTest.readingTestId,
+        testType: 'SPEAKING',
+        isCompleted: true
+      },
+      orderBy: { completedAt: 'desc' },
+      select: {
+        id: true,
+        band: true,
+        score: true,
+        completedAt: true
+      }
+    })
+
     return NextResponse.json({
       submission: {
         id: session.id,
@@ -101,7 +118,8 @@ export async function GET(
         score: session.score,
         band: session.band,
         createdAt: session.createdAt.toISOString(),
-        updatedAt: session.updatedAt.toISOString()
+        updatedAt: session.updatedAt.toISOString(),
+        speakingBand: speakingSession?.band || null
       },
       testDetails: {
         passages: writingTest.passages.map((passage) => ({
@@ -166,7 +184,7 @@ export async function DELETE(
 
     // Revalidate the submissions list page and cache tags
     revalidatePath('/admin/writing-tests/submissions')
-    revalidateTag('writing-submissions')
+    revalidateTag('writing-submissions', 'max')
 
     return NextResponse.json({
       success: true,

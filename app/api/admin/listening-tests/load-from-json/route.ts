@@ -190,7 +190,7 @@ export async function POST(request: NextRequest) {
 
     // Revalidate the listening tests list page and cache tags
     revalidatePath('/admin/listening-tests')
-    revalidateTag('listening-tests')
+    revalidateTag('listening-tests', 'max')
 
     return NextResponse.json({
       message: 'Listening test created successfully from JSON data',

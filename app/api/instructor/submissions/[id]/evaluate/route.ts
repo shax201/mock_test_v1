@@ -87,11 +87,11 @@ export async function PUT(
     revalidatePath('/instructor')
     revalidatePath('/instructor/pending')
     revalidatePath('/instructor/completed')
-    revalidateTag('instructor-dashboard')
-    revalidateTag('instructor-submissions')
+    revalidateTag('instructor-dashboard', 'max')
+    revalidateTag('instructor-submissions', 'max')
     // Revalidate student results pages
-    revalidateTag('student-results')
-    revalidateTag('student-result-detail')
+    revalidateTag('student-results', 'max')
+    revalidateTag('student-result-detail', 'max')
 
     return NextResponse.json({
       success: true,

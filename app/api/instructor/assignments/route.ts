@@ -203,7 +203,7 @@ export async function POST(request: NextRequest) {
 
     // Revalidate instructor assignments page and cache tags
     revalidatePath('/instructor/assignments')
-    revalidateTag('instructor-assignments')
+    revalidateTag('instructor-assignments', 'max')
 
     return NextResponse.json({ assignment }, { status: 201 })
   } catch (error: any) {

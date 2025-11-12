@@ -219,7 +219,7 @@ export async function PUT(
 
     // Revalidate instructor reading tests page and cache tags
     revalidatePath('/instructor/reading-tests')
-    revalidateTag('instructor-reading-tests')
+    revalidateTag('instructor-reading-tests', 'max')
 
     return NextResponse.json({ readingTest: updatedReadingTest })
   } catch (error) {
@@ -257,7 +257,7 @@ export async function DELETE(
 
     // Revalidate instructor reading tests page and cache tags
     revalidatePath('/instructor/reading-tests')
-    revalidateTag('instructor-reading-tests')
+    revalidateTag('instructor-reading-tests', 'max')
 
     return NextResponse.json({ message: 'Reading test deleted successfully' })
   } catch (error) {

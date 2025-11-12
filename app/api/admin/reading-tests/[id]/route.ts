@@ -234,7 +234,7 @@ export async function PUT(
 
     // Revalidate the reading tests list page and cache tags
     revalidatePath('/admin/reading-tests')
-    revalidateTag('reading-tests')
+    revalidateTag('reading-tests', 'max')
 
     return NextResponse.json({ readingTest: updatedReadingTest })
   } catch (error: any) {
@@ -293,9 +293,9 @@ export async function DELETE(
 
     // Revalidate the reading tests list page and cache tags
     revalidatePath('/admin/reading-tests')
-    revalidateTag('reading-tests')
+    revalidateTag('reading-tests', 'max')
     revalidatePath('/admin')
-    revalidateTag('admin-dashboard')
+    revalidateTag('admin-dashboard', 'max')
 
     return NextResponse.json({ message: 'Reading test deleted successfully' })
   } catch (error: any) {

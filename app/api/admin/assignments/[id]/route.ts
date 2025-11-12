@@ -78,10 +78,10 @@ export async function DELETE(
 
     // Revalidate the assignments list page and cache tags
     revalidatePath('/admin/assignments')
-    revalidateTag('assignments')
+    revalidateTag('assignments',"max")
     // Also revalidate dashboard since it shows assignment stats
     revalidatePath('/admin')
-    revalidateTag('admin-dashboard')
+    revalidateTag('admin-dashboard', "max")
 
     return NextResponse.json({ success: true })
   } catch (error) {

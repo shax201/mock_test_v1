@@ -62,6 +62,8 @@ export async function GET(request: NextRequest) {
         if (testSession && testSession.band) {
           return {
             id: assignment.id,
+            readingTestId: assignment.readingTestId,
+            testId: testSession.id, // Use session ID for results link
             testTitle: assignment.readingTest.title,
             status: 'COMPLETED' as const,
             assignedAt: assignment.createdAt,
@@ -88,6 +90,8 @@ export async function GET(request: NextRequest) {
 
         return {
           id: assignment.id,
+          readingTestId: assignment.readingTestId,
+          testId: testSession?.id || assignment.readingTestId, // Use session ID if available, otherwise reading test ID
           testTitle: assignment.readingTest.title,
           status,
           assignedAt: assignment.createdAt,
