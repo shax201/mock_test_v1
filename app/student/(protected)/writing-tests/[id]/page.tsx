@@ -66,7 +66,8 @@ export default function StudentWritingTestPage() {
   const [showContrastPanel, setShowContrastPanel] = useState(false)
   const [showTextSizePanel, setShowTextSizePanel] = useState(false)
   const [showInstructionsPanel, setShowInstructionsPanel] = useState(false)
-  const [showFullscreenModal, setShowFullscreenModal] = useState(true)
+  const [showInstructions, setShowInstructions] = useState(true)
+  const [showFullscreenModal, setShowFullscreenModal] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [loadingProgress, setLoadingProgress] = useState(0)
   const [isRedirecting, setIsRedirecting] = useState(false)
@@ -233,6 +234,11 @@ export default function StudentWritingTestPage() {
     startLoading()
   }
 
+  const handleStartTest = () => {
+    setShowInstructions(false)
+    setShowFullscreenModal(true)
+  }
+
   const startTest = () => {
     if (!isLoading) {
       startLoading()
@@ -352,6 +358,188 @@ export default function StudentWritingTestPage() {
 
   return (
     <>
+      {/* Instructions Modal */}
+      {showInstructions && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 10000,
+          padding: '20px'
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            maxWidth: '700px',
+            width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            padding: '32px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+          }}>
+            <h2 style={{
+              fontSize: '28px',
+              fontWeight: 'bold',
+              color: '#1f2937',
+              marginBottom: '24px',
+              textAlign: 'center'
+            }}>
+              IELTS Writing Test Instructions
+            </h2>
+            
+            <div style={{ marginBottom: '24px' }}>
+              <h3 style={{
+                fontSize: '18px',
+                fontWeight: '600',
+                color: '#374151',
+                marginBottom: '12px'
+              }}>
+                General Instructions
+              </h3>
+              <ul style={{
+                listStyle: 'none',
+                padding: 0,
+                margin: 0
+              }}>
+                <li style={{ marginBottom: '10px', paddingLeft: '24px', position: 'relative', color: '#4b5563', lineHeight: '1.6' }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>
+                  You have <strong>{testData.test?.totalTimeMinutes || 60} minutes</strong> to complete the Writing test.
+                </li>
+                <li style={{ marginBottom: '10px', paddingLeft: '24px', position: 'relative', color: '#4b5563', lineHeight: '1.6' }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>
+                  The test consists of <strong>2 writing tasks</strong> that you must complete within the time limit.
+                </li>
+                <li style={{ marginBottom: '10px', paddingLeft: '24px', position: 'relative', color: '#4b5563', lineHeight: '1.6' }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>
+                  You can navigate between tasks using the task buttons at the bottom of the screen.
+                </li>
+                <li style={{ marginBottom: '10px', paddingLeft: '24px', position: 'relative', color: '#4b5563', lineHeight: '1.6' }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>
+                  Your answers are saved automatically as you type.
+                </li>
+                <li style={{ marginBottom: '10px', paddingLeft: '24px', position: 'relative', color: '#4b5563', lineHeight: '1.6' }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>
+                  Do not refresh the page during the test as this may cause you to lose your progress.
+                </li>
+                <li style={{ marginBottom: '10px', paddingLeft: '24px', position: 'relative', color: '#4b5563', lineHeight: '1.6' }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>
+                  The timer will begin as soon as you start the test.
+                </li>
+              </ul>
+            </div>
+
+            <div style={{ marginBottom: '24px' }}>
+              <h3 style={{
+                fontSize: '18px',
+                fontWeight: '600',
+                color: '#374151',
+                marginBottom: '12px'
+              }}>
+                Task Requirements
+              </h3>
+              <ul style={{
+                listStyle: 'none',
+                padding: 0,
+                margin: 0
+              }}>
+                <li style={{ marginBottom: '10px', paddingLeft: '24px', position: 'relative', color: '#4b5563', lineHeight: '1.6' }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>
+                  <strong>Task 1:</strong> Write at least <strong>150 words</strong> (20 minutes recommended). This task requires you to describe, summarize, or explain information from a graph, chart, table, or diagram.
+                </li>
+                <li style={{ marginBottom: '10px', paddingLeft: '24px', position: 'relative', color: '#4b5563', lineHeight: '1.6' }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>
+                  <strong>Task 2:</strong> Write at least <strong>250 words</strong> (40 minutes recommended). This task requires you to write an essay in response to a point of view, argument, or problem.
+                </li>
+                <li style={{ marginBottom: '10px', paddingLeft: '24px', position: 'relative', color: '#4b5563', lineHeight: '1.6' }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>
+                  Task 2 carries more weight (2/3) than Task 1 (1/3) in the overall band score.
+                </li>
+              </ul>
+            </div>
+
+            <div style={{ marginBottom: '24px' }}>
+              <h3 style={{
+                fontSize: '18px',
+                fontWeight: '600',
+                color: '#374151',
+                marginBottom: '12px'
+              }}>
+                Writing Tips
+              </h3>
+              <ul style={{
+                listStyle: 'none',
+                padding: 0,
+                margin: 0
+              }}>
+                <li style={{ marginBottom: '10px', paddingLeft: '24px', position: 'relative', color: '#4b5563', lineHeight: '1.6' }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>
+                  Plan your writing before you start - spend a few minutes organizing your ideas.
+                </li>
+                <li style={{ marginBottom: '10px', paddingLeft: '24px', position: 'relative', color: '#4b5563', lineHeight: '1.6' }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>
+                  Pay attention to word count requirements - Task 1 needs at least 150 words, Task 2 needs at least 250 words.
+                </li>
+                <li style={{ marginBottom: '10px', paddingLeft: '24px', position: 'relative', color: '#4b5563', lineHeight: '1.6' }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>
+                  Use appropriate academic vocabulary and formal language.
+                </li>
+                <li style={{ marginBottom: '10px', paddingLeft: '24px', position: 'relative', color: '#4b5563', lineHeight: '1.6' }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>
+                  Check your grammar, spelling, and punctuation before submitting.
+                </li>
+                <li style={{ marginBottom: '10px', paddingLeft: '24px', position: 'relative', color: '#4b5563', lineHeight: '1.6' }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>
+                  Manage your time wisely - allocate more time for Task 2 as it carries more weight.
+                </li>
+              </ul>
+            </div>
+
+            <div style={{
+              backgroundColor: '#eff6ff',
+              border: '1px solid #bfdbfe',
+              borderRadius: '8px',
+              padding: '16px',
+              marginBottom: '24px'
+            }}>
+              <p style={{
+                margin: 0,
+                color: '#1e40af',
+                fontSize: '14px',
+                lineHeight: '1.6'
+              }}>
+                <strong>Important:</strong> Make sure you have a stable internet connection and a quiet environment before starting the test. The timer will begin as soon as you click "Start Test".
+              </p>
+            </div>
+
+            <button
+              onClick={handleStartTest}
+              style={{
+                width: '100%',
+                backgroundColor: '#2563eb',
+                color: 'white',
+                fontSize: '18px',
+                fontWeight: '600',
+                padding: '14px 24px',
+                borderRadius: '8px',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1d4ed8'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
+            >
+              Start Test
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Redirecting Loading Screen */}
       {isRedirecting && (
         <div style={{
@@ -378,7 +566,9 @@ export default function StudentWritingTestPage() {
           </p>
         </div>
       )}
-      <div className={`${styles.mainContainer} contrast-${contrastTheme} text-size-${textSize}`}>
+      
+      {!showInstructions && (
+        <div className={`${styles.mainContainer} contrast-${contrastTheme} text-size-${textSize}`}>
       {/* Header - Matching reading test style */}
       <div className={styles.header}>
         <div className={styles.headerLeft}>
@@ -978,7 +1168,8 @@ export default function StudentWritingTestPage() {
           </div>
         </div>
       )}
-      </div>
+        </div>
+      )}
     </>
   )
 }

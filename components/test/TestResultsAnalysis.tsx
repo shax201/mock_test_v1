@@ -308,6 +308,16 @@ export default function TestResultsAnalysis({ testId, initialTab, initialResults
           {/* Content Area */}
           {activeSubTab === 'brief' && (
             <div className="text-center">
+          {/* Overall Band Score (Average of Reading + Listening + Writing) */}
+          {results.overallBand !== undefined && results.overallBand !== null && results.overallBand > 0 && (
+            <div className="mb-8">
+              <div className="inline-block bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl p-6 shadow-lg">
+                <div className="text-sm font-medium text-green-700 mb-2">Overall Band Score</div>
+                <div className="text-5xl font-bold text-green-900 mb-1">{results.overallBand.toFixed(1)}</div>
+                <div className="text-xs text-green-600">Average of Reading + Listening + Writing</div>
+              </div>
+            </div>
+          )}
           {/* Band Score Cards */}
           <div className="flex justify-center space-x-8 mb-8">
             {/* Listening Card */}

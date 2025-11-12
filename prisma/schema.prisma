@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "debian-openssl-3.0.x"]
@@ -9,6 +6,300 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = "postgresql://neondb_owner:npg_s0i7MxjcIhCd@ep-late-dust-a17jlpvf-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+}
+
+model ListeningTest {
+  id            String          @id @default(cuid())
+  title         String          @default("IELTS Listening Test")
+  audioSource   String          @map("audio_source")
+  instructions  Json
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  readingTestId String?         @map("reading_test_id")
+  parts         ListeningPart[]
+  readingTest   ReadingTest?    @relation(fields: [readingTestId], references: [id])
+
+  @@map("listening_tests")
+}
+
+model ListeningPart {
+  id              String              @id @default(cuid())
+  listeningTestId String              @map("listening_test_id")
+  index           Int
+  title           String
+  prompt          Json
+  sectionTitle    String?
+  courseRequired  String?
+  matchingHeading String?
+  matchingOptions Json?
+  notesSections   Json?
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+  listeningTest   ListeningTest       @relation(fields: [listeningTestId], references: [id], onDelete: Cascade)
+  questions       ListeningQuestion[]
+
+  @@unique([listeningTestId, index])
+  @@map("listening_parts")
+}
+
+model ListeningQuestion {
+  id              String                @id @default(cuid())
+  listeningPartId String                @map("listening_part_id")
+  number          Int
+  type            ListeningQuestionType
+  labelPrefix     String?
+  textPrefix      String?
+  textSuffix      String?
+  questionText    String?
+  options         Json?
+  matchingLabel   String?
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
+  correctAnswer   ListeningAnswer?
+  part            ListeningPart         @relation(fields: [listeningPartId], references: [id], onDelete: Cascade)
+
+  @@unique([listeningPartId, number])
+  @@map("listening_questions")
+}
+
+model ListeningAnswer {
+  id         String            @id @default(cuid())
+  questionId String            @unique @map("question_id")
+  answer     Json
+  createdAt  DateTime          @default(now()) @map("created_at")
+  updatedAt  DateTime          @updatedAt @map("updated_at")
+  question   ListeningQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("listening_answers")
+}
+
+model User {
+  id           String        @id @default(cuid())
+  name         String?
+  email        String        @unique
+  passwordHash String        @map("password_hash")
+  role         UserRole
+  phone        String?
+  dateOfBirth  DateTime?     @map("date_of_birth")
+  address      String?
+  notes        String?
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  assignments  Assignment[]
+  testSessions TestSession[]
+
+  @@map("users")
+}
+
+model ReadingTest {
+  id               String           @id @default(cuid())
+  title            String
+  totalQuestions   Int              @default(40)
+  totalTimeMinutes Int              @default(60)
+  isActive         Boolean          @default(true)
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  writingTestId    String?          @map("writing_test_id")
+  assignments      Assignment[]
+  bandScoreRanges  BandScoreRange[]
+  listeningTests   ListeningTest[]
+  passageConfigs   PassageConfig[]
+  passages         Passage[]
+  writingTests     WritingTest[]
+
+  @@map("reading_tests")
+}
+
+model Passage {
+  id               String            @id @default(cuid())
+  readingTestId    String            @map("reading_test_id")
+  title            String
+  order            Int
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  contents         PassageContent[]
+  readingTest      ReadingTest       @relation(fields: [readingTestId], references: [id], onDelete: Cascade)
+  questions        Question[]
+  writingQuestions WritingQuestion[]
+
+  @@map("passages")
+}
+
+model PassageContent {
+  id        String  @id @default(cuid())
+  passageId String  @map("passage_id")
+  contentId String  @map("content_id")
+  text      String
+  order     Int
+  passage   Passage @relation(fields: [passageId], references: [id], onDelete: Cascade)
+
+  @@unique([passageId, contentId])
+  @@map("passage_contents")
+}
+
+model Question {
+  id             String              @id @default(cuid())
+  passageId      String              @map("passage_id")
+  questionNumber Int                 @map("question_number")
+  type           ReadingQuestionType
+  questionText   String              @map("question_text")
+  options        Json?
+  headingsList   Json?               @map("headings_list")
+  summaryText    String?             @map("summary_text")
+  subQuestions   Json?               @map("sub_questions")
+  points         Int                 @default(1)
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+  correctAnswer  CorrectAnswer?
+  passage        Passage             @relation(fields: [passageId], references: [id], onDelete: Cascade)
+
+  @@map("questions")
+}
+
+model CorrectAnswer {
+  id         String   @id @default(cuid())
+  questionId String   @unique @map("question_id")
+  answer     String
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("correct_answers")
+}
+
+model BandScoreRange {
+  id            String      @id @default(cuid())
+  readingTestId String      @map("reading_test_id")
+  minScore      Int         @map("min_score")
+  band          Float
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  readingTest   ReadingTest @relation(fields: [readingTestId], references: [id], onDelete: Cascade)
+
+  @@unique([readingTestId, minScore])
+  @@map("band_score_ranges")
+}
+
+model PassageConfig {
+  id            String      @id @default(cuid())
+  readingTestId String      @map("reading_test_id")
+  part          Int
+  total         Int
+  start         Int
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  readingTest   ReadingTest @relation(fields: [readingTestId], references: [id], onDelete: Cascade)
+
+  @@unique([readingTestId, part])
+  @@map("passage_configs")
+}
+
+model TestSession {
+  id          String    @id @default(cuid())
+  testId      String    @map("test_id")
+  studentId   String    @map("student_id")
+  testType    String    @map("test_type")
+  startedAt   DateTime? @map("started_at")
+  answers     Json?
+  isCompleted Boolean   @default(false) @map("is_completed")
+  completedAt DateTime? @map("completed_at")
+  score       Int?
+  band        Float?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  overallBand Float?    @map("overall_band")
+  student     User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("test_sessions")
+}
+
+model WritingTest {
+  id               String                 @id @default(cuid())
+  title            String
+  totalTimeMinutes Int                    @default(60)
+  isActive         Boolean                @default(true)
+  createdAt        DateTime               @default(now()) @map("created_at")
+  updatedAt        DateTime               @updatedAt @map("updated_at")
+  readingTestId    String                 @map("reading_test_id")
+  passageConfigs   WritingPassageConfig[]
+  passages         WritingPassage[]
+  readingTest      ReadingTest            @relation(fields: [readingTestId], references: [id], onDelete: Cascade)
+
+  @@map("writing_tests")
+}
+
+model WritingPassage {
+  id            String                  @id @default(cuid())
+  writingTestId String                  @map("writing_test_id")
+  order         Int
+  createdAt     DateTime                @default(now()) @map("created_at")
+  updatedAt     DateTime                @updatedAt @map("updated_at")
+  title         String
+  contents      WritingPassageContent[]
+  writingTest   WritingTest             @relation(fields: [writingTestId], references: [id], onDelete: Cascade)
+  questions     WritingQuestion[]
+
+  @@map("writing_passages")
+}
+
+model WritingPassageContent {
+  id        String         @id @default(cuid())
+  passageId String         @map("passage_id")
+  contentId String         @map("content_id")
+  text      String
+  order     Int
+  passage   WritingPassage @relation(fields: [passageId], references: [id], onDelete: Cascade)
+
+  @@unique([passageId, contentId])
+  @@map("writing_passage_contents")
+}
+
+model WritingQuestion {
+  id               String              @id @default(cuid())
+  passageId        String              @map("passage_id")
+  questionText     String              @map("question_text")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
+  points           Int                 @default(1)
+  questionNumber   Int                 @map("question_number")
+  readingPassageId String?             @map("reading_passage_id")
+  type             WritingQuestionType
+  passage          WritingPassage      @relation(fields: [passageId], references: [id], onDelete: Cascade)
+  readingPassage   Passage?            @relation(fields: [readingPassageId], references: [id])
+
+  @@map("writing_questions")
+}
+
+model WritingPassageConfig {
+  id            String      @id @default(cuid())
+  writingTestId String      @map("writing_test_id")
+  part          Int
+  total         Int
+  start         Int
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  writingTest   WritingTest @relation(fields: [writingTestId], references: [id], onDelete: Cascade)
+
+  @@unique([writingTestId, part])
+  @@map("writing_passage_configs")
+}
+
+model Assignment {
+  id            String           @id @default(cuid())
+  studentId     String           @map("student_id")
+  readingTestId String           @map("reading_test_id")
+  status        AssignmentStatus @default(PENDING)
+  validFrom     DateTime         @map("valid_from")
+  validUntil    DateTime         @map("valid_until")
+  accessToken   String           @unique @map("access_token")
+  assignedAt    DateTime         @default(now()) @map("assigned_at")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+  readingTest   ReadingTest      @relation(fields: [readingTestId], references: [id], onDelete: Cascade)
+  student       User             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("assignments")
 }
 
 enum UserRole {
@@ -33,92 +324,10 @@ enum QuestionType {
   MULTIPLE_CHOICE
 }
 
-// Listening Test Models
-
 enum ListeningQuestionType {
-  TEXT // fill-in-the-blank input
-  RADIO // single choice A/B/C
-  SELECT // dropdown A-G
-}
-
-model ListeningTest {
-  id            String   @id @default(cuid())
-  title         String   @default("IELTS Listening Test")
-  audioSource   String   @map("audio_source")
-  instructions  Json // array of strings
-  isActive      Boolean  @default(true)
-  readingTestId String?  @map("reading_test_id") // Optional reference to associated reading test
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  parts       ListeningPart[]
-  readingTest ReadingTest?    @relation(fields: [readingTestId], references: [id], onDelete: SetNull)
-
-  @@map("listening_tests")
-}
-
-model ListeningPart {
-  id              String   @id @default(cuid())
-  listeningTestId String   @map("listening_test_id")
-  index           Int // 1..4
-  title           String
-  prompt          Json // array of strings (HTML-safe text)
-  sectionTitle    String? // e.g., Booking a residential workshop, Crisis Communication Theory
-  courseRequired  String? // Part 1 specific: "drama workshop"
-  // Matching metadata for parts using matching (2 and 3)
-  matchingHeading String? // e.g., Staff Holiday Centres / Aspects of a debate
-  matchingOptions Json? // array of option strings (A..., B..., ...)
-  // Notes structure for part 4 (non-question lines and hierarchy)
-  notesSections   Json? // nested structure for headings/subsections/children
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  listeningTest ListeningTest       @relation(fields: [listeningTestId], references: [id], onDelete: Cascade)
-  questions     ListeningQuestion[]
-
-  @@unique([listeningTestId, index])
-  @@map("listening_parts")
-}
-
-model ListeningQuestion {
-  id              String                @id @default(cuid())
-  listeningPartId String                @map("listening_part_id")
-  number          Int // 1..40
-  type            ListeningQuestionType
-  // For TEXT questions (parts 1 and 4)
-  labelPrefix     String? // Part 1: label area on the left (e.g., "Full name of participant:")
-  textPrefix      String? // text before <input> (e.g., "Jan ")
-  textSuffix      String? // text after <input> (e.g., " PM", " mentioned in the publicity")
-  // For RADIO questions
-  questionText    String? // the question prompt sentence
-  options         Json? // array of option strings (e.g., "A the pay")
-  // For SELECT questions (matching)
-  matchingLabel   String? // label shown next to the dropdown (e.g., The Grange)
-  createdAt       DateTime              @default(now()) @map("created_at")
-  updatedAt       DateTime              @updatedAt @map("updated_at")
-
-  // Relations
-  part          ListeningPart    @relation(fields: [listeningPartId], references: [id], onDelete: Cascade)
-  correctAnswer ListeningAnswer?
-
-  @@unique([listeningPartId, number])
-  @@map("listening_questions")
-}
-
-model ListeningAnswer {
-  id         String   @id @default(cuid())
-  questionId String   @unique @map("question_id")
-  // Accept single string (e.g., "B") or array of acceptable strings for TEXT
-  answer     Json
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  question ListeningQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
-
-  @@map("listening_answers")
+  TEXT
+  RADIO
+  SELECT
 }
 
 enum AssignmentStatus {
@@ -139,279 +348,4 @@ enum ReadingQuestionType {
 enum WritingQuestionType {
   TASK_1
   TASK_2
-}
-
-model User {
-  id           String    @id @default(cuid())
-  name         String?
-  email        String    @unique
-  passwordHash String    @map("password_hash")
-  role         UserRole
-  phone        String?
-  dateOfBirth  DateTime? @map("date_of_birth")
-  address      String?
-  notes        String?
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-
-  // Relations
-  testSessions TestSession[]
-  assignments  Assignment[]
-
-  @@map("users")
-}
-
-// Reading Test Models
-
-// Main reading test entity
-model ReadingTest {
-  id               String   @id @default(cuid())
-  title            String
-  totalQuestions   Int      @default(40)
-  totalTimeMinutes Int      @default(60)
-  isActive         Boolean  @default(true)
-  writingTestId    String?  @map("writing_test_id") // Store the associated writing test ID
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  passages        Passage[]
-  bandScoreRanges BandScoreRange[]
-  passageConfigs  PassageConfig[]
-  writingTests    WritingTest[]
-  listeningTests  ListeningTest[] // One reading test can have multiple listening tests
-  assignments     Assignment[]
-
-  @@map("reading_tests")
-}
-
-// Individual passages within a reading test
-model Passage {
-  id            String   @id @default(cuid())
-  readingTestId String   @map("reading_test_id")
-  title         String
-  order         Int // Order of passage in the test
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  readingTest      ReadingTest       @relation(fields: [readingTestId], references: [id], onDelete: Cascade)
-  contents         PassageContent[]
-  questions        Question[]
-  writingQuestions WritingQuestion[]
-
-  @@map("passages")
-}
-
-// Content segments within a passage
-model PassageContent {
-  id        String @id @default(cuid())
-  passageId String @map("passage_id")
-  contentId String @map("content_id") // A, B, C, D, E, etc.
-  text      String
-  order     Int // Order within the passage
-
-  // Relations
-  passage Passage @relation(fields: [passageId], references: [id], onDelete: Cascade)
-
-  @@unique([passageId, contentId])
-  @@map("passage_contents")
-}
-
-// Questions belonging to passages
-model Question {
-  id             String              @id @default(cuid())
-  passageId      String              @map("passage_id")
-  questionNumber Int                 @map("question_number") // 1, 2, 3, etc.
-  type           ReadingQuestionType
-  questionText   String              @map("question_text")
-  options        Json? // For multiple choice questions
-  headingsList   Json?               @map("headings_list") // For matching headings questions
-  summaryText    String?             @map("summary_text") // For summary completion questions
-  subQuestions   Json?               @map("sub_questions") // For multi-blank summary completions (e.g., ["5", "6", "7"])
-  points         Int                 @default(1)
-  createdAt      DateTime            @default(now()) @map("created_at")
-  updatedAt      DateTime            @updatedAt @map("updated_at")
-
-  // Relations
-  passage       Passage        @relation(fields: [passageId], references: [id], onDelete: Cascade)
-  correctAnswer CorrectAnswer?
-
-  @@map("questions")
-}
-
-// Correct answers for questions
-model CorrectAnswer {
-  id         String   @id @default(cuid())
-  questionId String   @unique @map("question_id")
-  answer     String // The correct answer (could be text, option letter, etc.)
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-
-  @@map("correct_answers")
-}
-
-// Band score calculation ranges
-model BandScoreRange {
-  id            String   @id @default(cuid())
-  readingTestId String   @map("reading_test_id")
-  minScore      Int      @map("min_score") // Minimum score to achieve this band
-  band          Float // Band score (e.g., 9.0, 8.5, etc.)
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  readingTest ReadingTest @relation(fields: [readingTestId], references: [id], onDelete: Cascade)
-
-  @@unique([readingTestId, minScore])
-  @@map("band_score_ranges")
-}
-
-// Passage configuration for question distribution
-model PassageConfig {
-  id            String   @id @default(cuid())
-  readingTestId String   @map("reading_test_id")
-  part          Int // Part number (1, 2, 3)
-  total         Int // Total questions in this part
-  start         Int // Starting question number for this part
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  readingTest ReadingTest @relation(fields: [readingTestId], references: [id], onDelete: Cascade)
-
-  @@unique([readingTestId, part])
-  @@map("passage_configs")
-}
-
-// Test sessions for students taking tests
-model TestSession {
-  id          String    @id @default(cuid())
-  testId      String    @map("test_id") // Can reference reading tests or other test types
-  studentId   String    @map("student_id")
-  testType    String    @map("test_type") // READING, LISTENING, etc.
-  startedAt   DateTime? @map("started_at")
-  answers     Json? // Student answers stored as JSON
-  isCompleted Boolean   @default(false) @map("is_completed")
-  completedAt DateTime? @map("completed_at")
-  score       Int? // Final score
-  band        Float? // Band score
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-
-  // Relations
-  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
-  @@map("test_sessions")
-}
-
-// Writing Test Models
-
-// Main writing test entity (based on ReadingTest)
-model WritingTest {
-  id               String   @id @default(cuid())
-  readingTestId    String   @map("reading_test_id")
-  title            String
-  totalTimeMinutes Int      @default(60)
-  isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  readingTest    ReadingTest            @relation(fields: [readingTestId], references: [id], onDelete: Cascade)
-  passages       WritingPassage[]
-  passageConfigs WritingPassageConfig[]
-
-  @@map("writing_tests")
-}
-
-// Individual passages within a writing test
-model WritingPassage {
-  id            String   @id @default(cuid())
-  writingTestId String   @map("writing_test_id")
-  title         String
-  order         Int // Order of passage in the test
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  writingTest WritingTest             @relation(fields: [writingTestId], references: [id], onDelete: Cascade)
-  contents    WritingPassageContent[]
-  questions   WritingQuestion[]
-
-  @@map("writing_passages")
-}
-
-// Content segments within a writing passage
-model WritingPassageContent {
-  id        String @id @default(cuid())
-  passageId String @map("passage_id")
-  contentId String @map("content_id") // A, B, C, D, E, etc.
-  text      String
-  order     Int // Order within the passage
-
-  // Relations
-  passage WritingPassage @relation(fields: [passageId], references: [id], onDelete: Cascade)
-
-  @@unique([passageId, contentId])
-  @@map("writing_passage_contents")
-}
-
-// Questions belonging to writing passages (related to reading test)
-model WritingQuestion {
-  id               String              @id @default(cuid())
-  passageId        String              @map("passage_id")
-  readingPassageId String?             @map("reading_passage_id") // Optional reference to reading test passage
-  questionNumber   Int                 @map("question_number") // 1, 2, 3, etc.
-  type             WritingQuestionType
-  questionText     String              @map("question_text")
-  points           Int                 @default(1)
-  createdAt        DateTime            @default(now()) @map("created_at")
-  updatedAt        DateTime            @updatedAt @map("updated_at")
-
-  // Relations
-  passage        WritingPassage @relation(fields: [passageId], references: [id], onDelete: Cascade)
-  readingPassage Passage?       @relation(fields: [readingPassageId], references: [id], onDelete: SetNull)
-
-  @@map("writing_questions")
-}
-
-// Passage configuration for question distribution
-model WritingPassageConfig {
-  id            String   @id @default(cuid())
-  writingTestId String   @map("writing_test_id")
-  part          Int // Part number (1, 2, 3)
-  total         Int // Total questions in this part
-  start         Int // Starting question number for this part
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  writingTest WritingTest @relation(fields: [writingTestId], references: [id], onDelete: Cascade)
-
-  @@unique([writingTestId, part])
-  @@map("writing_passage_configs")
-}
-
-// Assignment model for assigning reading tests to students
-model Assignment {
-  id            String           @id @default(cuid())
-  studentId     String           @map("student_id")
-  readingTestId String           @map("reading_test_id")
-  status        AssignmentStatus @default(PENDING)
-  validFrom     DateTime         @map("valid_from") // Start date
-  validUntil    DateTime         @map("valid_until") // Expiration date
-  accessToken   String           @unique @map("access_token") // Unique token for accessing the test
-  assignedAt    DateTime         @default(now()) @map("assigned_at")
-  createdAt     DateTime         @default(now()) @map("created_at")
-  updatedAt     DateTime         @updatedAt @map("updated_at")
-
-  // Relations
-  student     User        @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  readingTest ReadingTest @relation(fields: [readingTestId], references: [id], onDelete: Cascade)
-
-  @@map("assignments")
 }

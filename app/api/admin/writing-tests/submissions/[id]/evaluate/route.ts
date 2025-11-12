@@ -78,24 +78,81 @@ export async function PUT(
       overallBand = task2Band
     }
 
+    // Get the writing test to find the associated reading test
+    const writingTest = await prisma.writingTest.findUnique({
+      where: { id: session.testId },
+      select: { readingTestId: true }
+    })
+
+    // Calculate overall band (average of reading + listening + writing)
+    let calculatedOverallBand: number | null = null
+    if (writingTest?.readingTestId && overallBand !== undefined) {
+      // Find reading test session for the same student and reading test
+      const readingSession = await prisma.testSession.findFirst({
+        where: {
+          studentId: session.studentId,
+          testId: writingTest.readingTestId,
+          testType: 'READING',
+          isCompleted: true
+        },
+        orderBy: { completedAt: 'desc' }
+      })
+
+      // Find listening test session - listening tests are linked to reading tests
+      const listeningTest = await prisma.listeningTest.findFirst({
+        where: {
+          readingTestId: writingTest.readingTestId,
+          isActive: true
+        },
+        select: { id: true }
+      })
+
+      let listeningSession = null
+      if (listeningTest) {
+        listeningSession = await prisma.testSession.findFirst({
+          where: {
+            studentId: session.studentId,
+            testId: listeningTest.id,
+            testType: 'LISTENING',
+            isCompleted: true
+          },
+          orderBy: { completedAt: 'desc' }
+        })
+      }
+
+      // Calculate average if we have all three scores
+      const bands: number[] = []
+      if (readingSession?.band !== null && readingSession?.band !== undefined) {
+        bands.push(readingSession.band)
+      }
+      if (listeningSession?.band !== null && listeningSession?.band !== undefined) {
+        bands.push(listeningSession.band)
+      }
+      if (overallBand !== null && overallBand !== undefined) {
+        bands.push(overallBand)
+      }
+
+      if (bands.length === 3) {
+        // Calculate average and round to nearest 0.5
+        const average = bands.reduce((sum, band) => sum + band, 0) / bands.length
+        calculatedOverallBand = Math.round(average * 2) / 2
+      }
+    }
+
     // Update the session with evaluation
     const updatedSession = await prisma.testSession.update({
       where: { id: resolvedParams.id },
       data: {
         band: overallBand !== undefined ? overallBand : null,
-        score: overallBand !== undefined ? Math.round(overallBand * 10) : null // Convert band to score (0-90)
+        score: overallBand !== undefined ? Math.round(overallBand * 10) : null, // Convert band to score (0-90)
+        overallBand: calculatedOverallBand
       }
     })
 
     // Handle speaking band score - create or update SPEAKING test session
     let speakingSession = null
     if (speakingBand !== undefined) {
-      // Find or create a speaking test session for this student and reading test
-      const writingTest = await prisma.writingTest.findUnique({
-        where: { id: session.testId },
-        select: { readingTestId: true }
-      })
-
+      // writingTest is already fetched above
       if (writingTest) {
         // Check if speaking session already exists
         const existingSpeakingSession = await prisma.testSession.findFirst({
@@ -151,6 +208,7 @@ export async function PUT(
         id: updatedSession.id,
         band: updatedSession.band,
         score: updatedSession.score,
+        overallBand: updatedSession.overallBand,
         updatedAt: updatedSession.updatedAt.toISOString()
       },
       speakingSession: speakingSession ? {

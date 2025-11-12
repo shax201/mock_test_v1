@@ -52,6 +52,7 @@ interface Submission {
   completedAt: string | null
   score: number | null
   band: number | null
+  overallBand: number | null
   speakingBand: number | null
   createdAt: string
   updatedAt: string
@@ -846,6 +847,7 @@ export default function WritingTestSubmissionDetailPage() {
             ...submission,
             band: data.submission.band,
             score: data.submission.score,
+            overallBand: data.submission.overallBand,
             updatedAt: data.submission.updatedAt
           })
         }
@@ -1246,6 +1248,14 @@ export default function WritingTestSubmissionDetailPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500">Last Evaluated</span>
                     <span className="text-slate-900">{lastEvaluatedLabel}</span>
+                  </div>
+                )}
+                {submission.overallBand !== null && submission.overallBand !== undefined && (
+                  <div className="flex items-center justify-between border-t border-slate-200 pt-4">
+                    <span className="text-slate-500 font-medium">Overall Band (R+L+W)</span>
+                    <span className="inline-flex items-center rounded-full bg-green-50 px-3 py-1 text-sm font-semibold text-green-700">
+                      {formatBand(submission.overallBand)}
+                    </span>
                   </div>
                 )}
                 {(speakingBand !== null || speakingBandInput.trim()) && (

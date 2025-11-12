@@ -117,6 +117,7 @@ export async function GET(
         completedAt: session.completedAt?.toISOString() || null,
         score: session.score,
         band: session.band,
+        overallBand: session.overallBand,
         createdAt: session.createdAt.toISOString(),
         updatedAt: session.updatedAt.toISOString(),
         speakingBand: speakingSession?.band || null

@@ -196,7 +196,7 @@ export async function GET(
         writing: session.testType === 'WRITING' ? (session.band ?? null) : 0,
         speaking: undefined as number | undefined
       },
-      overallBand: session.band ?? 0,
+      overallBand: session.overallBand ?? session.band ?? 0,
       detailedScores: {
         score: session.score ?? 0,
         band: session.band ?? 0
@@ -379,6 +379,31 @@ export async function GET(
             // Update band scores to include reading
             results.bandScores.reading = readingSession.band || 0
             
+            // Fetch listening test session for this reading test
+            const listeningTest = await prisma.listeningTest.findFirst({
+              where: {
+                readingTestId: testDetails.readingTestId,
+                isActive: true
+              },
+              select: { id: true }
+            })
+
+            if (listeningTest) {
+              const listeningSession = await prisma.testSession.findFirst({
+                where: {
+                  testId: listeningTest.id,
+                  studentId: payload.userId,
+                  testType: 'LISTENING',
+                  isCompleted: true
+                },
+                orderBy: { completedAt: 'desc' }
+              })
+
+              if (listeningSession && listeningSession.band) {
+                results.bandScores.listening = listeningSession.band
+              }
+            }
+            
             // Fetch speaking session for this reading test
             const speakingSession = await prisma.testSession.findFirst({
               where: {
@@ -394,17 +419,22 @@ export async function GET(
               results.bandScores.speaking = speakingSession.band
             }
 
-            // Calculate overall band including speaking if available
-            const bands: number[] = []
-            if (session.band) bands.push(session.band)
-            if (readingSession.band) bands.push(readingSession.band)
-            if (speakingSession?.band) bands.push(speakingSession.band)
+            // Use overallBand from writing session if available (average of reading + listening + writing)
+            // Otherwise calculate overall band including speaking if available
+            if (session.overallBand !== null && session.overallBand !== undefined) {
+              results.overallBand = session.overallBand
+            } else {
+              const bands: number[] = []
+              if (session.band) bands.push(session.band)
+              if (readingSession.band) bands.push(readingSession.band)
+              if (speakingSession?.band) bands.push(speakingSession.band)
 
-            if (bands.length > 0) {
-              results.overallBand = bands.reduce((sum, band) => sum + band, 0) / bands.length
-              results.overallBand = Math.round(results.overallBand * 2) / 2 // Round to nearest 0.5
-            } else if (readingSession.band) {
-              results.overallBand = readingSession.band
+              if (bands.length > 0) {
+                results.overallBand = bands.reduce((sum, band) => sum + band, 0) / bands.length
+                results.overallBand = Math.round(results.overallBand * 2) / 2 // Round to nearest 0.5
+              } else if (readingSession.band) {
+                results.overallBand = readingSession.band
+              }
             }
 
             // Update test title to include both tests
