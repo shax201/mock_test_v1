@@ -29,6 +29,24 @@ const navigation = [
     ),
   },
   {
+    name: 'Instructors',
+    href: '/admin/instructors',
+    icon: ({ className }: IconProps): ReactNode => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+      </svg>
+    ),
+  },
+  {
+    name: 'Instructor Submissions',
+    href: '/admin/instructors/submissions',
+    icon: ({ className }: IconProps): ReactNode => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+  },
+  {
     name: 'Reading Tests',
     href: '/admin/reading-tests',
     icon: ({ className }: IconProps): ReactNode => (
@@ -137,19 +155,14 @@ export default function AdminLayout({
       } transition-transform duration-300 ease-in-out lg:translate-x-0`}>
         {/* Logo and Brand */}
         <div className="flex items-center justify-between h-16 px-6 bg-gradient-to-r from-blue-600 to-blue-700">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 4a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1V8zm8 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V8zm0 4a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1v-2z" clipRule="evenodd" />
-                </svg>
-              </div>
-            </div>
-            <div className="ml-3">
-              <h1 className="text-white text-lg font-semibold">IELTS Admin</h1>
-              <p className="text-blue-100 text-xs">Test Management</p>
-            </div>
-          </div>
+          <Link href="/admin" className="flex items-center justify-center flex-1">
+            {/* IELTS Logo */}
+            <img 
+              src="https://res.cloudinary.com/dza2t1htw/image/upload/v1763020133/IELTS-logo_d7an4g.png" 
+              alt="IELTS Logo" 
+              className="h-12 w-auto object-contain"
+            />
+          </Link>
           <button
             onClick={() => setSidebarOpen(false)}
             className="lg:hidden text-white hover:text-blue-200"
@@ -165,7 +178,10 @@ export default function AdminLayout({
           <nav className="flex-1 mt-8 px-4">
             <div className="space-y-1">
               {navigation.map((item) => {
-                const isActive = pathname === item.href
+                // Check if pathname matches exactly or starts with the href (for sub-pages)
+                // This ensures parent menu items stay active when on child pages
+                const isActive = pathname === item.href || 
+                  (item.href !== '/admin' && pathname.startsWith(item.href + '/'))
                 return (
                   <Link
                     key={item.name}

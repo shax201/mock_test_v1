@@ -69,9 +69,9 @@ export default function SubmissionsClient({ initialSubmissions, error: initialEr
         setSubmissions(submissions.filter(sub => sub.id !== submissionId))
         // Revalidate the page to update the cache
         router.refresh()
-    } else {
+      } else {
         alert(data.error || 'Failed to delete submission')
-    }
+      }
     } catch (error) {
       alert('Network error. Please try again.')
     } finally {
@@ -151,46 +151,46 @@ export default function SubmissionsClient({ initialSubmissions, error: initialEr
                   const wordCount = getWordCount(submission.answers)
                   
                   return (
-                  <tr key={submission.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {submission.studentName}
+                    <tr key={submission.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {submission.studentName}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            {submission.studentEmail}
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-400">
-                          {submission.studentEmail}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">{submission.testTitle}</div>
-                    </td>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-900">{submission.testTitle}</div>
+                      </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-600">{submission.readingTestTitle}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm text-gray-900">{wordCount} words</span>
                       </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap">
                         {submission.band !== null ? (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                             Band {submission.band.toFixed(1)}
-                      </span>
+                          </span>
                         ) : (
                           <span className="text-sm text-gray-400">Pending</span>
                         )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {formatDate(submission.completedAt)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center space-x-4">
-                      <Link
-                        href={`/instructor/grade/${submission.id}`}
-                        className="text-green-600 hover:text-green-900 font-medium"
-                      >
-                        Grade →
-                      </Link>
+                          <Link
+                            href={`/instructor/grade/${submission.id}`}
+                            className="text-green-600 hover:text-green-900 font-medium"
+                          >
+                            Grade →
+                          </Link>
                           <button
                             onClick={() => handleDelete(submission.id, submission.studentName)}
                             disabled={deletingId === submission.id}
@@ -209,8 +209,8 @@ export default function SubmissionsClient({ initialSubmissions, error: initialEr
                             )}
                           </button>
                         </div>
-                    </td>
-                  </tr>
+                      </td>
+                    </tr>
                   )
                 })}
               </tbody>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyJWT } from '@/lib/auth/jwt'
 import { revalidatePath, revalidateTag } from 'next/cache'
+import { emailService } from '@/lib/email/email-service'
 
 export async function PUT(
   request: NextRequest,
@@ -201,6 +202,101 @@ export async function PUT(
     // Revalidate student results pages
     revalidateTag('student-results', 'max')
     revalidateTag('student-result-detail', 'max')
+
+    // Send email to student with results
+    try {
+      // Fetch student details for email
+      const sessionWithStudent = await prisma.testSession.findUnique({
+        where: { id: resolvedParams.id },
+        include: {
+          student: {
+            select: {
+              name: true,
+              email: true
+            }
+          }
+        }
+      })
+
+      if (sessionWithStudent?.student?.email) {
+        // Format test date (use completedAt if available, otherwise use updatedAt)
+        const testDate = updatedSession.completedAt 
+          ? new Date(updatedSession.completedAt).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            })
+          : new Date(updatedSession.updatedAt).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            })
+
+        // Construct portal link
+        const protocol = request.headers.get('x-forwarded-proto') || 'https'
+        const host = request.headers.get('host') || 'radianceedu.app'
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`
+        const portalLink = `${baseUrl}/student`
+
+        // Fetch reading and listening bands for email
+        let readingBand: number | null = null
+        let listeningBand: number | null = null
+
+        if (writingTest?.readingTestId) {
+          // Fetch reading session
+          const readingSession = await prisma.testSession.findFirst({
+            where: {
+              studentId: session.studentId,
+              testId: writingTest.readingTestId,
+              testType: 'READING',
+              isCompleted: true
+            },
+            orderBy: { completedAt: 'desc' }
+          })
+          readingBand = readingSession?.band ?? null
+
+          // Fetch listening session
+          const listeningTest = await prisma.listeningTest.findFirst({
+            where: {
+              readingTestId: writingTest.readingTestId,
+              isActive: true
+            },
+            select: { id: true }
+          })
+
+          if (listeningTest) {
+            const listeningSession = await prisma.testSession.findFirst({
+              where: {
+                studentId: session.studentId,
+                testId: listeningTest.id,
+                testType: 'LISTENING',
+                isCompleted: true
+              },
+              orderBy: { completedAt: 'desc' }
+            })
+            listeningBand = listeningSession?.band ?? null
+          }
+        }
+
+        // Send email using the new template with results
+        await emailService.sendWritingTestResultEmail({
+          candidateName: sessionWithStudent.student.name || 'Candidate',
+          studentEmail: sessionWithStudent.student.email,
+          testDate,
+          portalLink,
+          writingBand: updatedSession.band,
+          overallBand: updatedSession.overallBand,
+          readingBand,
+          listeningBand,
+          speakingBand: speakingSession?.band ?? null
+        })
+
+        console.log(`Writing test result email sent successfully to ${sessionWithStudent.student.email}`)
+      }
+    } catch (emailError) {
+      // Log email error but don't fail the evaluation
+      console.error('Error sending results email:', emailError)
+    }
 
     return NextResponse.json({
       success: true,

@@ -420,10 +420,10 @@ export default function StudentReadingTestPage() {
       )}
       
       {!showInstructions && (
-        <ReadingTestComponent
-          testData={testData}
-          onTestComplete={handleTestCompletion}
-        />
+      <ReadingTestComponent
+        testData={testData}
+        onTestComplete={handleTestCompletion}
+      />
       )}
     </>
   )

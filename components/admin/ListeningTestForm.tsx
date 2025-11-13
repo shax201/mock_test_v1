@@ -736,8 +736,7 @@ export default function ListeningTestForm({
                   <div className="space-y-3">
                     {part.fillRows?.map((row) => (
                       <div key={row.id} className="border border-gray-200 rounded-lg p-4">
-                        <div className="grid grid-cols-2 gap-4 mb-3">
-                          <div>
+                        <div className="mb-3">
                             <label className="block text-xs font-medium text-gray-700 mb-1">
                               Question Number
                             </label>
@@ -745,12 +744,12 @@ export default function ListeningTestForm({
                               type="number"
                               value={row.questionNumber}
                               onChange={(e) => updateFillRow(partIndex, row.id, { questionNumber: parseInt(e.target.value) || 0 })}
-                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                            className="block w-full max-w-xs rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                             />
                           </div>
-                          <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">
-                              Correct Answer (comma-separated for alternatives)
+                        <div className="mb-3">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Correct Answer <span className="text-red-500">*</span>
                             </label>
                             <input
                               type="text"
@@ -760,8 +759,11 @@ export default function ListeningTestForm({
                                 updateFillRow(partIndex, row.id, { correctAnswer: answers.length === 1 ? answers[0] : answers })
                               }}
                               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                            placeholder="Enter correct answer (comma-separated for alternatives)"
                             />
-                          </div>
+                          <p className="mt-1 text-xs text-gray-500">
+                            Enter the correct answer. For multiple acceptable answers, separate them with commas (e.g., "answer1, answer2").
+                          </p>
                         </div>
                         <div className="grid grid-cols-3 gap-4 mb-3">
                           <div>

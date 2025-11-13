@@ -29,6 +29,25 @@ interface ResultsEmailData {
   message?: string | null
 }
 
+interface WritingTestResultEmailData {
+  candidateName: string
+  studentEmail: string
+  testDate: string
+  portalLink: string
+  writingBand?: number | null
+  overallBand?: number | null
+  readingBand?: number | null
+  listeningBand?: number | null
+  speakingBand?: number | null
+}
+
+interface LoginCredentialsEmailData {
+  studentName: string
+  studentEmail: string
+  password: string
+  portalLink: string
+}
+
 class EmailService {
   private resend: Resend
 
@@ -91,6 +110,52 @@ class EmailService {
     }
   }
 
+  async sendWritingTestResultEmail(emailData: WritingTestResultEmailData): Promise<boolean> {
+    try {
+      if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 'dummy-key-for-build') {
+        console.log('Email service not configured - skipping writing test result email send')
+        return true
+      }
+
+      const { data: sendData, error } = await this.resend.emails.send({
+        from: process.env.EMAIL_FROM || 'Radiance Education <noreply@radianceedu.app>',
+        to: emailData.studentEmail,
+        subject: 'Your Mock Test Result is Available',
+        html: this.generateWritingTestResultEmailHTML(emailData),
+        text: this.generateWritingTestResultEmailText(emailData)
+      })
+      if (error) throw error
+      console.log('Writing test result email sent successfully:', sendData?.id)
+      return true
+    } catch (error) {
+      console.error('Error sending writing test result email:', error)
+      return false
+    }
+  }
+
+  async sendLoginCredentialsEmail(emailData: LoginCredentialsEmailData): Promise<boolean> {
+    try {
+      if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 'dummy-key-for-build') {
+        console.log('Email service not configured - skipping login credentials email send')
+        return true
+      }
+
+      const { data: sendData, error } = await this.resend.emails.send({
+        from: process.env.EMAIL_FROM || 'Radiance Education <noreply@radianceedu.app>',
+        to: emailData.studentEmail,
+        subject: 'Your Student Portal Login Credentials',
+        html: this.generateLoginCredentialsEmailHTML(emailData),
+        text: this.generateLoginCredentialsEmailText(emailData)
+      })
+      if (error) throw error
+      console.log('Login credentials email sent successfully:', sendData?.id)
+      return true
+    } catch (error) {
+      console.error('Error sending login credentials email:', error)
+      return false
+    }
+  }
+
   private generateAssignmentEmailHTML(data: AssignmentEmailData): string {
     return `
     <!DOCTYPE html>
@@ -114,6 +179,11 @@ class EmailService {
                 padding: 30px;
                 text-align: center;
                 border-radius: 10px 10px 0 0;
+            }
+            .logo {
+                max-width: 200px;
+                height: auto;
+                margin-bottom: 15px;
             }
             .content {
                 background: #f8f9fa;
@@ -180,6 +250,7 @@ class EmailService {
     </head>
     <body>
         <div class="header">
+            <img src="https://res.cloudinary.com/dza2t1htw/image/upload/v1763020133/IELTS-logo_d7an4g.png" alt="IELTS Logo" class="logo" width="200" height="60" style="max-width: 200px; height: auto;" />
             <h1>🎯 New Mock Test Assignment</h1>
             <p>You have been assigned a new IELTS mock test!</p>
         </div>
@@ -361,6 +432,11 @@ IELTS Mock Test System
           font-size: 16px;
           opacity: 0.85;
         }
+        .logo {
+          max-width: 200px;
+          height: auto;
+          margin-bottom: 15px;
+        }
         .card-body {
           padding: 32px;
         }
@@ -409,6 +485,7 @@ IELTS Mock Test System
       <div class="container">
         <div class="card">
           <div class="card-header">
+            <img src="https://res.cloudinary.com/dza2t1htw/image/upload/v1763020133/IELTS-logo_d7an4g.png" alt="IELTS Logo" class="logo" width="200" height="60" style="max-width: 200px; height: auto;" />
             <h1>Your IELTS Mock Test Results</h1>
             <p>${data.mockTitle ?? 'Overall Performance Summary'}</p>
             <div class="highlight">
@@ -503,6 +580,339 @@ Keep practising—steady progress will lead to your goal score!
 
 Radiance Education
 `
+  }
+
+  private generateWritingTestResultEmailHTML(data: WritingTestResultEmailData): string {
+    return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Mock Test Result Available</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                line-height: 1.6;
+                color: #333;
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+                background-color: #f5f5f5;
+            }
+            .email-container {
+                background: #ffffff;
+                border-radius: 8px;
+                padding: 40px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .header {
+                border-bottom: 2px solid #12355b;
+                padding-bottom: 20px;
+                margin-bottom: 30px;
+            }
+            .content {
+                margin-bottom: 30px;
+            }
+            .content p {
+                margin-bottom: 15px;
+            }
+            .portal-link {
+                display: inline-block;
+                background: #12355b;
+                color: #ffffff;
+                padding: 12px 24px;
+                text-decoration: none;
+                border-radius: 6px;
+                font-weight: bold;
+                margin: 20px 0;
+            }
+            .portal-link:hover {
+                background: #1f6feb;
+            }
+            .note {
+                background: #fff3cd;
+                border-left: 4px solid #ffc107;
+                padding: 15px;
+                margin: 20px 0;
+                border-radius: 4px;
+            }
+            .portal-link {
+                display: inline-block;
+                background: linear-gradient(135deg, #12355b 0%, #1f6feb 100%);
+                color: #ffffff !important;
+                padding: 16px 32px;
+                text-decoration: none;
+                border-radius: 8px;
+                font-weight: 600;
+                font-size: 16px;
+                margin: 24px 0;
+                box-shadow: 0 4px 6px rgba(18, 53, 91, 0.2);
+                text-align: center;
+                letter-spacing: 0.5px;
+                min-width: 200px;
+            }
+            .footer {
+                margin-top: 30px;
+                padding-top: 20px;
+                border-top: 1px solid #e0e0e0;
+                color: #666;
+                font-size: 14px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="email-container">
+            <div class="header">
+                <img src="https://res.cloudinary.com/dza2t1htw/image/upload/v1763020133/IELTS-logo_d7an4g.png" alt="IELTS Logo" class="logo" width="200" height="60" style="max-width: 200px; height: auto;" />
+                <h2 style="color: #12355b; margin: 0;">Radiance Education</h2>
+            </div>
+            
+            <div class="content">
+                <p>Dear ${data.candidateName},</p>
+                
+                <p>Your mock test result for <strong>${data.testDate}</strong> is now available.</p>
+                
+                ${(data.writingBand !== null && data.writingBand !== undefined) || 
+                  (data.overallBand !== null && data.overallBand !== undefined) || 
+                  (data.readingBand !== null && data.readingBand !== undefined) || 
+                  (data.listeningBand !== null && data.listeningBand !== undefined) || 
+                  (data.speakingBand !== null && data.speakingBand !== undefined) ? `
+                <div style="background: #f8f9fa; border-radius: 8px; padding: 24px; margin: 24px 0;">
+                    <h3 style="font-size: 20px; font-weight: 600; color: #12355b; margin-bottom: 20px; text-align: center;">Your Test Results</h3>
+                    <div style="display: grid; gap: 12px;">
+                        ${data.readingBand !== null && data.readingBand !== undefined ? `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: white; border-radius: 6px;">
+                            <span style="font-weight: 500; color: #333;">Reading Band:</span>
+                            <span style="font-size: 18px; font-weight: 600; color: #1f6feb;">${data.readingBand.toFixed(1)}</span>
+                        </div>
+                        ` : ''}
+                        ${data.listeningBand !== null && data.listeningBand !== undefined ? `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: white; border-radius: 6px;">
+                            <span style="font-weight: 500; color: #333;">Listening Band:</span>
+                            <span style="font-size: 18px; font-weight: 600; color: #1f6feb;">${data.listeningBand.toFixed(1)}</span>
+                        </div>
+                        ` : ''}
+                        ${data.writingBand !== null && data.writingBand !== undefined ? `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: white; border-radius: 6px;">
+                            <span style="font-weight: 500; color: #333;">Writing Band:</span>
+                            <span style="font-size: 18px; font-weight: 600; color: #1f6feb;">${data.writingBand.toFixed(1)}</span>
+                        </div>
+                        ` : ''}
+                        ${data.speakingBand !== null && data.speakingBand !== undefined ? `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: white; border-radius: 6px;">
+                            <span style="font-weight: 500; color: #333;">Speaking Band:</span>
+                            <span style="font-size: 18px; font-weight: 600; color: #9333ea;">${data.speakingBand.toFixed(1)}</span>
+                        </div>
+                        ` : ''}
+                        ${data.overallBand !== null && data.overallBand !== undefined ? `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: linear-gradient(135deg, #12355b 0%, #1f6feb 100%); border-radius: 6px; margin-top: 8px;">
+                            <span style="font-weight: 600; color: white; font-size: 16px;">Overall Band (R+L+W):</span>
+                            <span style="font-size: 24px; font-weight: 700; color: white;">${data.overallBand.toFixed(1)}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                ` : ''}
+                
+                <div style="text-align: center; margin: 32px 0;">
+                    <a href="${data.portalLink}" class="portal-link" style="display: inline-block; background: linear-gradient(135deg, #12355b 0%, #1f6feb 100%); color: #ffffff !important; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(18, 53, 91, 0.2); letter-spacing: 0.5px; min-width: 200px;">Access Your Portal</a>
+                </div>
+                
+                <div class="note">
+                    <p style="margin: 0;"><strong>Note:</strong> For detailed Writing feedback, you may visit our campus within 5 days of the result date.</p>
+                </div>
+            </div>
+            
+            <div class="footer">
+                <p>Regards,<br><strong>Radiance Education</strong></p>
+            </div>
+        </div>
+    </body>
+    </html>
+    `
+  }
+
+  private generateWritingTestResultEmailText(data: WritingTestResultEmailData): string {
+    const results: string[] = []
+    
+    if (data.readingBand !== null && data.readingBand !== undefined) {
+      results.push(`Reading Band: ${data.readingBand.toFixed(1)}`)
+    }
+    if (data.listeningBand !== null && data.listeningBand !== undefined) {
+      results.push(`Listening Band: ${data.listeningBand.toFixed(1)}`)
+    }
+    if (data.writingBand !== null && data.writingBand !== undefined) {
+      results.push(`Writing Band: ${data.writingBand.toFixed(1)}`)
+    }
+    if (data.speakingBand !== null && data.speakingBand !== undefined) {
+      results.push(`Speaking Band: ${data.speakingBand.toFixed(1)}`)
+    }
+    if (data.overallBand !== null && data.overallBand !== undefined) {
+      results.push(`Overall Band (R+L+W): ${data.overallBand.toFixed(1)}`)
+    }
+    
+    const resultsSection = results.length > 0 ? `\n\nYour Test Results:\n${results.join('\n')}\n` : ''
+    
+    return `
+Dear ${data.candidateName},
+
+Your mock test result for ${data.testDate} is now available.${resultsSection}
+Portal: ${data.portalLink}
+
+Note: For detailed Writing feedback, you may visit our campus within 5 days of the result date.
+
+Regards,
+Radiance Education
+    `
+  }
+
+  private generateLoginCredentialsEmailHTML(data: LoginCredentialsEmailData): string {
+    return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Your Login Credentials</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                line-height: 1.6;
+                color: #333;
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+                background-color: #f5f5f5;
+            }
+            .email-container {
+                background: #ffffff;
+                border-radius: 8px;
+                padding: 40px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .header {
+                border-bottom: 2px solid #12355b;
+                padding-bottom: 20px;
+                margin-bottom: 30px;
+            }
+            .content {
+                margin-bottom: 30px;
+            }
+            .content p {
+                margin-bottom: 15px;
+            }
+            .credentials-box {
+                background: #f8f9fa;
+                border: 2px solid #12355b;
+                border-radius: 8px;
+                padding: 20px;
+                margin: 20px 0;
+            }
+            .credential-item {
+                margin: 15px 0;
+                padding: 10px;
+                background: #ffffff;
+                border-radius: 4px;
+            }
+            .credential-label {
+                font-weight: bold;
+                color: #12355b;
+                font-size: 14px;
+                margin-bottom: 5px;
+            }
+            .credential-value {
+                font-size: 16px;
+                color: #333;
+                font-family: monospace;
+                word-break: break-all;
+            }
+            .portal-link {
+                display: inline-block;
+                background: #12355b;
+                color: #ffffff;
+                padding: 12px 24px;
+                text-decoration: none;
+                border-radius: 6px;
+                font-weight: bold;
+                margin: 20px 0;
+            }
+            .portal-link:hover {
+                background: #1f6feb;
+            }
+            .warning {
+                background: #fff3cd;
+                border-left: 4px solid #ffc107;
+                padding: 15px;
+                margin: 20px 0;
+                border-radius: 4px;
+            }
+            .footer {
+                margin-top: 30px;
+                padding-top: 20px;
+                border-top: 1px solid #e0e0e0;
+                color: #666;
+                font-size: 14px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="email-container">
+            <div class="header">
+                <img src="https://res.cloudinary.com/dza2t1htw/image/upload/v1763020133/IELTS-logo_d7an4g.png" alt="IELTS Logo" class="logo" width="200" height="60" style="max-width: 200px; height: auto;" />
+                <h2 style="color: #12355b; margin: 0;">Radiance Education</h2>
+            </div>
+            
+            <div class="content">
+                <p>Dear ${data.studentName},</p>
+                
+                <p>Welcome to Radiance Education! Your student account has been created. Please find your login credentials below:</p>
+                
+                <div class="credentials-box">
+                    <div class="credential-item">
+                        <div class="credential-label">Email:</div>
+                        <div class="credential-value">${data.studentEmail}</div>
+                    </div>
+                    <div class="credential-item">
+                        <div class="credential-label">Password:</div>
+                        <div class="credential-value">${data.password}</div>
+                    </div>
+                </div>
+                
+                <div style="text-align: center;">
+                    <a href="${data.portalLink}" class="portal-link">Access Your Portal</a>
+                </div>
+                
+                <div class="warning">
+                    <p style="margin: 0;"><strong>Important:</strong> Please keep your login credentials secure and change your password after your first login for security purposes.</p>
+                </div>
+            </div>
+            
+            <div class="footer">
+                <p>Regards,<br><strong>Radiance Education</strong></p>
+            </div>
+        </div>
+    </body>
+    </html>
+    `
+  }
+
+  private generateLoginCredentialsEmailText(data: LoginCredentialsEmailData): string {
+    return `
+Dear ${data.studentName},
+
+Welcome to Radiance Education! Your student account has been created. Please find your login credentials below:
+
+Email: ${data.studentEmail}
+Password: ${data.password}
+
+Portal: ${data.portalLink}
+
+Important: Please keep your login credentials secure and change your password after your first login for security purposes.
+
+Regards,
+Radiance Education
+    `
   }
 
   async testConnection(): Promise<boolean> {

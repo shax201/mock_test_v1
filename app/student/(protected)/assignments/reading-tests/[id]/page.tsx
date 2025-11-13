@@ -53,6 +53,7 @@ export default function StudentReadingTestPage() {
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isRedirecting, setIsRedirecting] = useState(false)
+  const [showInstructions, setShowInstructions] = useState(true)
 
   useEffect(() => {
     if (params.id) {
@@ -125,6 +126,10 @@ export default function StudentReadingTestPage() {
       setError('Network error. Please try again.')
       setLoading(false)
     }
+  }
+
+  const handleStartTest = () => {
+    setShowInstructions(false)
   }
 
   const handleTestCompletion = async (results: any) => {
@@ -294,6 +299,214 @@ export default function StudentReadingTestPage() {
 
   return (
     <>
+      {/* Instructions Modal */}
+      {showInstructions && testData && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 10000,
+          padding: '20px'
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            padding: '40px',
+            maxWidth: '800px',
+            width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
+          }}>
+            <h2 style={{
+              fontSize: '28px',
+              fontWeight: 'bold',
+              color: '#12355b',
+              marginBottom: '24px',
+              textAlign: 'center'
+            }}>
+              IELTS Reading Test Instructions
+            </h2>
+            
+            <div style={{ marginBottom: '24px' }}>
+              <h3 style={{
+                fontSize: '18px',
+                fontWeight: '600',
+                color: '#1f6feb',
+                marginBottom: '12px'
+              }}>
+                General Instructions
+              </h3>
+              <ul style={{
+                listStyle: 'none',
+                padding: 0,
+                margin: 0
+              }}>
+                <li style={{
+                  marginBottom: '10px',
+                  paddingLeft: '20px',
+                  position: 'relative',
+                  lineHeight: '1.6',
+                  color: '#333'
+                }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>
+                  You have <strong>{testData.test?.totalTimeMinutes || 60} minutes</strong> to complete the Reading test.
+                </li>
+                <li style={{
+                  marginBottom: '10px',
+                  paddingLeft: '20px',
+                  position: 'relative',
+                  lineHeight: '1.6',
+                  color: '#333'
+                }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>
+                  The test consists of <strong>{testData.passages?.length || 3} passages</strong> with <strong>{testData.test?.totalQuestions || 40} questions</strong> in total.
+                </li>
+                <li style={{
+                  marginBottom: '10px',
+                  paddingLeft: '20px',
+                  position: 'relative',
+                  lineHeight: '1.6',
+                  color: '#333'
+                }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>
+                  Read each passage carefully and answer all questions.
+                </li>
+                <li style={{
+                  marginBottom: '10px',
+                  paddingLeft: '20px',
+                  position: 'relative',
+                  lineHeight: '1.6',
+                  color: '#333'
+                }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>
+                  You can navigate between questions using the navigation arrows or the question numbers at the bottom.
+                </li>
+                <li style={{
+                  marginBottom: '10px',
+                  paddingLeft: '20px',
+                  position: 'relative',
+                  lineHeight: '1.6',
+                  color: '#333'
+                }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>
+                  Review your answers before submitting the test.
+                </li>
+              </ul>
+            </div>
+
+            <div style={{ marginBottom: '24px' }}>
+              <h3 style={{
+                fontSize: '18px',
+                fontWeight: '600',
+                color: '#1f6feb',
+                marginBottom: '12px'
+              }}>
+                Question Types
+              </h3>
+              <ul style={{
+                listStyle: 'none',
+                padding: 0,
+                margin: 0
+              }}>
+                <li style={{
+                  marginBottom: '10px',
+                  paddingLeft: '20px',
+                  position: 'relative',
+                  lineHeight: '1.6',
+                  color: '#333'
+                }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>
+                  <strong>Matching Headings:</strong> Match headings to paragraphs or sections.
+                </li>
+                <li style={{
+                  marginBottom: '10px',
+                  paddingLeft: '20px',
+                  position: 'relative',
+                  lineHeight: '1.6',
+                  color: '#333'
+                }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>
+                  <strong>True/False/Not Given:</strong> Determine if statements are true, false, or not given based on the passage.
+                </li>
+                <li style={{
+                  marginBottom: '10px',
+                  paddingLeft: '20px',
+                  position: 'relative',
+                  lineHeight: '1.6',
+                  color: '#333'
+                }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>
+                  <strong>Multiple Choice:</strong> Choose the best answer from the options provided.
+                </li>
+                <li style={{
+                  marginBottom: '10px',
+                  paddingLeft: '20px',
+                  position: 'relative',
+                  lineHeight: '1.6',
+                  color: '#333'
+                }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>
+                  <strong>Summary Completion:</strong> Fill in the blanks in a summary using words from the passage.
+                </li>
+                <li style={{
+                  marginBottom: '10px',
+                  paddingLeft: '20px',
+                  position: 'relative',
+                  lineHeight: '1.6',
+                  color: '#333'
+                }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>
+                  <strong>Matching Information:</strong> Match information to paragraphs or sections.
+                </li>
+              </ul>
+            </div>
+
+            <div style={{
+              backgroundColor: '#fff3cd',
+              borderLeft: '4px solid #ffc107',
+              padding: '16px',
+              borderRadius: '4px',
+              marginBottom: '24px'
+            }}>
+              <p style={{
+                margin: 0,
+                color: '#856404',
+                lineHeight: '1.6'
+              }}>
+                <strong>Important:</strong> Make sure you have a stable internet connection and a quiet environment before starting the test. The timer will begin as soon as you click "Start Test".
+              </p>
+            </div>
+
+            <button
+              onClick={handleStartTest}
+              style={{
+                width: '100%',
+                padding: '14px 28px',
+                backgroundColor: '#2563eb',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1d4ed8'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
+            >
+              Start Test
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Redirecting Loading Screen */}
       {isRedirecting && (
         <div style={{
@@ -320,10 +533,12 @@ export default function StudentReadingTestPage() {
           </p>
         </div>
       )}
-      <ReadingTestComponent
-        testData={testData}
-        onTestComplete={handleTestCompletion}
-      />
+      {!showInstructions && (
+        <ReadingTestComponent
+          testData={testData}
+          onTestComplete={handleTestCompletion}
+        />
+      )}
     </>
   )
 }

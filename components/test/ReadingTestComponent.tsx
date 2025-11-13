@@ -105,16 +105,16 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
     }, 100); // Update every 100ms
   }, []);
 
-  const handleFullscreenYes = useCallback(async () => {
-    await requestFullscreen();
+  const handleFullscreenRequired = useCallback(async () => {
+    try {
+      await requestFullscreen();
+    } catch (error) {
+      console.error('Error requesting fullscreen:', error);
+      // Continue even if fullscreen fails
+    }
     setShowFullscreenModal(false);
     startLoading();
   }, [requestFullscreen, startLoading]);
-
-  const handleFullscreenNo = useCallback(() => {
-    setShowFullscreenModal(false);
-    startLoading();
-  }, [startLoading]);
 
   const startExam = useCallback(() => {
     if (!isLoading) {
@@ -1046,6 +1046,13 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
     }
   }, [currentPassage, isTestStarted, setupBottomNav]);
 
+  // Show fullscreen modal when component mounts
+  useEffect(() => {
+    if (!isTestStarted && !isLoading) {
+      setShowFullscreenModal(true);
+    }
+  }, [isTestStarted, isLoading]);
+
   // Cleanup timer on unmount
   useEffect(() => {
     return () => {
@@ -1091,29 +1098,23 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
 
   return (
     <>
-      {/* Fullscreen Modal */}
+      {/* Fullscreen Required Modal */}
       {showFullscreenModal && !isTestStarted && (
         <div className={styles.modalOverlay}>
           <div className={styles.fullscreenModal}>
             <div className={styles.fullscreenModalHeader}>
-              <h2 className={styles.fullscreenModalTitle}>Alert!</h2>
+              <h2 className={styles.fullscreenModalTitle}>Fullscreen Required</h2>
             </div>
             <div className={styles.fullscreenModalBody}>
               <p className={styles.fullscreenModalMessage}>
-                Would you like to attempt this test in fullscreen mode?
+                This test must be taken in fullscreen mode. Click the button below to continue.
               </p>
               <div className={styles.fullscreenModalButtons}>
                 <button 
                   className={styles.fullscreenModalButton}
-                  onClick={handleFullscreenYes}
+                  onClick={handleFullscreenRequired}
                 >
-                  Yes
-                </button>
-                <button 
-                  className={styles.fullscreenModalButton}
-                  onClick={handleFullscreenNo}
-                >
-                  No
+                  Enter Fullscreen
                 </button>
               </div>
             </div>
@@ -1181,10 +1182,11 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
           <header className={styles.header}>
             <div className={styles.headerLeft}>
               <div className={styles.headerLogo}>
-                <img src="/file.svg" alt="Logo" className={styles.ieltsLogo} />
-              </div>
-              <div className={styles.headerLogo}>
-                <img src="/ielts-logo.png" alt="IELTS" className={styles.ieltsLogo} />
+                <img 
+                  src="https://res.cloudinary.com/dza2t1htw/image/upload/v1763020133/IELTS-logo_d7an4g.png" 
+                  alt="IELTS Logo" 
+                  className={styles.ieltsLogo} 
+                />
               </div>
             </div>
             <div className={styles.headerRight}>

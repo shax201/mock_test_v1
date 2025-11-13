@@ -1,35 +1,33 @@
-import { cookies } from 'next/headers'
-import { verifyJWT } from '@/lib/auth/jwt'
 import { prisma } from '@/lib/db'
 import { unstable_cache } from 'next/cache'
-import PendingSubmissionsClient from './PendingSubmissionsClient'
+import SubmissionsClient from './SubmissionsClient'
 
 interface Submission {
   id: string
-  candidateNumber: string
+  studentId: string
   studentName: string
   studentEmail: string
+  testId: string
   testTitle: string
-  moduleType: string
-  moduleTitle: string
-  submittedAt: string
-  status: 'PENDING' | 'COMPLETED'
+  readingTestTitle: string
+  answers: any
+  completedAt: string | null
+  score: number | null
+  band: number | null
 }
 
 // Enable ISR with time-based revalidation (revalidate every 60 seconds)
 export const revalidate = 60
 
-// Cache the pending submissions query
-const getCachedPendingSubmissions = unstable_cache(
-  async (moduleType: string): Promise<Submission[]> => {
-    const where: any = {
-      testType: 'WRITING',
-      isCompleted: true,
-      band: null
-    }
-
+// Cache the submissions query with tags for on-demand revalidation
+const getCachedSubmissions = unstable_cache(
+  async (): Promise<Submission[]> => {
+    // Fetch all completed writing test sessions
     const sessions = await prisma.testSession.findMany({
-      where,
+      where: {
+        testType: 'WRITING',
+        isCompleted: true
+      },
       include: {
         student: {
           select: {
@@ -44,6 +42,7 @@ const getCachedPendingSubmissions = unstable_cache(
       }
     })
 
+    // Fetch writing test details for each session
     const submissions = await Promise.all(
       sessions.map(async (session) => {
         const writingTest = await prisma.writingTest.findUnique({
@@ -65,47 +64,39 @@ const getCachedPendingSubmissions = unstable_cache(
           studentId: session.studentId,
           studentName: session.student.name || 'Unknown',
           studentEmail: session.student.email,
-          candidateNumber: session.student.email.split('@')[0],
           testId: session.testId,
           testTitle: writingTest?.title || 'Unknown Test',
           readingTestTitle: writingTest?.readingTest?.title || 'N/A',
-          moduleType: 'WRITING',
-          moduleTitle: 'Writing Test',
-          submittedAt: session.completedAt?.toISOString() || session.createdAt.toISOString(),
-          status: 'PENDING' as const
+          answers: session.answers,
+          completedAt: session.completedAt?.toISOString() || null,
+          score: session.score,
+          band: session.band
         }
       })
     )
 
     return submissions
   },
-  ['instructor-pending-submissions'],
+  ['instructor-submissions-list'],
   {
     revalidate: 60,
     tags: ['instructor-submissions']
   }
 )
 
-export default async function PendingSubmissionsPage({
-  searchParams
-}: {
-  searchParams: Promise<{ filter?: string }>
-}) {
+export default async function SubmissionsPage() {
   // Auth is handled by middleware
-
-  const resolvedSearchParams = await searchParams
-  const filter = resolvedSearchParams.filter || 'all'
 
   // Fetch submissions with caching
   let submissions: Submission[] = []
   let error = ''
 
   try {
-    submissions = await getCachedPendingSubmissions(filter)
+    submissions = await getCachedSubmissions()
   } catch (err) {
-    console.error('Error fetching pending submissions:', err)
+    console.error('Error fetching submissions:', err)
     error = 'Failed to fetch submissions'
   }
 
-  return <PendingSubmissionsClient initialSubmissions={submissions} error={error} />
+  return <SubmissionsClient initialSubmissions={submissions} error={error} />
 }

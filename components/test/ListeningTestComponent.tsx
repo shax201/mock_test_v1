@@ -446,7 +446,7 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
                 >
                   Yes
                 </button>
-                <button 
+                {/* <button 
                   onClick={handleFullscreenNo}
                   style={{
                     background: 'linear-gradient(to bottom, #e8e8e8, #d0d0d0)',
@@ -478,7 +478,7 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
                   }}
                 >
                   No
-                </button>
+                </button> */}
               </div>
             </div>
           </div>
@@ -559,10 +559,11 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
       <header className="test-header">
         <div className="test-header-left">
           <div className="test-header-logo">
-            <img src="/file.svg" alt="Logo" className="test-ielts-logo" />
-          </div>
-          <div className="test-header-logo">
-            <img src="/ielts-logo.png" alt="IELTS" className="test-ielts-logo" />
+            <img 
+              src="https://res.cloudinary.com/dza2t1htw/image/upload/v1763020133/IELTS-logo_d7an4g.png" 
+              alt="IELTS Logo" 
+              className="test-ielts-logo" 
+            />
           </div>
         </div>
         <div className="test-header-right">

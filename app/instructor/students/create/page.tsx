@@ -6,9 +6,10 @@ export default function CreateStudentPage() {
   return (
     <UserCreatePage
       userType="student"
-      createPath="/api/admin/students"
-      redirectPath={(id) => `/admin/students/${id}`}
+      createPath="/api/instructor/students"
+      redirectPath={(id) => `/instructor/students/${id}`}
       showCandidateNumber={true}
     />
   )
 }
+

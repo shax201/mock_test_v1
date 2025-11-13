@@ -98,20 +98,13 @@ export default function StudentHeader() {
       <div className="bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center py-4">
-            <Link href="/student" className="flex items-center space-x-3">
-              {/* RADIANCE Logo */}
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-red-600 rounded flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">R</span>
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-red-500 to-red-700 bg-clip-text text-transparent">
-                    RADIANCE
-                  </h1>
-                  <p className="text-sm text-gray-500 -mt-1">A Touch of Quality Education</p>
-                  <p className="text-lg font-bold text-red-600 -mt-1">EDUCATION</p>
-                </div>
-              </div>
+            <Link href="/student" className="flex items-center">
+              {/* IELTS Logo */}
+              <img 
+                src="https://res.cloudinary.com/dza2t1htw/image/upload/v1763020133/IELTS-logo_d7an4g.png" 
+                alt="IELTS Logo" 
+                className="h-16 w-auto object-contain"
+              />
             </Link>
           </div>
         </div>

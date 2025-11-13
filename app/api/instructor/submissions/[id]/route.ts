@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyJWT } from '@/lib/auth/jwt'
+import { revalidatePath, revalidateTag } from 'next/cache'
 
 export async function GET(
   request: NextRequest,
@@ -80,6 +81,23 @@ export async function GET(
       return NextResponse.json({ error: 'Writing test not found' }, { status: 404 })
     }
 
+    // Check if there's a speaking session for this student and reading test
+    const speakingSession = await prisma.testSession.findFirst({
+      where: {
+        studentId: session.studentId,
+        testId: writingTest.readingTestId,
+        testType: 'SPEAKING',
+        isCompleted: true
+      },
+      orderBy: { completedAt: 'desc' },
+      select: {
+        id: true,
+        band: true,
+        score: true,
+        completedAt: true
+      }
+    })
+
     return NextResponse.json({
       submission: {
         id: session.id,
@@ -98,6 +116,8 @@ export async function GET(
         completedAt: session.completedAt?.toISOString() || null,
         score: session.score,
         band: session.band,
+        overallBand: session.overallBand,
+        speakingBand: speakingSession?.band || null,
         createdAt: session.createdAt.toISOString(),
         updatedAt: session.updatedAt.toISOString()
       },
@@ -107,6 +127,58 @@ export async function GET(
     })
   } catch (error) {
     console.error('Error fetching submission:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const token = request.cookies.get('auth-token')?.value
+
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const payload = await verifyJWT(token)
+    if (!payload || payload.role !== 'INSTRUCTOR') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const resolvedParams = await params
+
+    // Check if session exists and is a writing test
+    const session = await prisma.testSession.findUnique({
+      where: { id: resolvedParams.id }
+    })
+
+    if (!session || session.testType !== 'WRITING') {
+      return NextResponse.json(
+        { error: 'Writing test submission not found' },
+        { status: 404 }
+      )
+    }
+
+    // Delete the test session
+    await prisma.testSession.delete({
+      where: { id: resolvedParams.id }
+    })
+
+    // Revalidate the submissions list page and cache tags
+    revalidatePath('/instructor/pending')
+    revalidateTag('instructor-submissions', 'max')
+
+    return NextResponse.json({
+      success: true,
+      message: 'Submission deleted successfully'
+    })
+  } catch (error) {
+    console.error('Error deleting writing test submission:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

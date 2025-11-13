@@ -18,10 +18,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Fetch all students
-    const students = await prisma.user.findMany({
+    // Fetch all instructors
+    const instructors = await prisma.user.findMany({
       where: {
-        role: 'STUDENT'
+        role: 'INSTRUCTOR'
       },
       select: {
         id: true,
@@ -34,9 +34,9 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    return NextResponse.json({ students })
+    return NextResponse.json({ instructors })
   } catch (error) {
-    console.error('Error fetching students:', error)
+    console.error('Error fetching instructors:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const { name, email, candidateNumber, phone, dateOfBirth, address, notes } = await request.json()
+    const { name, email, phone, dateOfBirth, address, notes } = await request.json()
 
     // Validate required fields
     if (!name || !email) {
@@ -102,8 +102,8 @@ export async function POST(request: NextRequest) {
     const plainPassword = generateRandomPassword()
     const passwordHash = await bcrypt.hash(plainPassword, 12)
 
-    // Create new student
-    const student = await prisma.user.create({
+    // Create new instructor
+    const instructor = await prisma.user.create({
       data: {
         name,
         email,
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
         dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
         address: address || null,
         notes: notes || null,
-        role: 'STUDENT',
+        role: 'INSTRUCTOR',
         passwordHash
       }
     })
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
       const protocol = request.headers.get('x-forwarded-proto') || 'https'
       const host = request.headers.get('host') || 'radianceedu.app'
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`
-      const portalLink = `${baseUrl}/login?type=student`
+      const portalLink = `${baseUrl}/login?type=admin`
 
       await emailService.sendLoginCredentialsEmail({
         studentName: name,
@@ -132,23 +132,24 @@ export async function POST(request: NextRequest) {
 
       console.log(`Login credentials email sent successfully to ${email}`)
     } catch (emailError) {
-      // Log email error but don't fail student creation
+      // Log email error but don't fail instructor creation
       console.error('Error sending login credentials email:', emailError)
     }
 
-    // Revalidate the students list page and cache tags
-    revalidatePath('/admin/students')
-    revalidateTag('students', 'max')
-    // Also revalidate dashboard since it shows student stats
+    // Revalidate the instructors list page and cache tags
+    revalidatePath('/admin/instructors')
+    revalidateTag('instructors', 'max')
+    // Also revalidate dashboard since it might show instructor stats
     revalidatePath('/admin')
     revalidateTag('admin-dashboard', 'max')
 
-    return NextResponse.json({ student }, { status: 201 })
+    return NextResponse.json({ instructor }, { status: 201 })
   } catch (error) {
-    console.error('Error creating student:', error)
+    console.error('Error creating instructor:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
     )
   }
 }
+

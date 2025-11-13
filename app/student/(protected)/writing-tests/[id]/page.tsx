@@ -683,7 +683,7 @@ export default function StudentWritingTestPage() {
                 >
                   Yes
                 </button>
-                <button 
+                {/* <button 
                   onClick={handleFullscreenNo}
                   style={{
                     background: 'linear-gradient(to bottom, #e8e8e8, #d0d0d0)',
@@ -715,7 +715,7 @@ export default function StudentWritingTestPage() {
                   }}
                 >
                   No
-                </button>
+                </button> */}
               </div>
             </div>
           </div>

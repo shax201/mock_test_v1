@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -52,11 +52,201 @@ interface Submission {
   completedAt: string | null
   score: number | null
   band: number | null
+  overallBand: number | null
+  speakingBand: number | null
   createdAt: string
   updatedAt: string
 }
 
-export default function GradeWritingSubmission() {
+type CriteriaKey = 'taskAchievement' | 'coherence' | 'lexical' | 'grammar'
+type SpeakingCriteriaKey = 'fluency' | 'lexical' | 'grammar' | 'pronunciation'
+
+interface WritingNote {
+  id: string
+  start: number
+  end: number
+  text: string
+  category: string
+  comment: string
+}
+
+interface WritingAnswer {
+  text: string
+  notes: WritingNote[]
+}
+
+interface SelectionInfo {
+  questionId: string
+  start: number
+  end: number
+  rawText: string
+}
+
+interface NoteComposerState extends SelectionInfo {
+  category: string
+  comment: string
+}
+
+const WRITING_CRITERIA: { key: CriteriaKey; label: string }[] = [
+  { key: 'taskAchievement', label: 'Task Achievement' },
+  { key: 'coherence', label: 'Coherence & Cohesion' },
+  { key: 'lexical', label: 'Lexical Resource' },
+  { key: 'grammar', label: 'Grammatical Range & Accuracy' }
+]
+
+const SPEAKING_CRITERIA: { key: SpeakingCriteriaKey; label: string }[] = [
+  { key: 'fluency', label: 'Fluency & Coherence' },
+  { key: 'lexical', label: 'Lexical Resource' },
+  { key: 'grammar', label: 'Grammatical Range & Accuracy' },
+  { key: 'pronunciation', label: 'Pronunciation' }
+]
+
+const NOTE_CATEGORIES = [
+  'Grammar',
+  'Vocabulary',
+  'Task Achievement',
+  'Coherence & Cohesion',
+  'Spelling',
+  'Punctuation',
+  'Other'
+]
+
+const createEmptyScores = (): Record<CriteriaKey, string> =>
+  WRITING_CRITERIA.reduce((acc, criterion) => {
+    acc[criterion.key] = ''
+    return acc
+  }, {} as Record<CriteriaKey, string>)
+
+const createEmptySpeakingScores = (): Record<SpeakingCriteriaKey, string> =>
+  SPEAKING_CRITERIA.reduce((acc, criterion) => {
+    acc[criterion.key] = ''
+    return acc
+  }, {} as Record<SpeakingCriteriaKey, string>)
+
+const sanitizeScoreInput = (rawValue: string): string => {
+  if (rawValue.trim() === '') {
+    return ''
+  }
+
+  const parsed = parseFloat(rawValue)
+
+  if (Number.isNaN(parsed)) {
+    return ''
+  }
+
+  const clamped = Math.min(9, Math.max(0, parsed))
+  const rounded = Math.round(clamped * 2) / 2
+
+  return rounded.toFixed(1)
+}
+
+const computeBandFromScores = (scores: Record<CriteriaKey, string>): number | null => {
+  const values: number[] = []
+
+  for (const criterion of WRITING_CRITERIA) {
+    const raw = scores[criterion.key]
+
+    if (raw === '') {
+      return null
+    }
+
+    const parsed = parseFloat(raw)
+
+    if (Number.isNaN(parsed)) {
+      return null
+    }
+
+    values.push(parsed)
+  }
+
+  if (!values.length) {
+    return null
+  }
+
+  const average = values.reduce((total, value) => total + value, 0) / values.length
+
+  return Math.round(average * 2) / 2
+}
+
+const computeSpeakingBandFromScores = (scores: Record<SpeakingCriteriaKey, string>): number | null => {
+  const values: number[] = []
+
+  for (const criterion of SPEAKING_CRITERIA) {
+    const raw = scores[criterion.key]
+
+    if (raw === '') {
+      return null
+    }
+
+    const parsed = parseFloat(raw)
+
+    if (Number.isNaN(parsed)) {
+      return null
+    }
+
+    values.push(parsed)
+  }
+
+  if (!values.length) {
+    return null
+  }
+
+  const average = values.reduce((total, value) => total + value, 0) / values.length
+
+  return Math.round(average * 2) / 2
+}
+
+const formatBand = (band: number | null): string => {
+  if (band === null) {
+    return '--'
+  }
+
+  return band.toFixed(1)
+}
+
+const normalizeWritingAnswer = (raw: unknown): WritingAnswer => {
+  if (!raw) {
+    return { text: '', notes: [] }
+  }
+
+  if (typeof raw === 'string') {
+    return { text: raw, notes: [] }
+  }
+
+  if (typeof raw === 'object') {
+    const candidate = raw as Record<string, unknown>
+    const text = typeof candidate.text === 'string' ? candidate.text : ''
+    const rawNotes = Array.isArray(candidate.notes) ? candidate.notes : []
+
+    const notes: WritingNote[] = rawNotes
+      .map((note) => {
+        if (typeof note !== 'object' || note === null) return null
+        const record = note as Record<string, unknown>
+        const id = typeof record.id === 'string' ? record.id : `${Date.now()}-${Math.random().toString(16).slice(2)}`
+        const start = typeof record.start === 'number' ? record.start : 0
+        const end = typeof record.end === 'number' ? record.end : start
+        const snippet = typeof record.text === 'string' ? record.text : ''
+        const category = typeof record.category === 'string' ? record.category : 'Other'
+        const comment = typeof record.comment === 'string' ? record.comment : ''
+
+        return {
+          id,
+          start,
+          end,
+          text: snippet,
+          category,
+          comment
+        } as WritingNote
+      })
+      .filter(Boolean) as WritingNote[]
+
+    return { text, notes }
+  }
+
+  return { text: '', notes: [] }
+}
+
+export default function WritingTestSubmissionDetailPage() {
   const params = useParams()
   const router = useRouter()
   const submissionId = params?.submissionId as string
@@ -68,9 +258,17 @@ export default function GradeWritingSubmission() {
   const [evaluating, setEvaluating] = useState(false)
   const [evaluationError, setEvaluationError] = useState('')
   const [evaluationSuccess, setEvaluationSuccess] = useState(false)
-  const [task1Band, setTask1Band] = useState<string>('')
-  const [task2Band, setTask2Band] = useState<string>('')
-  const [overallBand, setOverallBand] = useState<string>('')
+  const [task1Scores, setTask1Scores] = useState<Record<CriteriaKey, string>>(() => createEmptyScores())
+  const [task2Scores, setTask2Scores] = useState<Record<CriteriaKey, string>>(() => createEmptyScores())
+  const [speakingScores, setSpeakingScores] = useState<Record<SpeakingCriteriaKey, string>>(() => createEmptySpeakingScores())
+  const [overallBandInput, setOverallBandInput] = useState<string>('')
+  const [speakingBandInput, setSpeakingBandInput] = useState<string>('')
+  const [answersWithNotes, setAnswersWithNotes] = useState<Record<string, WritingAnswer>>({})
+  const answerRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const [pendingSelection, setPendingSelection] = useState<SelectionInfo | null>(null)
+  const [noteComposer, setNoteComposer] = useState<NoteComposerState | null>(null)
+  const [notesSavingFor, setNotesSavingFor] = useState<string | null>(null)
+  const [notesMessage, setNotesMessage] = useState<{ questionId: string | null; type: 'error' | 'success'; message: string } | null>(null)
 
   useEffect(() => {
     if (submissionId) {
@@ -78,14 +276,480 @@ export default function GradeWritingSubmission() {
     }
   }, [submissionId])
 
+  useEffect(() => {
+    if (!notesMessage || notesMessage.type !== 'success') {
+      return
+    }
+
+    const timeout = setTimeout(() => {
+      setNotesMessage((prev) => {
+        if (prev && prev.type === 'success') {
+          return null
+        }
+        return prev
+      })
+    }, 4000)
+
+    return () => clearTimeout(timeout)
+  }, [notesMessage])
+
+  const handleCriteriaChange = (task: 'task1' | 'task2', key: CriteriaKey, value: string) => {
+    const sanitized = value.replace(/[^0-9.]/g, '')
+
+    if (task === 'task1') {
+      setTask1Scores((prev) => ({
+        ...prev,
+        [key]: sanitized
+      }))
+    } else {
+      setTask2Scores((prev) => ({
+        ...prev,
+        [key]: sanitized
+      }))
+    }
+  }
+
+  const handleCriteriaBlur = (task: 'task1' | 'task2', key: CriteriaKey, value: string) => {
+    const normalized = sanitizeScoreInput(value)
+
+    if (task === 'task1') {
+      setTask1Scores((prev) => ({
+        ...prev,
+        [key]: normalized
+      }))
+    } else {
+      setTask2Scores((prev) => ({
+        ...prev,
+        [key]: normalized
+      }))
+    }
+  }
+
+  const handleSpeakingCriteriaChange = (key: SpeakingCriteriaKey, value: string) => {
+    const sanitized = value.replace(/[^0-9.]/g, '')
+    setSpeakingScores((prev) => ({
+      ...prev,
+      [key]: sanitized
+    }))
+  }
+
+  const handleSpeakingCriteriaBlur = (key: SpeakingCriteriaKey, value: string) => {
+    const normalized = sanitizeScoreInput(value)
+    setSpeakingScores((prev) => ({
+      ...prev,
+      [key]: normalized
+    }))
+  }
+
+  const handleOverallBandChange = (value: string) => {
+    const sanitized = value.replace(/[^0-9.]/g, '')
+
+    setOverallBandInput(sanitized)
+  }
+
+  const handleOverallBandBlur = () => {
+    setOverallBandInput((prev) => sanitizeScoreInput(prev))
+  }
+
+  const handleSpeakingBandChange = (value: string) => {
+    const sanitized = value.replace(/[^0-9.]/g, '')
+    setSpeakingBandInput(sanitized)
+  }
+
+  const handleSpeakingBandBlur = () => {
+    setSpeakingBandInput((prev) => sanitizeScoreInput(prev))
+  }
+
+  const getWordCount = (text: string | null | undefined): number => {
+    if (!text || typeof text !== 'string') return 0
+    return text.trim().split(/\s+/).filter(word => word.length > 0).length
+  }
+
+  const getAnnotatedAnswer = (questionId: string): WritingAnswer => {
+    if (answersWithNotes[questionId]) {
+      return answersWithNotes[questionId]
+    }
+
+    const rawAnswer = submission?.answers ? (submission.answers as Record<string, unknown>)[questionId] : null
+    const normalized = normalizeWritingAnswer(rawAnswer)
+
+    return normalized
+  }
+
+  const computeTextOffset = (container: HTMLElement, node: Node | null, offset: number): number | null => {
+    if (!node) return null
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT)
+    let total = 0
+    let current = walker.nextNode()
+
+    while (current) {
+      const textContent = current.textContent || ''
+      if (current === node) {
+        return total + Math.min(offset, textContent.length)
+      }
+      total += textContent.length
+      current = walker.nextNode()
+    }
+
+    return null
+  }
+
+  const handleAnswerSelection = (questionId: string) => {
+    if (typeof window === 'undefined') return
+
+    const container = answerRefs.current[questionId]
+    if (!container) return
+
+    const selection = window.getSelection()
+    if (!selection || selection.isCollapsed) return
+
+    try {
+      const range = selection.getRangeAt(0)
+
+      if (!container.contains(range.startContainer) || !container.contains(range.endContainer)) {
+        return
+      }
+
+      const answer = getAnnotatedAnswer(questionId)
+      if (!answer.text) {
+        return
+      }
+
+      const startOffset = computeTextOffset(container, range.startContainer, range.startOffset)
+      const endOffset = computeTextOffset(container, range.endContainer, range.endOffset)
+
+      if (startOffset === null || endOffset === null) {
+        return
+      }
+
+      const rawStart = Math.max(0, Math.min(startOffset, endOffset))
+      const rawEnd = Math.max(0, Math.max(startOffset, endOffset))
+
+      if (rawEnd <= rawStart) {
+        return
+      }
+
+      const selectedSlice = answer.text.slice(rawStart, rawEnd)
+      if (!selectedSlice.trim()) {
+        return
+      }
+
+      const leadingTrim = selectedSlice.length - selectedSlice.trimStart().length
+      const trailingTrim = selectedSlice.length - selectedSlice.trimEnd().length
+      const adjustedStart = rawStart + leadingTrim
+      const adjustedEnd = rawEnd - trailingTrim
+
+      if (adjustedEnd <= adjustedStart) {
+        return
+      }
+
+      const trimmedText = answer.text.slice(adjustedStart, adjustedEnd)
+
+      setPendingSelection({
+        questionId,
+        start: adjustedStart,
+        end: adjustedEnd,
+        rawText: trimmedText
+      })
+      setNotesMessage(null)
+    } catch (error) {
+      console.error('Error while capturing selection for notes:', error)
+    } finally {
+      selection.removeAllRanges()
+    }
+  }
+
+  const startNoteComposer = (questionId: string) => {
+    if (!pendingSelection || pendingSelection.questionId !== questionId) {
+      setNotesMessage({
+        questionId,
+        type: 'error',
+        message: 'Select the specific text in the answer you want to annotate before adding a note.'
+      })
+      return
+    }
+
+    setNoteComposer({
+      questionId,
+      start: pendingSelection.start,
+      end: pendingSelection.end,
+      rawText: pendingSelection.rawText,
+      category: NOTE_CATEGORIES[0],
+      comment: ''
+    })
+    setPendingSelection(null)
+    setNotesMessage(null)
+  }
+
+  const cancelNoteComposer = () => {
+    setNoteComposer(null)
+    setNotesMessage(null)
+  }
+
+  const persistNotes = async (questionId: string, updatedAnswer: WritingAnswer) => {
+    if (!submissionId) return
+
+    setNotesSavingFor(questionId)
+    setNotesMessage(null)
+
+    try {
+      const response = await fetch(`/api/instructor/submissions/${submissionId}/notes`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          questionId,
+          text: updatedAnswer.text,
+          notes: updatedAnswer.notes
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save note')
+      }
+
+      const normalized = normalizeWritingAnswer(data.answer)
+      setAnswersWithNotes((prev) => ({
+        ...prev,
+        [questionId]: normalized
+      }))
+
+      setSubmission((prev) => {
+        if (!prev) return prev
+
+        const nextAnswers = {
+          ...(prev.answers || {}),
+          [questionId]: {
+            text: normalized.text,
+            notes: normalized.notes
+          }
+        }
+
+        return { ...prev, answers: nextAnswers }
+      })
+
+      setNotesMessage({
+        questionId,
+        type: 'success',
+        message: 'Note saved successfully.'
+      })
+    } catch (error) {
+      console.error('Failed to persist notes', error)
+      setNotesMessage({
+        questionId,
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Failed to save note. Please try again.'
+      })
+      throw error
+    } finally {
+      setNotesSavingFor(null)
+    }
+  }
+
+  const handleCreateNote = async () => {
+    if (!noteComposer) return
+
+    if (!noteComposer.comment.trim()) {
+      setNotesMessage({
+        questionId: noteComposer.questionId,
+        type: 'error',
+        message: 'Please add a comment describing the issue.'
+      })
+      return
+    }
+
+    const baseAnswer = getAnnotatedAnswer(noteComposer.questionId)
+    if (!baseAnswer.text) {
+      setNotesMessage({
+        questionId: noteComposer.questionId,
+        type: 'error',
+        message: 'Cannot add a note to an empty answer.'
+      })
+      return
+    }
+
+    const generateId = () => {
+      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID()
+      }
+      return `${Date.now()}-${Math.random().toString(16).slice(2)}`
+    }
+
+    const newNote: WritingNote = {
+      id: generateId(),
+      start: noteComposer.start,
+      end: noteComposer.end,
+      text: noteComposer.rawText,
+      category: noteComposer.category,
+      comment: noteComposer.comment.trim()
+    }
+
+    const updatedAnswer: WritingAnswer = {
+      text: baseAnswer.text,
+      notes: [...baseAnswer.notes.filter((note) => note.id !== newNote.id), newNote].sort((a, b) => a.start - b.start)
+    }
+
+    try {
+      await persistNotes(noteComposer.questionId, updatedAnswer)
+      setNoteComposer(null)
+    } catch {
+      // persistNotes handles error messaging
+    }
+  }
+
+  const handleDeleteNote = async (questionId: string, noteId: string) => {
+    const baseAnswer = getAnnotatedAnswer(questionId)
+    const updatedAnswer: WritingAnswer = {
+      text: baseAnswer.text,
+      notes: baseAnswer.notes.filter((note) => note.id !== noteId)
+    }
+
+    try {
+      await persistNotes(questionId, updatedAnswer)
+    } catch {
+      // Error message handled in persistNotes
+    }
+  }
+
+  const updateNoteComposerField = <Key extends keyof NoteComposerState>(key: Key, value: NoteComposerState[Key]) => {
+    setNoteComposer((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        [key]: value
+      }
+    })
+  }
+
+  const renderAnnotatedText = (questionId: string, annotated: WritingAnswer) => {
+    if (!annotated.text) {
+      return <span className="text-slate-400 italic">No answer provided</span>
+    }
+
+    if (!annotated.notes.length) {
+      return <>{annotated.text}</>
+    }
+
+    const segments: JSX.Element[] = []
+    let cursor = 0
+    const sortedNotes = [...annotated.notes].sort((a, b) => a.start - b.start)
+
+    sortedNotes.forEach((note, index) => {
+      const safeStart = Math.max(0, Math.min(note.start, annotated.text.length))
+      const safeEnd = Math.max(safeStart, Math.min(note.end, annotated.text.length))
+
+      if (cursor < safeStart) {
+        segments.push(
+          <span key={`plain-${questionId}-${index}`}>
+            {annotated.text.slice(cursor, safeStart)}
+          </span>
+        )
+      }
+
+      segments.push(
+        <mark
+          key={`${note.id}`}
+          className="rounded bg-yellow-200/70 px-0.5 py-0.5 text-slate-900 no-underline"
+          title={`${note.category}: ${note.comment}`}
+        >
+          {annotated.text.slice(safeStart, safeEnd)}
+        </mark>
+      )
+
+      cursor = safeEnd
+    })
+
+    if (cursor < annotated.text.length) {
+      segments.push(
+        <span key={`plain-end-${questionId}`}>
+          {annotated.text.slice(cursor)}
+        </span>
+      )
+    }
+
+    return segments
+  }
+
+  const task1Band = useMemo(() => computeBandFromScores(task1Scores), [task1Scores])
+  const task2Band = useMemo(() => computeBandFromScores(task2Scores), [task2Scores])
+  const speakingBand = useMemo(() => computeSpeakingBandFromScores(speakingScores), [speakingScores])
+
+  const weightedOverallBand = useMemo(() => {
+    if (task1Band === null || task2Band === null) {
+      return null
+    }
+
+    const weighted = (task1Band + task2Band * 2) / 3
+
+    return Math.round(weighted * 2) / 2
+  }, [task1Band, task2Band])
+
+  const totalWordCount = useMemo(() => {
+    if (!testDetails) {
+      return 0
+    }
+
+    let totalWords = 0
+
+    testDetails.passages.forEach((passage) => {
+      passage.questions.forEach((question) => {
+        const annotated = getAnnotatedAnswer(question.id)
+        totalWords += getWordCount(annotated.text)
+      })
+    })
+
+    return totalWords
+  }, [answersWithNotes, submission, testDetails])
+
+  const expiryLabel = useMemo(() => {
+    if (!submission?.completedAt) {
+      return null
+    }
+
+    const expiryDate = new Date(submission.completedAt)
+    expiryDate.setDate(expiryDate.getDate() + 3)
+
+    const diffMs = expiryDate.getTime() - Date.now()
+
+    if (diffMs <= 0) {
+      return 'Expired'
+    }
+
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
+
+    return `${days}d ${hours}h ${minutes}m`
+  }, [submission?.completedAt])
+
   const fetchSubmission = async () => {
     try {
       const response = await fetch(`/api/instructor/submissions/${submissionId}`)
       const data = await response.json()
 
       if (response.ok) {
-        setSubmission(data.submission)
+        setSubmission({
+          ...data.submission,
+          overallBand: data.submission.overallBand || null,
+          speakingBand: data.submission.speakingBand || null
+        })
         setTestDetails(data.testDetails)
+        const rawAnswers: Record<string, unknown> = data.submission?.answers || {}
+        const normalized: Record<string, WritingAnswer> = {}
+
+        Object.entries(rawAnswers).forEach(([questionId, answerValue]) => {
+          normalized[questionId] = normalizeWritingAnswer(answerValue)
+        })
+
+        setAnswersWithNotes(normalized)
+        
+        // Load existing speaking band if available
+        if (data.submission?.speakingBand !== null && data.submission?.speakingBand !== undefined) {
+          setSpeakingBandInput(data.submission.speakingBand.toFixed(1))
+        }
       } else {
         setError(data.error || 'Failed to fetch submission')
       }
@@ -105,16 +769,6 @@ export default function GradeWritingSubmission() {
       hour: '2-digit',
       minute: '2-digit'
     })
-  }
-
-  const getWordCount = (text: string | null | undefined): number => {
-    if (!text || typeof text !== 'string') return 0
-    return text.trim().split(/\s+/).filter(word => word.length > 0).length
-  }
-
-  const getAnswerForQuestion = (questionId: string): string => {
-    if (!submission?.answers || typeof submission.answers !== 'object') return ''
-    return submission.answers[questionId] || ''
   }
 
   // Get task questions
@@ -145,15 +799,35 @@ export default function GradeWritingSubmission() {
     try {
       const body: any = {}
       
-      if (overallBand) {
-        body.band = parseFloat(overallBand)
-      } else {
-        if (task1Band) body.task1Band = parseFloat(task1Band)
-        if (task2Band) body.task2Band = parseFloat(task2Band)
+      if (overallBandInput.trim()) {
+        const normalizedOverall = sanitizeScoreInput(overallBandInput)
+
+        if (normalizedOverall) {
+          body.band = parseFloat(normalizedOverall)
+        }
       }
 
-      if (!body.band && !body.task1Band && !body.task2Band) {
-        setEvaluationError('Please enter at least one band score')
+      if (body.band === undefined) {
+        if (task1Band !== null) {
+          body.task1Band = task1Band
+        }
+        if (task2Band !== null) {
+          body.task2Band = task2Band
+        }
+      }
+
+      // Add speaking band if provided
+      if (speakingBandInput.trim()) {
+        const normalizedSpeaking = sanitizeScoreInput(speakingBandInput)
+        if (normalizedSpeaking) {
+          body.speakingBand = parseFloat(normalizedSpeaking)
+        }
+      } else if (speakingBand !== null) {
+        body.speakingBand = speakingBand
+      }
+
+      if (body.band === undefined && body.task1Band === undefined && body.task2Band === undefined) {
+        setEvaluationError('Please enter an overall band or complete the task criteria.')
         setEvaluating(false)
         return
       }
@@ -176,13 +850,16 @@ export default function GradeWritingSubmission() {
             ...submission,
             band: data.submission.band,
             score: data.submission.score,
+            overallBand: data.submission.overallBand,
             updatedAt: data.submission.updatedAt
           })
         }
         // Reset form
-        setTask1Band('')
-        setTask2Band('')
-        setOverallBand('')
+        setTask1Scores(createEmptyScores())
+        setTask2Scores(createEmptyScores())
+        setSpeakingScores(createEmptySpeakingScores())
+        setOverallBandInput('')
+        setSpeakingBandInput('')
         // Clear success message after 3 seconds
         setTimeout(() => setEvaluationSuccess(false), 3000)
       } else {
@@ -194,6 +871,7 @@ export default function GradeWritingSubmission() {
       setEvaluating(false)
     }
   }
+
 
   if (loading) {
     return (
@@ -224,6 +902,25 @@ export default function GradeWritingSubmission() {
           </div>
         </div>
 
+        {/* Test Info Card Skeleton */}
+        <div className="bg-white shadow rounded-lg p-6">
+          <div className="h-6 bg-gray-200 rounded w-40 animate-pulse mb-4"></div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <div className="h-4 bg-gray-200 rounded w-24 animate-pulse mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-40 animate-pulse"></div>
+            </div>
+            <div>
+              <div className="h-4 bg-gray-200 rounded w-32 animate-pulse mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-36 animate-pulse"></div>
+            </div>
+            <div>
+              <div className="h-4 bg-gray-200 rounded w-24 animate-pulse mb-2"></div>
+              <div className="h-6 bg-gray-200 rounded-full w-20 animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+
         {/* Evaluation Form Skeleton */}
         <div className="bg-white shadow rounded-lg p-6">
           <div className="h-6 bg-gray-200 rounded w-48 animate-pulse mb-4"></div>
@@ -239,6 +936,32 @@ export default function GradeWritingSubmission() {
               </div>
             </div>
             <div className="h-10 bg-gray-200 rounded w-40 animate-pulse"></div>
+          </div>
+        </div>
+
+        {/* Passage Skeleton */}
+        <div className="bg-white shadow rounded-lg p-6">
+          <div className="h-6 bg-gray-200 rounded w-48 animate-pulse mb-4"></div>
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+            <div className="h-4 bg-gray-200 rounded w-32 animate-pulse mb-2"></div>
+            <div className="space-y-2">
+              <div className="h-4 bg-gray-200 rounded w-full animate-pulse"></div>
+              <div className="h-4 bg-gray-200 rounded w-full animate-pulse"></div>
+              <div className="h-4 bg-gray-200 rounded w-3/4 animate-pulse"></div>
+            </div>
+          </div>
+          <div className="border-t border-gray-200 pt-6">
+            <div className="h-5 bg-gray-200 rounded w-32 animate-pulse mb-4"></div>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="h-4 bg-gray-200 rounded w-40 animate-pulse mb-2"></div>
+              <div className="bg-white rounded border border-gray-300 p-4 min-h-[200px]">
+                <div className="space-y-2">
+                  <div className="h-4 bg-gray-200 rounded w-full animate-pulse"></div>
+                  <div className="h-4 bg-gray-200 rounded w-full animate-pulse"></div>
+                  <div className="h-4 bg-gray-200 rounded w-5/6 animate-pulse"></div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -265,305 +988,576 @@ export default function GradeWritingSubmission() {
           href="/instructor/pending"
           className="inline-flex items-center text-green-600 hover:text-green-900"
         >
-          ← Back to Pending Submissions
+          ← Back to Submissions
         </Link>
       </div>
     )
   }
 
-  // Calculate total word count
-  let totalWordCount = 0
-  testDetails.passages.forEach((passage) => {
-    passage.questions.forEach((question) => {
-      const answer = getAnswerForQuestion(question.id)
-      totalWordCount += getWordCount(answer)
-    })
-  })
+  const overallBandToDisplay = submission.band !== null ? submission.band : weightedOverallBand
+  const formattedOverallBand = formatBand(overallBandToDisplay)
+  const formattedTask1Band = formatBand(task1Band)
+  const formattedTask2Band = formatBand(task2Band)
+  const weightedOverallDisplay = formatBand(weightedOverallBand)
+  const submittedAtLabel = formatDate(submission.completedAt)
+  const lastEvaluatedLabel = submission.band !== null ? formatDate(submission.updatedAt) : null
+  const statusLabel = submission.isCompleted ? 'Completed' : 'In Progress'
+  const statusBadgeClasses = submission.isCompleted
+    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    : 'border-amber-200 bg-amber-50 text-amber-700'
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="md:flex md:items-center md:justify-between">
-        <div className="flex-1 min-w-0">
-          <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
-            Grade Writing Submission
-          </h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Review and evaluate student's writing test submission
-          </p>
-        </div>
-        <div className="mt-4 flex md:mt-0 md:ml-4 space-x-3">
+    <div className="min-h-screen bg-slate-100 pb-16">
+      <div className="mx-auto max-w-6xl space-y-8 px-4 py-10">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <Link
             href="/instructor/pending"
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+            className="inline-flex items-center gap-2 text-sm font-medium text-green-600 transition hover:text-green-700"
           >
-            ← Back to Pending
+            <span className="text-lg">←</span>
+            Back to Submissions
           </Link>
-        </div>
       </div>
 
-      {/* Student Info Card */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Student Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-8">
           <div>
-            <label className="block text-sm font-medium text-gray-500">Name</label>
-            <p className="mt-1 text-sm text-gray-900">{submission.student.name}</p>
+              <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Writing Feedback</p>
+              <h1 className="mt-2 text-3xl font-semibold text-slate-900">IELTS Writing Feedback</h1>
+              <div className="mt-6 flex flex-wrap gap-x-10 gap-y-3 text-sm text-slate-600">
+          <div>
+                  <span className="font-semibold text-slate-900">Name:</span> {submission.student.name}
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-500">Email</label>
-            <p className="mt-1 text-sm text-gray-900">{submission.student.email}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Test Info Card */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Test Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-500">Writing Test</label>
-            <p className="mt-1 text-sm text-gray-900">{submission.test.title}</p>
+                  <span className="font-semibold text-slate-900">ID:</span> {submission.id}
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-500">Based on Reading Test</label>
-            <p className="mt-1 text-sm text-gray-900">{submission.test.readingTest?.title || 'N/A'}</p>
+                  <span className="font-semibold text-slate-900">Date:</span> {submittedAtLabel}
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-500">Band Score</label>
-            <p className="mt-1 text-sm text-gray-900">
-              {submission.band !== null ? (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                  Band {submission.band.toFixed(1)}
+              </div>
+            </div>
+            <div className="flex flex-col items-end justify-between gap-4 sm:flex-row sm:items-center">
+              {expiryLabel && (
+                <div className="flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-medium text-amber-700">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 2h6m0 0h6M12 2v2m-6 0h12m-4 16H8m8 0v2m-8-2v2m2-6h4m-4 0V8m4 8V8" />
+                  </svg>
+                  <span>
+                    {expiryLabel === 'Expired' ? 'Feedback expired' : `Expires in: ${expiryLabel}`}
                 </span>
-              ) : (
-                <span className="text-gray-400">Pending</span>
+                </div>
               )}
-            </p>
+              <div className="flex h-20 w-20 flex-col items-center justify-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/30">
+                <span className="text-xs uppercase tracking-wide text-blue-100">Band</span>
+                <span className="text-2xl font-semibold">{formattedOverallBand}</span>
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-500">Total Word Count</label>
-            <p className="mt-1 text-sm text-gray-900 font-semibold">{totalWordCount} words</p>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-500">Submitted At</label>
-            <p className="mt-1 text-sm text-gray-900">{formatDate(submission.completedAt)}</p>
           </div>
+
+        <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+          <div className="space-y-6">
+            <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-6 py-5">
           <div>
-            <label className="block text-sm font-medium text-gray-500">Status</label>
-            <p className="mt-1">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                Completed
+                  <h3 className="text-lg font-semibold text-slate-900">Writing Task 1</h3>
+                  <p className="mt-1 text-sm text-slate-500">Weight 1/3 of overall score</p>
+                </div>
+                <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700">
+                  Band {formattedTask1Band}
               </span>
-            </p>
           </div>
+              <div className="divide-y divide-slate-200">
+                {WRITING_CRITERIA.map((criterion) => (
+                  <div
+                    key={`task1-${criterion.key}`}
+                    className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">{criterion.label}</p>
+                      <p className="text-xs text-slate-500">Score (0-9 in 0.5 steps)</p>
         </div>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      max="9"
+                      step="0.5"
+                      value={task1Scores[criterion.key]}
+                      onChange={(event) => handleCriteriaChange('task1', criterion.key, event.target.value)}
+                      onBlur={(event) => handleCriteriaBlur('task1', criterion.key, event.target.value)}
+                      className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-2 text-right text-sm font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                      placeholder="--"
+                    />
       </div>
-
-      {/* Evaluation Form */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Evaluate Submission</h3>
-        
-        {evaluationSuccess && (
-          <div className="mb-4 rounded-md bg-green-50 p-4">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
-                </svg>
+                ))}
               </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-green-800">
-                  Evaluation saved successfully!
-                </p>
               </div>
-            </div>
-          </div>
-        )}
 
-        {evaluationError && (
-          <div className="mb-4 rounded-md bg-red-50 p-4">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
-                </svg>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-red-800">{evaluationError}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="space-y-4">
-          {(() => {
-            const { task1, task2 } = getTaskQuestions()
-            const hasBothTasks = task1 && task2
-
-            if (hasBothTasks) {
-              return (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Task 1 Band Score (0-9)
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="9"
-                        step="0.5"
-                        value={task1Band}
-                        onChange={(e) => setTask1Band(e.target.value)}
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
-                        placeholder="e.g., 6.5"
-                      />
-                      <p className="mt-1 text-xs text-gray-500">
-                        Weight: 1/3 of overall score
-                      </p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Task 2 Band Score (0-9)
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="9"
-                        step="0.5"
-                        value={task2Band}
-                        onChange={(e) => setTask2Band(e.target.value)}
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
-                        placeholder="e.g., 7.0"
-                      />
-                      <p className="mt-1 text-xs text-gray-500">
-                        Weight: 2/3 of overall score
-                      </p>
-                    </div>
-                  </div>
-                  <div className="border-t border-gray-200 pt-4">
-                    <p className="text-sm text-gray-600 mb-2">Or enter overall band score directly:</p>
-                    <div className="max-w-xs">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Overall Band Score (0-9)
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="9"
-                        step="0.5"
-                        value={overallBand}
-                        onChange={(e) => setOverallBand(e.target.value)}
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
-                        placeholder="e.g., 6.5"
-                      />
-                    </div>
-                  </div>
-                </>
-              )
-            } else {
-              return (
+            <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-6 py-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Band Score (0-9)
+                  <h3 className="text-lg font-semibold text-slate-900">Writing Task 2</h3>
+                  <p className="mt-1 text-sm text-slate-500">Weight 2/3 of overall score</p>
+              </div>
+                <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700">
+                  Band {formattedTask2Band}
+                </span>
+              </div>
+              <div className="divide-y divide-slate-200">
+                {WRITING_CRITERIA.map((criterion) => (
+                  <div
+                    key={`task2-${criterion.key}`}
+                    className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">{criterion.label}</p>
+                      <p className="text-xs text-slate-500">Score (0-9 in 0.5 steps)</p>
+                    </div>
+                      <input
+                        type="number"
+                      inputMode="decimal"
+                        min="0"
+                        max="9"
+                        step="0.5"
+                      value={task2Scores[criterion.key]}
+                      onChange={(event) => handleCriteriaChange('task2', criterion.key, event.target.value)}
+                      onBlur={(event) => handleCriteriaBlur('task2', criterion.key, event.target.value)}
+                      className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-2 text-right text-sm font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                      placeholder="--"
+                    />
+                    </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-6 py-5">
+                    <div>
+                  <h3 className="text-lg font-semibold text-slate-900">Speaking</h3>
+                  <p className="mt-1 text-sm text-slate-500">IELTS Speaking evaluation</p>
+                </div>
+                <span className="inline-flex items-center rounded-full bg-purple-50 px-3 py-1 text-sm font-medium text-purple-700">
+                  Band {formatBand(speakingBand)}
+                </span>
+              </div>
+              <div className="divide-y divide-slate-200">
+                {SPEAKING_CRITERIA.map((criterion) => (
+                  <div
+                    key={`speaking-${criterion.key}`}
+                    className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">{criterion.label}</p>
+                      <p className="text-xs text-slate-500">Score (0-9 in 0.5 steps)</p>
+                    </div>
+                      <input
+                        type="number"
+                      inputMode="decimal"
+                        min="0"
+                        max="9"
+                        step="0.5"
+                      value={speakingScores[criterion.key]}
+                      onChange={(event) => handleSpeakingCriteriaChange(criterion.key, event.target.value)}
+                      onBlur={(event) => handleSpeakingCriteriaBlur(criterion.key, event.target.value)}
+                      className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-2 text-right text-sm font-medium text-slate-900 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
+                      placeholder="--"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h3 className="text-base font-semibold text-slate-900">Test Summary</h3>
+              <div className="mt-4 space-y-4 text-sm">
+                <div className="flex items-start justify-between gap-4">
+                  <span className="text-slate-500">Writing Test</span>
+                  <span className="flex-1 text-right font-medium text-slate-900">{submission.test.title}</span>
+                </div>
+                {submission.test.readingTest?.title && (
+                  <div className="flex items-start justify-between gap-4">
+                    <span className="text-slate-500">Reading Reference</span>
+                    <span className="flex-1 text-right text-slate-900">{submission.test.readingTest?.title}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Total Word Count</span>
+                  <span className="font-semibold text-slate-900">{totalWordCount} words</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Submitted</span>
+                  <span className="text-slate-900">{submittedAtLabel}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Status</span>
+                  <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${statusBadgeClasses}`}>
+                    {statusLabel}
+                  </span>
+                </div>
+                {lastEvaluatedLabel && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Last Evaluated</span>
+                    <span className="text-slate-900">{lastEvaluatedLabel}</span>
+                  </div>
+                )}
+                {submission.overallBand !== null && submission.overallBand !== undefined && (
+                  <div className="flex items-center justify-between border-t border-slate-200 pt-4">
+                    <span className="text-slate-500 font-medium">Overall Band (R+L+W)</span>
+                    <span className="inline-flex items-center rounded-full bg-green-50 px-3 py-1 text-sm font-semibold text-green-700">
+                      {formatBand(submission.overallBand)}
+                    </span>
+                  </div>
+                )}
+                {(speakingBand !== null || speakingBandInput.trim()) && (
+                  <div className="flex items-center justify-between border-t border-slate-200 pt-4">
+                    <span className="text-slate-500 font-medium">Speaking Band</span>
+                    <span className="inline-flex items-center rounded-full bg-purple-50 px-3 py-1 text-sm font-semibold text-purple-700">
+                      {formatBand(speakingBandInput.trim() ? parseFloat(speakingBandInput) || null : speakingBand)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h3 className="text-base font-semibold text-slate-900">Save Evaluation</h3>
+              <p className="mt-2 text-sm text-slate-500">
+                Enter band scores for each criterion or override the final band directly.
+              </p>
+
+              {evaluationSuccess && (
+                <div className="mt-4 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-700">
+                  <svg className="h-5 w-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <span>Evaluation saved successfully.</span>
+                    </div>
+              )}
+
+              {evaluationError && (
+                <div className="mt-4 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  <svg className="h-5 w-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <span>{evaluationError}</span>
+                  </div>
+              )}
+
+              <div className="mt-4 space-y-4">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-slate-700">Computed Overall</span>
+                    <span className="text-base font-semibold text-slate-900">{weightedOverallDisplay}</span>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">Calculated automatically from Task 1 (33%) and Task 2 (67%).</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">
+                    Overall Band Override (optional)
+                      </label>
+                  <div className="mt-2 flex items-center gap-3">
+                      <input
+                        type="number"
+                      inputMode="decimal"
+                        min="0"
+                        max="9"
+                        step="0.5"
+                      value={overallBandInput}
+                      onChange={(event) => handleOverallBandChange(event.target.value)}
+                      onBlur={handleOverallBandBlur}
+                      className="w-32 rounded-xl border border-slate-200 bg-white px-3 py-2 text-right text-sm font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                        placeholder="e.g., 6.5"
+                      />
+                    <span className="text-xs text-slate-500">Leave blank to accept computed band.</span>
+                    </div>
+                  </div>
+
+                <div className="rounded-2xl border border-purple-200 bg-purple-50 px-4 py-3 text-sm text-purple-600">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-purple-700">Computed Speaking Band</span>
+                    <span className="text-base font-semibold text-purple-900">{formatBand(speakingBand)}</span>
+                  </div>
+                  <p className="mt-1 text-xs text-purple-500">Calculated automatically from speaking criteria scores.</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">
+                    Speaking Band Override (optional)
                   </label>
+                  <div className="mt-2 flex items-center gap-3">
                   <input
                     type="number"
+                      inputMode="decimal"
                     min="0"
                     max="9"
                     step="0.5"
-                    value={overallBand}
-                    onChange={(e) => setOverallBand(e.target.value)}
-                    className="block w-full max-w-xs rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
-                    placeholder="e.g., 6.5"
+                      value={speakingBandInput}
+                      onChange={(event) => handleSpeakingBandChange(event.target.value)}
+                      onBlur={handleSpeakingBandBlur}
+                      className="w-32 rounded-xl border border-slate-200 bg-white px-3 py-2 text-right text-sm font-medium text-slate-900 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
+                      placeholder="e.g., 7.0"
                   />
+                    <span className="text-xs text-slate-500">Leave blank to accept computed speaking band.</span>
                 </div>
-              )
-            }
-          })()}
+                </div>
+              </div>
 
-          <div className="flex items-center space-x-4 pt-4">
             <button
               onClick={handleEvaluate}
               disabled={evaluating}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/60 disabled:cursor-not-allowed disabled:bg-blue-300"
             >
               {evaluating ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                    <svg className="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Evaluating...
+                    Saving...
                 </>
               ) : (
-                'Submit Evaluation'
+                  'Save Evaluation'
               )}
             </button>
-            {submission.band !== null && (
-              <span className="text-sm text-gray-500">
-                Last evaluated: {formatDate(submission.updatedAt)}
-              </span>
+
+              {lastEvaluatedLabel && (
+                <p className="mt-3 text-xs text-slate-500">
+                  Last saved on {lastEvaluatedLabel}
+                </p>
             )}
           </div>
         </div>
       </div>
 
-      {/* Passages and Answers */}
+        <div className="space-y-6">
       {testDetails.passages.map((passage) => (
-        <div key={passage.id} className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">{passage.title}</h3>
-          
-          {/* Passage Contents */}
-          {passage.contents.length > 0 && (
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Passage Content</h4>
-              <div className="space-y-2">
-                {passage.contents.map((content) => (
-                  <p key={content.id} className="text-sm text-gray-900">
-                    {content.text}
-                  </p>
-                ))}
+            <div
+              key={passage.id}
+              className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 className="text-xl font-semibold text-slate-900">{passage.title}</h3>
+                <span className="text-sm font-medium text-slate-500">Passage {passage.order}</span>
               </div>
+
+          {passage.contents.length > 0 && (
+                <div className="mt-5 space-y-3 rounded-2xl border border-slate-100 bg-slate-50/70 p-5 text-sm leading-relaxed text-slate-700">
+                {passage.contents.map((content) => (
+                    <p key={content.id}>{content.text}</p>
+                ))}
             </div>
           )}
 
-          {/* Questions and Answers */}
-          <div className="space-y-6">
+              <div className="mt-6 space-y-6">
             {passage.questions.map((question) => {
-              const answer = getAnswerForQuestion(question.id)
-              const wordCount = getWordCount(answer)
+              const annotatedAnswer = getAnnotatedAnswer(question.id)
+              const wordCount = getWordCount(annotatedAnswer.text)
 
               return (
-                <div key={question.id} className="border-t border-gray-200 pt-6">
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-md font-medium text-gray-900">
-                        Task {question.questionNumber} ({question.type === 'TASK_1' ? 'Task 1' : 'Task 2'})
+                    <div
+                      key={question.id}
+                      className="rounded-3xl border border-slate-100 bg-slate-50/60 p-6"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <h4 className="text-lg font-semibold text-slate-900">
+                            {question.type === 'TASK_1' ? 'Task 1' : 'Task 2'} · Question {question.questionNumber}
                       </h4>
-                      <span className="text-sm text-gray-500">{wordCount} words</span>
+                          <p className="mt-2 text-sm text-slate-600">{question.questionText}</p>
                     </div>
-                    <p className="text-sm text-gray-700 mb-4">{question.questionText}</p>
+                        <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h3m13 0a1 1 0 011 1v3m0 13a1 1 0 01-1 1h-3M4 21a1 1 0 01-1-1v-3M8 2h8m-8 20h8M2 8h20M2 16h20" />
+                          </svg>
+                          <span>{wordCount} words</span>
+                        </span>
+                      </div>
+
                     {question.readingPassage && (
-                      <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                        <p className="text-xs font-medium text-blue-800 mb-1">Related Reading Passage:</p>
-                        <p className="text-sm text-blue-900">{question.readingPassage.title}</p>
+                        <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                          <span className="font-semibold">Related Reading:</span> {question.readingPassage.title}
                       </div>
                     )}
+
+                      <div className="mt-5 space-y-5">
+                        <div className="rounded-2xl border border-white bg-white p-5 shadow-sm">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                            Student&apos;s Answer
+                          </span>
+                          <div
+                            ref={(element) => {
+                              answerRefs.current[question.id] = element
+                            }}
+                            onMouseUp={() => handleAnswerSelection(question.id)}
+                            className="mt-3 min-h-[200px] whitespace-pre-wrap text-sm leading-relaxed text-slate-800"
+                          >
+                            {annotatedAnswer.text ? (
+                              renderAnnotatedText(question.id, annotatedAnswer)
+                            ) : (
+                              <span className="text-slate-400 italic">No answer provided</span>
+                            )}
+                          </div>
                   </div>
                   
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Student's Answer:
+                        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <h5 className="text-sm font-semibold text-slate-900">Instructor Notes</h5>
+                              <p className="text-xs text-slate-500">
+                                Highlight text above to annotate grammar, vocabulary, or coherence issues.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => startNoteComposer(question.id)}
+                              className="inline-flex items-center gap-2 rounded-full border border-blue-600 px-3 py-1.5 text-xs font-semibold text-blue-600 transition hover:bg-blue-600 hover:text-white"
+                            >
+                              <span>+ Add Note</span>
+                            </button>
+                          </div>
+
+                          {pendingSelection && pendingSelection.questionId === question.id && !noteComposer && (
+                            <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                              <span className="font-medium text-blue-900">Selected text:</span>{' '}
+                              <span className="italic">
+                                &ldquo;
+                                {pendingSelection.rawText.slice(0, 140)}
+                                {pendingSelection.rawText.length > 140 ? '…' : ''}
+                                &rdquo;
+                              </span>
+                            </div>
+                          )}
+
+                          {noteComposer && noteComposer.questionId === question.id && (
+                            <div className="mt-4 space-y-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                              <div>
+                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Annotated text</p>
+                                <p className="mt-2 rounded-lg border border-slate-200 bg-white p-3 text-sm leading-relaxed text-slate-800">
+                                  {noteComposer.rawText}
+                                </p>
+                              </div>
+                              <div className="flex flex-col gap-3 sm:flex-row">
+                                <div className="sm:w-48">
+                                  <label className="block text-xs font-medium uppercase tracking-wide text-slate-500">
+                                    Category
                     </label>
-                    <div className="bg-white rounded border border-gray-300 p-4 min-h-[200px]">
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">
-                        {answer || <span className="text-gray-400 italic">No answer provided</span>}
-                      </p>
+                                  <select
+                                    value={noteComposer.category}
+                                    onChange={(event) => updateNoteComposerField('category', event.target.value)}
+                                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                  >
+                                    {NOTE_CATEGORIES.map((category) => (
+                                      <option key={category} value={category}>
+                                        {category}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="flex-1">
+                                  <label className="block text-xs font-medium uppercase tracking-wide text-slate-500">
+                                    Instructor comment
+                                  </label>
+                                  <textarea
+                                    value={noteComposer.comment}
+                                    onChange={(event) => updateNoteComposerField('comment', event.target.value)}
+                                    rows={3}
+                                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                    placeholder="Explain the issue and give the student guidance."
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-3">
+                                <button
+                                  type="button"
+                                  onClick={handleCreateNote}
+                                  disabled={notesSavingFor === question.id}
+                                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                                >
+                                  {notesSavingFor === question.id ? (
+                                    <>
+                                      <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                      </svg>
+                                      Saving...
+                                    </>
+                                  ) : (
+                                    'Save Note'
+                                  )}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={cancelNoteComposer}
+                                  className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {notesMessage && notesMessage.questionId === question.id && (
+                            <div
+                              className={`mt-4 rounded-xl border px-3 py-2 text-xs ${
+                                notesMessage.type === 'success'
+                                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                  : 'border-red-200 bg-red-50 text-red-700'
+                              }`}
+                            >
+                              {notesMessage.message}
+                            </div>
+                          )}
+
+                          <div className="mt-4 space-y-3">
+                            {annotatedAnswer.notes.length > 0 ? (
+                              annotatedAnswer.notes.map((note) => (
+                                <div
+                                  key={note.id}
+                                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm"
+                                >
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2">
+                                      <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+                                        {note.category}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteNote(question.id, note.id)}
+                                        className="text-xs font-semibold text-red-500 transition hover:text-red-600"
+                                        disabled={notesSavingFor === question.id}
+                                      >
+                                        Remove
+                                      </button>
+                                    </div>
+                                    <span className="text-xs text-slate-400">
+                                      Characters {note.start + 1}–{note.end}
+                                    </span>
+                                  </div>
+                                  <p className="mt-2 whitespace-pre-wrap text-xs text-slate-500">
+                                    “{note.text}”
+                                  </p>
+                                  <p className="mt-2 text-sm text-slate-800">{note.comment}</p>
                     </div>
+                              ))
+                            ) : (
+                              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/80 px-4 py-3 text-xs text-slate-500">
+                                No notes added yet. Highlight a portion of the answer to leave targeted feedback.
+                              </div>
+                            )}
+                          </div>
+                        </div>
                   </div>
                 </div>
               )
@@ -571,6 +1565,9 @@ export default function GradeWritingSubmission() {
           </div>
         </div>
       ))}
+        </div>
+      </div>
     </div>
   )
 }
+

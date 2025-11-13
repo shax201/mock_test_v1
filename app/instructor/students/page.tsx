@@ -31,10 +31,10 @@ const getCachedStudents = unstable_cache(
       createdAt: student.createdAt.toISOString()
     }))
   },
-  ['students-list'],
+  ['instructor-students-list'],
   {
     revalidate: 60,
-    tags: ['students']
+    tags: ['instructor-students']
   }
 )
 
@@ -54,3 +54,4 @@ export default async function StudentsPage() {
 
   return <StudentsClient initialUsers={students} error={error} />
 }
+

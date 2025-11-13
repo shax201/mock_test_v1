@@ -13,10 +13,10 @@ export default function StudentsClient({ initialUsers, error }: StudentsClientPr
       initialUsers={initialUsers}
       error={error}
       userType="student"
-      createPath="/admin/students/create"
-      detailPath={(id) => `/admin/students/${id}`}
-      editPath={(id) => `/admin/students/${id}/edit`}
-      deletePath={(id) => `/api/admin/students/${id}`}
+      createPath="/instructor/students/create"
+      detailPath={(id) => `/instructor/students/${id}`}
+      editPath={(id) => `/instructor/students/${id}/edit`}
+      deletePath={(id) => `/api/instructor/students/${id}`}
       avatarColor="green"
     />
   )

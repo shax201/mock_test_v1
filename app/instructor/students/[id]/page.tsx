@@ -7,9 +7,10 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
     <UserDetailPage
       params={params}
       userType="student"
-      fetchPath={(id) => `/api/admin/students/${id}`}
-      listPath="/admin/students"
-      editPath={(id) => `/admin/students/${id}/edit`}
+      fetchPath={(id) => `/api/instructor/students/${id}`}
+      listPath="/instructor/students"
+      editPath={(id) => `/instructor/students/${id}/edit`}
     />
   )
 }
+

@@ -7,10 +7,11 @@ export default function EditStudentPage({ params }: { params: Promise<{ id: stri
     <UserEditPage
       params={params}
       userType="student"
-      fetchPath={(id) => `/api/admin/students/${id}`}
-      updatePath={(id) => `/api/admin/students/${id}`}
-      listPath="/admin/students"
+      fetchPath={(id) => `/api/instructor/students/${id}`}
+      updatePath={(id) => `/api/instructor/students/${id}`}
+      listPath="/instructor/students"
       showCandidateNumber={true}
     />
   )
 }
+
