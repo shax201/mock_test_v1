@@ -103,22 +103,17 @@ export default function PortalLayout({
       } transition-transform duration-300 ease-in-out lg:translate-x-0`}>
         {/* Logo and Brand */}
         <div className={`flex items-center justify-between h-16 px-6 ${colors.bg}`}>
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-                <svg className={`w-5 h-5 ${colors.icon}`} fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 4a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1V8zm8 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V8zm0 4a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1v-2z" clipRule="evenodd" />
-                </svg>
-              </div>
-            </div>
-            <div className="ml-3">
-              <h1 className="text-white text-lg font-semibold">{brandName}</h1>
-              <p className={`${brandColor === 'blue' ? 'text-blue-100' : 'text-green-100'} text-xs`}>{brandSubtitle}</p>
-            </div>
+          <div className="flex items-center justify-center flex-1">
+            {/* IELTS Logo */}
+            <img 
+              src="https://res.cloudinary.com/dza2t1htw/image/upload/v1763020133/IELTS-logo_d7an4g.png" 
+              alt="IELTS Logo" 
+              className="h-12 w-auto object-contain"
+            />
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-white hover:opacity-80"
+            className={`lg:hidden ${brandColor === 'blue' ? 'text-white hover:text-blue-200' : 'text-white hover:text-green-200'}`}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
