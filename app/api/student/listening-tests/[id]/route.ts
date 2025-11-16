@@ -34,6 +34,8 @@ export async function GET(
       const fillRows: any[] = []
       const singleChoice: any[] = []
       const matchingItems: any[] = []
+      const flowChartQuestions: any[] = []
+      const tableCompletionQuestions: any[] = []
 
       part.questions.forEach((q) => {
         // Collect correct answers map
@@ -58,6 +60,22 @@ export async function GET(
           })
         } else if (q.type === 'SELECT') {
           matchingItems.push({ q: q.number, label: q.matchingLabel ?? '' })
+        } else if (q.type === 'FLOW_CHART') {
+          // Group flow chart questions by groupId
+          flowChartQuestions.push({
+            questionNumber: q.number,
+            imageUrl: q.imageUrl ?? '',
+            field: q.field ?? null,
+            groupId: q.groupId ?? q.id
+          })
+        } else if (q.type === 'TABLE_COMPLETION') {
+          // Group table completion questions by groupId
+          tableCompletionQuestions.push({
+            questionNumber: q.number,
+            answers: q.answers ?? {},
+            groupId: q.groupId ?? q.id,
+            tableStructure: q.tableStructure ?? null
+          })
         }
       })
 
@@ -79,6 +97,8 @@ export async function GET(
         }
       }
       if (part.notesSections) result.notes = part.notesSections
+      if (flowChartQuestions.length) result.flowChartQuestions = flowChartQuestions
+      if (tableCompletionQuestions.length) result.tableCompletionQuestions = tableCompletionQuestions
 
       return result
     })

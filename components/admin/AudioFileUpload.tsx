@@ -214,6 +214,7 @@ export default function AudioFileUpload({
           onChange={handleUrlInputChange}
           placeholder="https://example.com/audio.mp3"
           className="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+          autoComplete="off"
         />
       </div>
 

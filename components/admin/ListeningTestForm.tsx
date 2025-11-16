@@ -1,9 +1,140 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import AudioFileUpload from './AudioFileUpload'
 import Link from 'next/link'
+import ImageChartEditor, { ChartField } from './ImageChartEditor'
+import RainwaterTable from './RainwaterTable'
+import DynamicTableEditor, { TableStructure } from './DynamicTableEditor'
+import TableStructureEditor from './TableStructureEditor'
+
+// Component to preview flow chart with input field positions (read-only view)
+function FlowChartPreview({ imageUrl, questions }: { imageUrl: string; questions: any[] }) {
+  const imageRef = useRef<HTMLImageElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = useState({ x: 1, y: 1 })
+  const [imageLoaded, setImageLoaded] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
+
+  const updateScale = useCallback(() => {
+    if (imageRef.current) {
+      const img = imageRef.current
+      const naturalWidth = img.naturalWidth
+      const naturalHeight = img.naturalHeight
+      const displayedWidth = img.clientWidth
+      const displayedHeight = img.clientHeight
+
+      if (naturalWidth > 0 && naturalHeight > 0 && displayedWidth > 0 && displayedHeight > 0) {
+        const scaleX = displayedWidth / naturalWidth
+        const scaleY = displayedHeight / naturalHeight
+        setScale({ x: scaleX, y: scaleY })
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (imageLoaded) {
+      const timeoutId = setTimeout(() => {
+        updateScale()
+      }, 100)
+      
+      window.addEventListener('resize', updateScale)
+      return () => {
+        clearTimeout(timeoutId)
+        window.removeEventListener('resize', updateScale)
+      }
+    }
+  }, [imageLoaded, updateScale])
+
+  const handleImageLoad = () => {
+    setImageLoaded(true)
+    setTimeout(() => {
+      updateScale()
+    }, 50)
+  }
+
+  const safeQuestions = Array.isArray(questions) ? questions : []
+
+  return (
+    <div className="border border-gray-300 rounded-lg p-4 bg-white">
+      <div className="flex items-center justify-between mb-3">
+        <label className="block text-sm font-medium text-gray-700">
+          Preview: How students will see this flow chart
+        </label>
+        <button
+          type="button"
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+        >
+          {isExpanded ? (
+            <>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+              </svg>
+              Collapse
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+              Expand
+            </>
+          )}
+        </button>
+      </div>
+      
+      {isExpanded && (
+        <div 
+          ref={containerRef}
+          className="relative inline-block w-full border border-gray-200 rounded-lg overflow-hidden bg-gray-50"
+          style={{ marginTop: 10 }}
+        >
+          <img 
+            ref={imageRef}
+            src={imageUrl} 
+            alt="Flow chart preview" 
+            style={{ maxWidth: '100%', height: 'auto', display: 'block' }}
+            onLoad={handleImageLoad}
+          />
+          {imageLoaded && safeQuestions.map((q: any) => {
+            if (!q || !q.field) return null
+            
+            const field = q.field
+            if (!field || typeof field.x !== 'number' || typeof field.y !== 'number') return null
+            
+            return (
+              <div
+                key={q.id || q.questionNumber}
+                style={{
+                  position: 'absolute',
+                  left: `${field.x * scale.x}px`,
+                  top: `${field.y * scale.y}px`,
+                  width: `${(field.width || 140) * scale.x}px`,
+                  height: `${(field.height || 32) * scale.y}px`,
+                  border: '2px dashed #3b82f6',
+                  borderRadius: '4px',
+                  backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 10,
+                  pointerEvents: 'none'
+                }}
+                title={`Question ${q.questionNumber} - Position: (${Math.round(field.x)}, ${Math.round(field.y)})`}
+              >
+                <span className="text-xs font-medium text-blue-600">
+                  Q{q.questionNumber}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
 
 interface ReadingTest {
   id: string
@@ -34,6 +165,22 @@ interface MatchingQuestion {
   correctAnswer: string
 }
 
+interface FlowChartQuestion {
+  id: string
+  questionNumber: number
+  imageUrl: string
+  field: ChartField // Single field per question
+  groupId?: string // Group ID to link questions from the same flow chart
+}
+
+interface TableCompletionQuestion {
+  id: string
+  questionNumber: number
+  answers: Record<number, string> // Answers for each blank (1-9)
+  groupId?: string // Group ID to link questions from the same table
+  tableStructure?: TableStructure // Dynamic table structure
+}
+
 interface PartData {
   index: number
   title: string
@@ -46,6 +193,8 @@ interface PartData {
   fillRows?: FillInBlankRow[]
   singleChoice?: SingleChoiceQuestion[]
   matchingItems?: MatchingQuestion[]
+  flowChartQuestions?: FlowChartQuestion[]
+  tableCompletionQuestions?: TableCompletionQuestion[]
 }
 
 interface ListeningTestFormProps {
@@ -92,7 +241,9 @@ export default function ListeningTestForm({
       prompt: ['Complete the notes below.', 'Write ONE WORD AND/OR A NUMBER for each answer.'],
       sectionTitle: '',
       courseRequired: '',
-      fillRows: []
+      fillRows: [],
+      flowChartQuestions: [],
+      tableCompletionQuestions: []
     },
     {
       index: 2,
@@ -101,7 +252,9 @@ export default function ListeningTestForm({
       matchingHeading: '',
       matchingOptions: [],
       singleChoice: [],
-      matchingItems: []
+      matchingItems: [],
+      flowChartQuestions: [],
+      tableCompletionQuestions: []
     },
     {
       index: 3,
@@ -110,14 +263,18 @@ export default function ListeningTestForm({
       matchingHeading: '',
       matchingOptions: [],
       singleChoice: [],
-      matchingItems: []
+      matchingItems: [],
+      flowChartQuestions: [],
+      tableCompletionQuestions: []
     },
     {
       index: 4,
       title: 'Part 4: Questions 31–40',
       prompt: ['Complete the notes below.', 'Write ONE WORD ONLY for each answer.'],
       sectionTitle: '',
-      notesSections: []
+      notesSections: [],
+      flowChartQuestions: [],
+      tableCompletionQuestions: []
     }
   ])
 
@@ -146,7 +303,8 @@ export default function ListeningTestForm({
             notesSections: part.notesSections || null,
             fillRows: [],
             singleChoice: [],
-            matchingItems: []
+            matchingItems: [],
+            flowChartQuestions: []
           }
 
           // Transform questions based on type
@@ -178,6 +336,26 @@ export default function ListeningTestForm({
                   matchingLabel: q.matchingLabel || '',
                   correctAnswer: String(correctAnswer)
                 })
+              } else if (q.type === 'FLOW_CHART') {
+                // Each FLOW_CHART question represents one field
+                // Group them by groupId if available, otherwise by imageUrl
+                partData.flowChartQuestions!.push({
+                  id: q.id || `flow-${q.number}`,
+                  questionNumber: q.number,
+                  imageUrl: q.imageUrl || '',
+                  field: q.field || { id: '', x: 0, y: 0, width: 140, height: 32, value: '' },
+                  groupId: q.groupId || q.id // Use groupId or fallback to id
+                })
+              } else if (q.type === 'TABLE_COMPLETION') {
+                // TABLE_COMPLETION questions are grouped by groupId
+                // Each question has answers object and tableStructure
+                partData.tableCompletionQuestions!.push({
+                  id: q.id || `table-${q.number}`,
+                  questionNumber: q.number,
+                  answers: q.answers || {},
+                  groupId: q.groupId || q.id,
+                  tableStructure: q.tableStructure || undefined
+                })
               }
             })
           }
@@ -194,7 +372,9 @@ export default function ListeningTestForm({
             prompt: [],
             fillRows: [],
             singleChoice: [],
-            matchingItems: []
+            matchingItems: [],
+            flowChartQuestions: [],
+            tableCompletionQuestions: []
           })
         }
 
@@ -359,6 +539,137 @@ export default function ListeningTestForm({
     })
   }
 
+  // Flow Chart Completion helpers
+  // Flow chart groups contain an image and multiple questions (one per field)
+  interface FlowChartGroup {
+    id: string
+    imageUrl: string
+    fields: ChartField[]
+    startQuestionNumber: number // Starting question number for this group
+  }
+
+  const addFlowChartGroup = (partIndex: number) => {
+    const part = parts[partIndex]
+    // Calculate starting question number based on part
+    const startNumber = partIndex === 0 ? 1 : partIndex === 1 ? 11 : partIndex === 2 ? 21 : 31
+    const existingQuestions = [
+      ...(part.fillRows || []),
+      ...(part.singleChoice || []),
+      ...(part.matchingItems || []),
+      ...(part.flowChartQuestions || [])
+    ]
+    const maxQuestionNumber = existingQuestions.length > 0
+      ? Math.max(...existingQuestions.map(q => q.questionNumber))
+      : startNumber - 1
+    const nextQuestionNumber = maxQuestionNumber + 1
+
+    const newGroup: FlowChartGroup = {
+      id: `flow-group-${Date.now()}`,
+      imageUrl: '',
+      fields: [],
+      startQuestionNumber: nextQuestionNumber
+    }
+    
+    // Store groups temporarily in a separate state or use a different approach
+    // For now, we'll create a single "template" question that will be expanded when fields are saved
+    const templateQuestion: FlowChartQuestion = {
+      id: newGroup.id,
+      questionNumber: nextQuestionNumber,
+      imageUrl: '',
+      field: { id: '', x: 0, y: 0, width: 140, height: 32, value: '' },
+      groupId: newGroup.id
+    }
+    
+    updatePart(partIndex, {
+      flowChartQuestions: [...(part.flowChartQuestions || []), templateQuestion]
+    })
+  }
+
+  // Convert fields to individual questions
+  const saveFlowChartFields = (partIndex: number, groupId: string, imageUrl: string, fields: ChartField[]) => {
+    const part = parts[partIndex]
+    
+    // Remove existing questions from this group
+    const otherQuestions = part.flowChartQuestions?.filter(q => q.groupId !== groupId) || []
+    
+    // Find the starting question number for this group
+    const groupQuestion = part.flowChartQuestions?.find(q => q.groupId === groupId)
+    const startQuestionNumber = groupQuestion?.questionNumber || 
+      (partIndex === 0 ? 1 : partIndex === 1 ? 11 : partIndex === 2 ? 21 : 31)
+    
+    // Create one question per field
+    const newQuestions: FlowChartQuestion[] = fields.map((field, index) => ({
+      id: `${groupId}-field-${field.id}`,
+      questionNumber: startQuestionNumber + index,
+      imageUrl: imageUrl,
+      field: field,
+      groupId: groupId
+    }))
+    
+    // Recalculate question numbers for other questions if needed
+    const allOtherQuestions = [
+      ...otherQuestions,
+      ...(part.fillRows || []).map(r => ({ questionNumber: r.questionNumber })),
+      ...(part.singleChoice || []).map(q => ({ questionNumber: q.questionNumber })),
+      ...(part.matchingItems || []).map(m => ({ questionNumber: m.questionNumber }))
+    ]
+    
+    // Update question numbers to avoid conflicts
+    const maxOtherNumber = allOtherQuestions.length > 0
+      ? Math.max(...allOtherQuestions.map(q => q.questionNumber))
+      : startQuestionNumber - 1
+    
+    const adjustedQuestions = newQuestions.map((q, index) => ({
+      ...q,
+      questionNumber: Math.max(startQuestionNumber, maxOtherNumber + 1) + index
+    }))
+    
+    updatePart(partIndex, {
+      flowChartQuestions: [...otherQuestions, ...adjustedQuestions]
+    })
+  }
+
+  const updateFlowChartQuestion = (partIndex: number, questionId: string, updates: Partial<FlowChartQuestion>) => {
+    const part = parts[partIndex]
+    updatePart(partIndex, {
+      flowChartQuestions: part.flowChartQuestions?.map(q => q.id === questionId ? { ...q, ...updates } : q)
+    })
+  }
+
+  const removeFlowChartQuestion = (partIndex: number, questionId: string) => {
+    const part = parts[partIndex]
+    const question = part.flowChartQuestions?.find(q => q.id === questionId)
+    
+    if (question?.groupId) {
+      // Remove all questions in the same group
+      updatePart(partIndex, {
+        flowChartQuestions: part.flowChartQuestions?.filter(q => q.groupId !== question.groupId)
+      })
+    } else {
+      // Remove single question
+      updatePart(partIndex, {
+        flowChartQuestions: part.flowChartQuestions?.filter(q => q.id !== questionId)
+      })
+    }
+  }
+  
+  // Get all questions for a flow chart group
+  const getFlowChartGroupQuestions = (partIndex: number, groupId: string): FlowChartQuestion[] => {
+    const part = parts[partIndex]
+    return part.flowChartQuestions?.filter(q => q.groupId === groupId) || []
+  }
+  
+  // Get flow chart group data (image and all fields)
+  const getFlowChartGroupData = (partIndex: number, groupId: string): { imageUrl: string; fields: ChartField[] } | null => {
+    const questions = getFlowChartGroupQuestions(partIndex, groupId)
+    if (questions.length === 0) return null
+    
+    return {
+      imageUrl: questions[0].imageUrl,
+      fields: questions.map(q => q.field)
+    }
+  }
+
   const handleSubmit = async () => {
     setLoading(true)
     setMessage(null)
@@ -375,30 +686,72 @@ export default function ListeningTestForm({
         throw new Error('At least one instruction is required')
       }
 
-      // Validate parts
+      // Validate parts - only validate parts that have questions (parts are optional)
+      let hasAtLeastOnePart = false
+      
       for (let i = 0; i < parts.length; i++) {
         const part = parts[i]
+        
+        // Check if this part has any questions
+        const hasFillRows = part.fillRows && part.fillRows.length > 0
+        const hasSingleChoice = part.singleChoice && part.singleChoice.length > 0
+        const hasMatching = part.matchingItems && part.matchingItems.length > 0
+        const hasFlowChart = part.flowChartQuestions && part.flowChartQuestions.length > 0
+        const hasTableCompletion = part.tableCompletionQuestions && part.tableCompletionQuestions.length > 0
+        const hasQuestions = hasFillRows || hasSingleChoice || hasMatching || hasFlowChart || hasTableCompletion
+        
+        // Skip validation for empty parts
+        if (!hasQuestions) {
+          continue
+        }
+        
+        hasAtLeastOnePart = true
+        
+        // Validate part title only if it has questions
         if (!part.title.trim()) {
           throw new Error(`Part ${i + 1} title is required`)
         }
 
-        if (i === 0 || i === 3) {
-          // Part 1 & 4: Fill-in-the-blank
-          if (!part.fillRows || part.fillRows.length === 0) {
-            throw new Error(`Part ${i + 1} must have at least one fill-in-the-blank question`)
+        // Validate flow chart questions if they exist
+        if (part.flowChartQuestions && part.flowChartQuestions.length > 0) {
+          // Group questions by groupId
+          const groups = new Map<string, FlowChartQuestion[]>()
+          part.flowChartQuestions.forEach(q => {
+            const gid = q.groupId || q.id
+            if (!groups.has(gid)) {
+              groups.set(gid, [])
+            }
+            groups.get(gid)!.push(q)
+          })
+          
+          for (const [groupId, questions] of groups.entries()) {
+            if (questions.length === 0) continue
+            
+            const firstQuestion = questions[0]
+            if (!firstQuestion.imageUrl.trim()) {
+              throw new Error(`Part ${i + 1}, Flow Chart Group: Image is required`)
+            }
+            
+            // Validate that each question (field) has a value (correct answer)
+            for (const q of questions) {
+              if (!q.field.value || !q.field.value.trim()) {
+                throw new Error(`Part ${i + 1}, Question ${q.questionNumber}: Correct answer is required`)
+              }
+            }
           }
+        }
+
+        if (i === 0 || i === 3) {
+          // Part 1 & 4: Fill-in-the-blank (or flow chart)
+          if (part.fillRows) {
           for (const row of part.fillRows) {
             if (!row.correctAnswer || (Array.isArray(row.correctAnswer) && row.correctAnswer.length === 0)) {
               throw new Error(`Part ${i + 1}, Question ${row.questionNumber}: Correct answer is required`)
             }
           }
-        } else {
-          // Part 2 & 3: Single choice and matching
-          if ((!part.singleChoice || part.singleChoice.length === 0) && 
-              (!part.matchingItems || part.matchingItems.length === 0)) {
-            throw new Error(`Part ${i + 1} must have at least one question (single choice or matching)`)
           }
-          
+        } else {
+          // Part 2 & 3: Single choice, matching, or flow chart
           if (part.singleChoice) {
             for (const q of part.singleChoice) {
               if (!q.correctAnswer.trim()) {
@@ -423,9 +776,64 @@ export default function ListeningTestForm({
         }
       }
 
-      // Transform data for API
-      const transformedParts = parts.map((part, partIndex) => {
+      // Ensure at least one part has questions
+      if (!hasAtLeastOnePart) {
+        throw new Error('At least one part must have questions')
+      }
+
+      // Transform data for API - only include parts that have questions
+      const transformedParts = parts
+        .map((part, partIndex) => {
         const questions: any[] = []
+
+          // Add flow chart questions (one per field)
+          // Each field becomes its own question
+          part.flowChartQuestions?.forEach(fc => {
+            questions.push({
+              number: fc.questionNumber,
+              type: 'FLOW_CHART',
+              imageUrl: fc.imageUrl,
+              field: fc.field, // Single field per question
+              groupId: fc.groupId, // Group ID to link questions from same flow chart
+              correctAnswer: fc.field?.value || '' // Use field.value as the correct answer
+            })
+          })
+          
+          // Add TABLE_COMPLETION questions
+          part.tableCompletionQuestions?.forEach(tc => {
+            // Extract blank IDs from table structure to determine which blank this question represents
+            const tableStructure = tc.tableStructure
+            const blankIds: number[] = []
+            if (tableStructure) {
+              tableStructure.rows.forEach(row => {
+                (row.columns || []).forEach(column => {
+                  column.forEach(cell => {
+                    if (cell.type === 'blank' && cell.blankId !== undefined) {
+                      blankIds.push(cell.blankId)
+                    }
+                  })
+                })
+              })
+            }
+            blankIds.sort((a, b) => a - b)
+            
+            // Find which blank this question corresponds to based on question order
+            const sortedQuestions = part.tableCompletionQuestions
+              ?.filter(t => t.groupId === tc.groupId)
+              .sort((a, b) => a.questionNumber - b.questionNumber) || []
+            const questionIndex = sortedQuestions.findIndex(t => t.id === tc.id)
+            const blankId = blankIds[questionIndex]
+            const answer = blankId !== undefined ? (tc.answers?.[blankId] || '') : ''
+            
+            questions.push({
+              number: tc.questionNumber,
+              type: 'TABLE_COMPLETION',
+              answers: tc.answers, // Store all answers for the group
+              tableStructure: tc.tableStructure, // Store table structure
+              groupId: tc.groupId, // Group ID to link questions from same table
+              correctAnswer: answer // The answer for this specific blank
+            })
+          })
 
         if (partIndex === 0 || partIndex === 3) {
           // Part 1 & 4: Fill-in-the-blank (TEXT type)
@@ -461,6 +869,12 @@ export default function ListeningTestForm({
           })
         }
 
+          // Sort questions by number
+          questions.sort((a, b) => a.number - b.number)
+
+          // Check if part has any questions
+          const hasQuestions = questions.length > 0
+
         return {
           index: part.index,
           title: part.title,
@@ -470,9 +884,12 @@ export default function ListeningTestForm({
           matchingHeading: part.matchingHeading || null,
           matchingOptions: part.matchingOptions || null,
           notesSections: part.notesSections || null,
-          questions
+            questions,
+            hasQuestions
         }
       })
+        .filter(part => part.hasQuestions) // Only include parts with questions
+        .map(({ hasQuestions, ...part }) => part) // Remove hasQuestions flag
 
       const payload = {
         title,
@@ -496,8 +913,24 @@ export default function ListeningTestForm({
       })
 
       if (!response.ok) {
+        const contentType = response.headers.get('content-type')
+        let errorMessage = `Failed to ${mode === 'edit' ? 'update' : 'create'} listening test`
+        
+        if (contentType && contentType.includes('application/json')) {
+          try {
         const errorData = await response.json()
-        throw new Error(errorData.error || `Failed to ${mode === 'edit' ? 'update' : 'create'} listening test`)
+            errorMessage = errorData.error || errorMessage
+          } catch (e) {
+            console.error('Error parsing JSON error response:', e)
+          }
+        } else {
+          // Response is not JSON (likely HTML error page)
+          const text = await response.text()
+          console.error('Non-JSON error response:', text.substring(0, 200))
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`
+        }
+        
+        throw new Error(errorMessage)
       }
 
       const result = await response.json()
@@ -662,9 +1095,25 @@ export default function ListeningTestForm({
       </div>
 
       {/* Parts */}
-      {parts.map((part, partIndex) => (
+      {parts.map((part, partIndex) => {
+        // Check if part has any questions
+        const hasFillRows = part.fillRows && part.fillRows.length > 0
+        const hasSingleChoice = part.singleChoice && part.singleChoice.length > 0
+        const hasMatching = part.matchingItems && part.matchingItems.length > 0
+        const hasFlowChart = part.flowChartQuestions && part.flowChartQuestions.length > 0
+        const hasTableCompletion = part.tableCompletionQuestions && part.tableCompletionQuestions.length > 0
+        const hasQuestions = hasFillRows || hasSingleChoice || hasMatching || hasFlowChart || hasTableCompletion
+        
+        return (
         <div key={partIndex} className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">{part.title}</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-medium text-gray-900">{part.title}</h3>
+            {!hasQuestions && (
+              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                Optional - No questions yet
+              </span>
+            )}
+          </div>
           
           <div className="space-y-4">
             <div>
@@ -1044,9 +1493,521 @@ export default function ListeningTestForm({
                 </div>
               </>
             )}
+
+            {/* Flow Chart Completion Questions (Available for all parts) */}
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Flow Chart Completion Questions
+                  </label>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Each blank field becomes a separate question. Create a flow chart with multiple blanks.
+                  </p>
           </div>
+                <button
+                  type="button"
+                  onClick={() => addFlowChartGroup(partIndex)}
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                >
+                  + Add Flow Chart
+                </button>
+              </div>
+              
+              <div className="space-y-6">
+                {/* Group questions by groupId and show one editor per group */}
+                {(() => {
+                  // Group questions by groupId
+                  const groups = new Map<string, FlowChartQuestion[]>()
+                  part.flowChartQuestions?.forEach(q => {
+                    const gid = q.groupId || q.id
+                    if (!groups.has(gid)) {
+                      groups.set(gid, [])
+                    }
+                    groups.get(gid)!.push(q)
+                  })
+                  
+                  return Array.from(groups.entries()).map(([groupId, questions]) => {
+                    const firstQuestion = questions[0]
+                    const groupData = getFlowChartGroupData(partIndex, groupId)
+                    const imageUrl = groupData?.imageUrl || firstQuestion.imageUrl || ''
+                    const fields = groupData?.fields || questions.map(q => q.field)
+                    const startQuestionNumber = Math.min(...questions.map(q => q.questionNumber))
+                    
+                    return (
+                      <div key={groupId} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                        <div className="mb-4 flex items-center justify-between">
+                          <div className="flex items-center space-x-4">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                                Starting Question Number
+                              </label>
+                              <input
+                                type="number"
+                                value={startQuestionNumber}
+                                onChange={(e) => {
+                                  const newStart = parseInt(e.target.value) || 0
+                                  const diff = newStart - startQuestionNumber
+                                  questions.forEach(q => {
+                                    updateFlowChartQuestion(partIndex, q.id, { 
+                                      questionNumber: q.questionNumber + diff 
+                                    })
+                                  })
+                                }}
+                                className="block w-24 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                              />
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {questions.length > 0 ? (
+                                <>
+                                  {questions.length} question{questions.length !== 1 ? 's' : ''} (Questions {startQuestionNumber}–{startQuestionNumber + questions.length - 1})
+                                </>
+                              ) : (
+                                'No questions created yet. Create fields and click "Save Fields" to generate questions.'
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeFlowChartQuestion(partIndex, firstQuestion.id)}
+                              className="text-sm text-red-600 hover:text-red-800"
+                            >
+                              Remove Flow Chart
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="mb-4">
+                          <label className="block text-xs font-medium text-gray-700 mb-2">
+                            Image URL <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={imageUrl}
+                            onChange={(e) => {
+                              const newUrl = e.target.value
+                              // Update imageUrl for all questions in the group
+                              questions.forEach(q => {
+                                updateFlowChartQuestion(partIndex, q.id, { imageUrl: newUrl })
+                              })
+                            }}
+                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                            placeholder="Enter image URL or upload image"
+                          />
+                          <p className="mt-1 text-xs text-gray-500">
+                            You can paste an image URL here, or upload an image using the editor below
+                          </p>
+                        </div>
+
+                        <div>
+                          <ImageChartEditor
+                            defaultFieldWidth={140}
+                            initialImageUrl={imageUrl}
+                            initialFields={fields}
+                            onImageChange={(newImageUrl) => {
+                              // Update imageUrl for all questions in the group
+                              questions.forEach(q => {
+                                updateFlowChartQuestion(partIndex, q.id, { imageUrl: newImageUrl })
+                              })
+                            }}
+                            onSave={(newFields) => {
+                              // Save fields - each field becomes a question
+                              // Use the current imageUrl from the input or from the first question
+                              const currentImageUrl = imageUrl || firstQuestion.imageUrl || ''
+                              saveFlowChartFields(partIndex, groupId, currentImageUrl, newFields)
+                            }}
+                          />
+                          <div className="mt-2 text-xs text-gray-500">
+                            <strong>Note:</strong> Upload an image, click on it to create input fields. 
+                            Each field you create will become a separate question. Click "Save Fields" to create the questions.
+                          </div>
+                        </div>
+
+                        {/* Preview View Toggle */}
+                        {questions.length > 0 && imageUrl && (
+                          <div className="mt-4 pt-4 border-t border-gray-300">
+                            <FlowChartPreview
+                              imageUrl={imageUrl}
+                              questions={questions}
+                            />
+                          </div>
+                        )}
+
+                        {/* Show individual questions if they exist */}
+                        {questions.length > 0 && (
+                          <div className="mt-4 pt-4 border-t border-gray-300">
+                            <label className="block text-xs font-medium text-gray-700 mb-2">
+                              Individual Questions ({questions.length})
+                            </label>
+                            <div className="space-y-2">
+                              {questions.map((q) => (
+                                <div key={q.id} className="flex items-center justify-between bg-white p-2 rounded border border-gray-200">
+                                  <div className="flex items-center space-x-3">
+                                    <span className="text-sm font-medium text-gray-700">
+                                      Question {q.questionNumber}
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                      Answer: {q.field.value || '(empty)'}
+                                    </span>
+                                    <span className="text-xs text-gray-400">
+                                      Position: ({Math.round(q.field.x)}, {Math.round(q.field.y)})
+                                    </span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      // Remove just this question
+                                      const remaining = questions.filter(q2 => q2.id !== q.id)
+                                      if (remaining.length === 0) {
+                                        // If last question, remove the whole group
+                                        removeFlowChartQuestion(partIndex, q.id)
+                                      } else {
+                                        // Remove just this question
+                                        updatePart(partIndex, {
+                                          flowChartQuestions: part.flowChartQuestions?.filter(q2 => q2.id !== q.id)
+                                        })
+                                      }
+                                    }}
+                                    className="text-xs text-red-600 hover:text-red-800"
+                                  >
+                                    Remove
+                                  </button>
         </div>
       ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })
+                })()}
+              </div>
+            </div>
+
+            {/* Table Completion Questions */}
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Table Completion Questions
+                  </label>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Create a table with blank fields. Each blank becomes a separate question.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const part = parts[partIndex]
+                    const existingQuestions = [
+                      ...(part.fillRows || []),
+                      ...(part.singleChoice || []),
+                      ...(part.matchingItems || []),
+                      ...(part.flowChartQuestions || []),
+                      ...(part.tableCompletionQuestions || [])
+                    ]
+                    const startNumber = partIndex === 0 ? 1 : partIndex === 1 ? 11 : partIndex === 2 ? 21 : 31
+                    const maxQuestionNumber = existingQuestions.length > 0
+                      ? Math.max(...existingQuestions.map(q => q.questionNumber))
+                      : startNumber - 1
+                    const nextQuestionNumber = maxQuestionNumber + 1
+                    const groupId = `table-${Date.now()}`
+                    
+                    // Default table structure
+                    const defaultStructure: TableStructure = {
+                      title: 'TABLE TITLE',
+                      columns: [
+                        { label: 'Category', width: '30%' },
+                        { label: 'Details', width: '70%' }
+                      ],
+                      rows: [
+                        {
+                          id: `row-${Date.now()}-1`,
+                          columns: [
+                            [{ id: `cell-${Date.now()}-1`, type: 'text', content: 'Category 1' }],
+                            [
+                              { id: `cell-${Date.now()}-2`, type: 'text', content: '• Item with ' },
+                              { id: `cell-${Date.now()}-3`, type: 'blank', content: '', blankId: 1, width: 120 },
+                              { id: `cell-${Date.now()}-4`, type: 'text', content: ' and more text.' }
+                            ]
+                          ]
+                        }
+                      ]
+                    }
+                    
+                    // Count blanks in structure to create questions
+                    let blankCount = 0
+                    defaultStructure.rows.forEach(row => {
+                      (row.columns || []).forEach(column => {
+                        column.forEach(cell => {
+                          if (cell.type === 'blank' && cell.blankId !== undefined) {
+                            blankCount++
+                          }
+                        })
+                      })
+                    })
+                    
+                    // Create questions (one for each blank)
+                    const newQuestions: TableCompletionQuestion[] = Array.from({ length: blankCount }, (_, i) => ({
+                      id: `${groupId}-q${i + 1}`,
+                      questionNumber: nextQuestionNumber + i,
+                      answers: {},
+                      groupId: groupId,
+                      tableStructure: defaultStructure
+                    }))
+                    
+                    updatePart(partIndex, {
+                      tableCompletionQuestions: [...(part.tableCompletionQuestions || []), ...newQuestions]
+                    })
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                >
+                  + Add Table Completion
+                </button>
+              </div>
+              
+              <div className="space-y-6">
+                {(() => {
+                  // Group questions by groupId
+                  const groups = new Map<string, TableCompletionQuestion[]>()
+                  part.tableCompletionQuestions?.forEach(q => {
+                    const gid = q.groupId || q.id
+                    if (!groups.has(gid)) {
+                      groups.set(gid, [])
+                    }
+                    groups.get(gid)!.push(q)
+                  })
+                  
+                  return Array.from(groups.entries()).map(([groupId, questions]) => {
+                    if (questions.length === 0) return null
+                    const firstQuestion = questions[0]
+                    if (!firstQuestion) return null
+                    const startQuestionNumber = Math.min(...questions.map(q => q.questionNumber))
+                    
+                    // Get table structure from first question
+                    const tableStructure: TableStructure = firstQuestion.tableStructure || {
+                      title: 'TABLE TITLE',
+                      columns: [{ label: '', width: '30%' }, { label: '' }],
+                      rows: []
+                    }
+                    
+                    // Collect all answers from all questions in the group
+                    const allAnswers: Record<number, string> = {}
+                    questions.forEach(q => {
+                      if (q.answers) {
+                        Object.keys(q.answers).forEach(key => {
+                          allAnswers[Number(key)] = q.answers[Number(key)]
+                        })
+                      }
+                    })
+                    
+                    // Map blank IDs to question numbers
+                    const blankIds: number[] = []
+                    tableStructure.rows.forEach(row => {
+                      (row.columns || []).forEach(column => {
+                        column.forEach(cell => {
+                          if (cell.type === 'blank' && cell.blankId !== undefined) {
+                            blankIds.push(cell.blankId)
+                          }
+                        })
+                      })
+                    })
+                    blankIds.sort((a, b) => a - b)
+                    
+                    const questionNumberMap: Record<number, number> = {}
+                    questions.sort((a, b) => a.questionNumber - b.questionNumber).forEach((q, index) => {
+                      const blankId = blankIds[index]
+                      if (blankId !== undefined) {
+                        questionNumberMap[blankId] = q.questionNumber
+                      }
+                    })
+                    
+                    return (
+                      <div key={groupId} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                        <div className="mb-4 flex items-center justify-between">
+                          <div className="flex items-center space-x-4">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                                Starting Question Number
+                              </label>
+                              <input
+                                type="number"
+                                value={startQuestionNumber}
+                                onChange={(e) => {
+                                  const newStart = parseInt(e.target.value) || 0
+                                  const diff = newStart - startQuestionNumber
+                                  questions.forEach(q => {
+                                    updatePart(partIndex, {
+                                      tableCompletionQuestions: part.tableCompletionQuestions?.map(tq => 
+                                        tq.id === q.id ? { ...tq, questionNumber: tq.questionNumber + diff } : tq
+                                      )
+                                    })
+                                  })
+                                }}
+                                className="block w-24 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                              />
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {questions.length} question{questions.length !== 1 ? 's' : ''} (Questions {startQuestionNumber}–{startQuestionNumber + questions.length - 1})
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                updatePart(partIndex, {
+                                  tableCompletionQuestions: part.tableCompletionQuestions?.filter(tq => tq.groupId !== groupId)
+                                })
+                              }}
+                              className="text-sm text-red-600 hover:text-red-800"
+                            >
+                              Remove Table
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Table Structure Editor */}
+                        <div className="mb-4">
+                          <label className="block text-xs font-medium text-gray-700 mb-2">
+                            Table Structure Editor
+                          </label>
+                          <TableStructureEditor
+                            structure={tableStructure}
+                            onStructureChange={(newStructure) => {
+                              // Update structure for all questions in the group
+                              updatePart(partIndex, {
+                                tableCompletionQuestions: part.tableCompletionQuestions?.map(tq => 
+                                  tq.groupId === groupId
+                                    ? { ...tq, tableStructure: newStructure }
+                                    : tq
+                                )
+                              })
+                              
+                              // Recalculate questions based on blanks in new structure
+                              const blankIds: number[] = []
+                              newStructure.rows.forEach(row => {
+                                (row.columns || []).forEach(column => {
+                                  column.forEach(cell => {
+                                    if (cell.type === 'blank' && cell.blankId !== undefined) {
+                                      blankIds.push(cell.blankId)
+                                    }
+                                  })
+                                })
+                              })
+                              blankIds.sort((a, b) => a - b)
+                              
+                              // Add or remove questions to match blank count
+                              const currentCount = questions.length
+                              const newCount = blankIds.length
+                              
+                              if (newCount > currentCount) {
+                                // Add more questions
+                                const newQuestions: TableCompletionQuestion[] = Array.from({ length: newCount - currentCount }, (_, i) => ({
+                                  id: `${groupId}-q${currentCount + i + 1}`,
+                                  questionNumber: startQuestionNumber + currentCount + i,
+                                  answers: {},
+                                  groupId: groupId,
+                                  tableStructure: newStructure
+                                }))
+                                updatePart(partIndex, {
+                                  tableCompletionQuestions: [...(part.tableCompletionQuestions || []), ...newQuestions]
+                                })
+                              } else if (newCount < currentCount) {
+                                // Remove extra questions
+                                updatePart(partIndex, {
+                                  tableCompletionQuestions: part.tableCompletionQuestions?.filter(tq => {
+                                    if (tq.groupId !== groupId) return true
+                                    const questionIndex = questions.findIndex(q => q.id === tq.id)
+                                    return questionIndex < newCount
+                                  })
+                                })
+                              }
+                            }}
+                            questionNumbers={questionNumberMap}
+                          />
+                        </div>
+
+                        {/* Table Preview & Answer Entry */}
+                        <div className="mb-4">
+                          <label className="block text-xs font-medium text-gray-700 mb-2">
+                            Table Preview & Answer Entry
+                          </label>
+                          <DynamicTableEditor
+                            structure={tableStructure}
+                            onStructureChange={() => {}} // Read-only in preview
+                            initialAnswers={allAnswers}
+                            onAnswersChange={(newAnswers) => {
+                              // Update all questions in the group with the new answers
+                              questions.forEach((q, index) => {
+                                const blankId = blankIds[index]
+                                if (blankId !== undefined) {
+                                  const answerValue = newAnswers[blankId] || ''
+                                  updatePart(partIndex, {
+                                    tableCompletionQuestions: part.tableCompletionQuestions?.map(tq => 
+                                      tq.id === q.id 
+                                        ? { ...tq, answers: { ...tq.answers, [blankId]: answerValue } }
+                                        : tq
+                                    )
+                                  })
+                                }
+                              })
+                            }}
+                            readOnly={false}
+                            questionNumbers={questionNumberMap}
+                          />
+                        </div>
+
+                        {/* Show individual questions */}
+                        {questions.length > 0 && (
+                          <div className="mt-4 pt-4 border-t border-gray-300">
+                            <label className="block text-xs font-medium text-gray-700 mb-2">
+                              Individual Questions ({questions.length})
+                            </label>
+                            <div className="space-y-2">
+                              {questions.map((q, index) => {
+                                const answerKey = index + 1
+                                const answerValue = q.answers?.[answerKey] || ''
+                                return (
+                                  <div key={q.id} className="flex items-center justify-between bg-white p-2 rounded border border-gray-200">
+                                    <div className="flex items-center space-x-3">
+                                      <span className="text-sm font-medium text-gray-700">
+                                        Question {q.questionNumber} (Blank {answerKey})
+                                      </span>
+                                      <span className="text-xs text-gray-500">
+                                        Answer: {answerValue || '(empty)'}
+                                      </span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const remaining = questions.filter(q2 => q2.id !== q.id)
+                                        if (remaining.length === 0) {
+                                          updatePart(partIndex, {
+                                            tableCompletionQuestions: part.tableCompletionQuestions?.filter(tq => tq.groupId !== groupId)
+                                          })
+                                        } else {
+                                          updatePart(partIndex, {
+                                            tableCompletionQuestions: part.tableCompletionQuestions?.filter(tq => tq.id !== q.id)
+                                          })
+                                        }
+                                      }}
+                                      className="text-xs text-red-600 hover:text-red-800"
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })
+                })()}
+              </div>
+            </div>
+          </div>
+        </div>
+        )
+      })}
 
       {/* Submit Button */}
       <div className="flex justify-end">

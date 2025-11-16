@@ -707,7 +707,7 @@ Radiance Education
                         ` : ''}
                         ${data.overallBand !== null && data.overallBand !== undefined ? `
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: linear-gradient(135deg, #12355b 0%, #1f6feb 100%); border-radius: 6px; margin-top: 8px;">
-                            <span style="font-weight: 600; color: white; font-size: 16px;">Overall Band (R+L+W):</span>
+                            <span style="font-weight: 600; color: white; font-size: 16px;">Overall Band (R+L+W+S):</span>
                             <span style="font-size: 24px; font-weight: 700; color: white;">${data.overallBand.toFixed(1)}</span>
                         </div>
                         ` : ''}
@@ -749,7 +749,7 @@ Radiance Education
       results.push(`Speaking Band: ${data.speakingBand.toFixed(1)}`)
     }
     if (data.overallBand !== null && data.overallBand !== undefined) {
-      results.push(`Overall Band (R+L+W): ${data.overallBand.toFixed(1)}`)
+      results.push(`Overall Band (R+L+W+S): ${data.overallBand.toFixed(1)}`)
     }
     
     const resultsSection = results.length > 0 ? `\n\nYour Test Results:\n${results.join('\n')}\n` : ''
@@ -880,7 +880,7 @@ Radiance Education
                 </div>
                 
                 <div style="text-align: center;">
-                    <a href="${data.portalLink}" class="portal-link">Access Your Portal</a>
+                    <a href="${data.portalLink}" class="portal-link" style="color: #ffffff !important;">Access Your Portal</a>
                 </div>
                 
                 <div class="warning">

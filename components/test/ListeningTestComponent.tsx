@@ -1,8 +1,139 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import DynamicTableEditor, { TableStructure } from '@/components/admin/DynamicTableEditor'
 
 type ResultRow = { question: number; userAnswer: string; correctAnswer: string; isCorrect: boolean }
+
+// Component to render flow chart with properly scaled input fields
+// Matches the preview exactly but with editable input fields for students
+function FlowChartImage({ imageUrl, questions }: { imageUrl: string; questions: any[] }) {
+  const imageRef = useRef<HTMLImageElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = useState({ x: 1, y: 1 })
+  const [imageLoaded, setImageLoaded] = useState(false)
+
+  // Ensure questions is always an array
+  const safeQuestions = Array.isArray(questions) ? questions : []
+
+  const updateScale = useCallback(() => {
+    if (imageRef.current) {
+      const img = imageRef.current
+      const naturalWidth = img.naturalWidth
+      const naturalHeight = img.naturalHeight
+      const displayedWidth = img.clientWidth
+      const displayedHeight = img.clientHeight
+
+      if (naturalWidth > 0 && naturalHeight > 0 && displayedWidth > 0 && displayedHeight > 0) {
+        const scaleX = displayedWidth / naturalWidth
+        const scaleY = displayedHeight / naturalHeight
+        setScale({ x: scaleX, y: scaleY })
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (imageLoaded) {
+      // Small delay to ensure browser has calculated dimensions
+      const timeoutId = setTimeout(() => {
+        updateScale()
+      }, 100)
+      
+      window.addEventListener('resize', updateScale)
+      return () => {
+        clearTimeout(timeoutId)
+        window.removeEventListener('resize', updateScale)
+      }
+    }
+  }, [imageLoaded, updateScale])
+
+  const handleImageLoad = () => {
+    setImageLoaded(true)
+    // Also update scale immediately after load
+    setTimeout(() => {
+      updateScale()
+    }, 50)
+  }
+
+  return (
+    <div 
+      ref={containerRef}
+      style={{ 
+        position: 'relative', 
+        display: 'inline-block', 
+        width: '100%', 
+        marginTop: 20,
+        border: '1px solid #e5e7eb',
+        borderRadius: '8px',
+        overflow: 'hidden',
+        backgroundColor: '#f9fafb'
+      }}
+    >
+      <img 
+        ref={imageRef}
+        src={imageUrl} 
+        alt="Flow chart" 
+        style={{ 
+          maxWidth: '100%', 
+          height: 'auto', 
+          display: 'block',
+          width: '100%'
+        }}
+        onLoad={handleImageLoad}
+      />
+      {imageLoaded && safeQuestions.map((q: any) => {
+        if (!q || !q.field) return null
+        
+        const field = q.field
+        if (!field || typeof field.x !== 'number' || typeof field.y !== 'number') return null
+        
+        // Calculate scaled dimensions exactly as in preview
+        const scaledX = field.x * scale.x
+        const scaledY = field.y * scale.y
+        const scaledWidth = (field.width || 140) * scale.x
+        const scaledHeight = (field.height || 32) * scale.y
+        
+        return (
+          <input
+            key={q.questionNumber || q.id || Math.random()}
+            type="text"
+            id={`q${q.questionNumber}`}
+            className="answer-input"
+            placeholder={`${q.questionNumber || ''}`}
+            spellCheck={false}
+            autoComplete="off"
+            style={{
+              position: 'absolute',
+              left: `${scaledX}px`,
+              top: `${scaledY}px`,
+              width: `${scaledWidth}px`,
+              height: `${scaledHeight}px`,
+              border: '2px solid #333',
+              borderRadius: '4px',
+              padding: '4px 8px',
+              fontSize: '14px',
+              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+              zIndex: 10,
+              boxSizing: 'border-box',
+              textAlign: 'center',
+              fontFamily: 'inherit',
+              outline: 'none',
+              transition: 'border-color 0.2s ease'
+            }}
+            onFocus={(e) => {
+              e.target.style.borderColor = '#3b82f6'
+              e.target.style.boxShadow = '0 0 0 2px rgba(59, 130, 246, 0.2)'
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = '#333'
+              e.target.style.boxShadow = 'none'
+            }}
+          />
+        )
+      })}
+    </div>
+  )
+}
 
 export type ListeningTestData = {
   audioSource: string
@@ -12,8 +143,109 @@ export type ListeningTestData = {
 }
 
 export default function ListeningTestComponent({ data, onSubmit }: { data: ListeningTestData, onSubmit?: (payload: { score: number; rows: ResultRow[] }) => void }) {
-  const [currentPart, setCurrentPart] = useState<number>(1)
-  const [currentQuestion, setCurrentQuestion] = useState<number>(1)
+  // Calculate which parts have questions and get question numbers for each part
+  const partsWithQuestions = useMemo(() => {
+    return data.parts
+      .map((part: any, index: number) => {
+        const hasFillRows = part.fillRows && part.fillRows.length > 0
+        const hasSingleChoice = part.singleChoice && part.singleChoice.length > 0
+        const hasMatching = part.matching && part.matching.items && part.matching.items.length > 0
+        const hasFlowChart = part.flowChartQuestions && part.flowChartQuestions.length > 0
+        const hasTableCompletion = part.tableCompletionQuestions && part.tableCompletionQuestions.length > 0
+        const hasNotes = part.notes && Array.isArray(part.notes) && part.notes.length > 0
+        
+        // Check if notes have questions
+        let hasNotesQuestions = false
+        if (hasNotes) {
+          hasNotesQuestions = part.notes.some((section: any) => {
+            if (section.subsections) {
+              return section.subsections.some((sub: any) => 
+                sub.items && sub.items.some((it: any) => it.q)
+              )
+            }
+            return section.items && section.items.some((it: any) => it.q || (it.children && it.children.some((ch: any) => ch.q)))
+          })
+        }
+        
+        const hasQuestions = hasFillRows || hasSingleChoice || hasMatching || hasFlowChart || hasTableCompletion || hasNotesQuestions
+        
+        if (!hasQuestions) return null
+        
+        // Collect all question numbers from this part
+        const questionNumbers: number[] = []
+        
+        if (hasFillRows) {
+          part.fillRows.forEach((row: any) => {
+            if (row.q) questionNumbers.push(Number(row.q))
+          })
+        }
+        
+        if (hasSingleChoice) {
+          part.singleChoice.forEach((sc: any) => {
+            if (sc.number) questionNumbers.push(Number(sc.number))
+          })
+        }
+        
+        if (hasMatching) {
+          part.matching.items.forEach((it: any) => {
+            if (it.q) questionNumbers.push(Number(it.q))
+          })
+        }
+        
+        if (hasFlowChart) {
+          part.flowChartQuestions.forEach((q: any) => {
+            if (q.questionNumber) questionNumbers.push(Number(q.questionNumber))
+          })
+        }
+        
+        if (hasTableCompletion) {
+          part.tableCompletionQuestions.forEach((q: any) => {
+            if (q.questionNumber) questionNumbers.push(Number(q.questionNumber))
+          })
+        }
+        
+        if (hasNotesQuestions) {
+          part.notes.forEach((section: any) => {
+            const extractQuestions = (items: any[]) => {
+              items.forEach((it: any) => {
+                if (it.q) questionNumbers.push(Number(it.q))
+                if (it.children) extractQuestions(it.children)
+              })
+            }
+            
+            if (section.subsections) {
+              section.subsections.forEach((sub: any) => {
+                if (sub.items) extractQuestions(sub.items)
+              })
+            } else if (section.items) {
+              extractQuestions(section.items)
+            }
+          })
+        }
+        
+        // Sort question numbers
+        questionNumbers.sort((a, b) => a - b)
+        
+        return {
+          partIndex: index + 1,
+          partNumber: part.id || index + 1,
+          questionNumbers,
+          minQuestion: questionNumbers.length > 0 ? Math.min(...questionNumbers) : null,
+          maxQuestion: questionNumbers.length > 0 ? Math.max(...questionNumbers) : null
+        }
+      })
+      .filter((part: any) => part !== null)
+  }, [data.parts])
+
+  // Initialize currentPart and currentQuestion based on first part with questions
+  const firstPartWithQuestions = partsWithQuestions.length > 0 ? partsWithQuestions[0] : null
+  const initialPart = firstPartWithQuestions ? firstPartWithQuestions.partIndex : 1
+  const initialQuestion = firstPartWithQuestions && firstPartWithQuestions.questionNumbers.length > 0 
+    ? firstPartWithQuestions.questionNumbers[0] 
+    : 1
+
+  const [currentPart, setCurrentPart] = useState<number>(initialPart)
+  const [currentQuestion, setCurrentQuestion] = useState<number>(initialQuestion)
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false)
   const [isReviewTime, setIsReviewTime] = useState<boolean>(false)
   const [overlayStage, setOverlayStage] = useState<'instructions' | 'loading' | 'play' | 'hidden'>('instructions')
@@ -145,10 +377,20 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
   }
 
   const switchToPart = (part: number) => {
-    const p = Math.max(1, Math.min(4, part))
-    setCurrentPart(p)
-    const firstQuestion = (p - 1) * 10 + 1
-    goToQuestion(firstQuestion)
+    // Find the part info for the requested part
+    const partInfo = partsWithQuestions.find((p: any) => p.partIndex === part)
+    if (partInfo && partInfo.questionNumbers.length > 0) {
+      setCurrentPart(part)
+      // Go to the first question in this part
+      goToQuestion(partInfo.questionNumbers[0])
+    } else {
+      // If part not found, go to first available part
+      const firstPart = partsWithQuestions[0]
+      if (firstPart && firstPart.questionNumbers.length > 0) {
+        setCurrentPart(firstPart.partIndex)
+        goToQuestion(firstPart.questionNumbers[0])
+      }
+    }
   }
 
   const updateNavButtonState = (questionNumber: number) => {
@@ -180,7 +422,20 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
     
     const rows: ResultRow[] = []
     let score = 0
-    for (let i = 1; i <= 40; i++) {
+    
+    // Get all question numbers from parts with questions
+    const allQuestionNumbers = new Set<number>()
+    partsWithQuestions.forEach((partInfo: any) => {
+      partInfo.questionNumbers.forEach((q: number) => {
+        allQuestionNumbers.add(q)
+      })
+    })
+    
+    // Sort question numbers
+    const sortedQuestions = Array.from(allQuestionNumbers).sort((a, b) => a - b)
+    
+    // Check each question
+    for (const i of sortedQuestions) {
       const key = `q${i}`
       const textOrSelect = document.getElementById(key) as HTMLInputElement | HTMLSelectElement | null
       const navBtn = document.querySelector(`.subQuestion[data-q="${i}"]`)
@@ -600,21 +855,147 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
             <div id="part-1" className="question-part">
               <div className="part-header"><p><strong>{data.parts[0].title}</strong></p></div>
               <div className="question">
-                <div className="question-prompt">
+                {/* <div className="question-prompt">
                   {(data.parts[0].prompt as string[]).map((p: string, i: number) => (
                     <p key={i} dangerouslySetInnerHTML={{ __html: p.replace('ONE WORD AND/OR A NUMBER', '<strong>ONE WORD AND/OR A NUMBER</strong>') }} />
                   ))}
-                </div>
-                <h3 className="centered-title">{data.parts[0].sectionTitle}</h3>
-                <div style={{ border: '1px solid #ddd', padding: 25, borderRadius: 5 }}>
+                </div> */}
+                {/* <h3 className="centered-title">{data.parts[0].sectionTitle}</h3> */}
+                {/* <div style={{ border: '1px solid #ddd', padding: 25, borderRadius: 5 }}>
                   <p><strong>Course required:</strong> {data.parts[0].courseRequired}</p>
                   <div className="aligned-form" style={{ marginTop: 20 }}>
                     {(data.parts[0].fillRows || []).map((row: any) => (
                       <div key={row.q} className="question-row"><span className="question-label">{row.labelPrefix}</span> {row.textPrefix}<strong>{row.q}</strong> <input type="text" id={`q${row.q}`} className="answer-input" placeholder={`${row.q}`} spellCheck={false} autoComplete="off" />{row.textSuffix}</div>
                     ))}
                   </div>
+                </div> */}
                 </div>
+              
+              {/* Flow Chart Completion Questions */}
+              {(data.parts[0].flowChartQuestions && Array.isArray(data.parts[0].flowChartQuestions) && data.parts[0].flowChartQuestions.length > 0) && (() => {
+                // Group questions by groupId
+                const groups = new Map<string, any[]>()
+                data.parts[0].flowChartQuestions.filter((q: any) => q != null).forEach((q: any) => {
+                  const gid = q.groupId || 'default'
+                  if (!groups.has(gid)) {
+                    groups.set(gid, [])
+                  }
+                  groups.get(gid)!.push(q)
+                })
+                
+                return Array.from(groups.entries()).map(([groupId, questions]) => {
+                  if (!questions || questions.length === 0) return null
+                  const firstQuestion = questions[0]
+                  if (!firstQuestion) return null
+                  const imageUrl = firstQuestion.imageUrl
+                  
+                  return (
+                    <div key={groupId} className="question" style={{ marginTop: 20 }}>
+                      <div className="question-prompt">
+                        <p><strong>Complete the flow chart below.</strong></p>
+                        <p>Write <strong>ONE WORD AND/OR A NUMBER</strong> for each answer.</p>
               </div>
+                      {imageUrl && (
+                        <FlowChartImage
+                          imageUrl={imageUrl}
+                          questions={questions}
+                        />
+                      )}
+                    </div>
+                  )
+                })
+              })()}
+              
+              {/* Table Completion Questions */}
+              {(data.parts[0].tableCompletionQuestions && Array.isArray(data.parts[0].tableCompletionQuestions) && data.parts[0].tableCompletionQuestions.length > 0) && (() => {
+                // Group questions by groupId
+                const groups = new Map<string, any[]>()
+                data.parts[0].tableCompletionQuestions.filter((q: any) => q != null).forEach((q: any) => {
+                  const gid = q.groupId || 'default'
+                  if (!groups.has(gid)) {
+                    groups.set(gid, [])
+                  }
+                  groups.get(gid)!.push(q)
+                })
+                
+                return Array.from(groups.entries()).map(([groupId, questions]) => {
+                  if (!questions || questions.length === 0) return null
+                  const firstQuestion = questions[0]
+                  if (!firstQuestion) return null
+                  
+                  // Get table structure from first question
+                  const tableStructure: TableStructure | null = firstQuestion?.tableStructure || null
+                  
+                  if (!tableStructure) {
+                    return (
+                      <div key={groupId} className="question" style={{ marginTop: 20 }}>
+                        <p className="text-red-500">Error: Table structure not defined</p>
+                      </div>
+                    )
+                  }
+                  
+                  // Collect all answers and question numbers based on blank IDs in structure
+                  const allAnswers: Record<number, string> = {}
+                  const questionNumberMap: Record<number, number> = {}
+                  
+                  // Extract blank IDs from structure in order
+                  const blankIds: number[] = []
+                  tableStructure.rows.forEach(row => {
+                    (row.columns || []).forEach(column => {
+                      column.forEach(cell => {
+                        if (cell.type === 'blank' && cell.blankId !== undefined) {
+                          blankIds.push(cell.blankId)
+                        }
+                      })
+                    })
+                  })
+                  blankIds.sort((a, b) => a - b)
+                  
+                  // Map blank IDs to question numbers
+                  questions.sort((a: any, b: any) => a.questionNumber - b.questionNumber).forEach((q: any, index: number) => {
+                    const blankId = blankIds[index]
+                    if (blankId !== undefined) {
+                      questionNumberMap[blankId] = q.questionNumber
+                      const answerValue = q.answers?.[blankId] || ''
+                      const inputElement = document.getElementById(`q${q.questionNumber}`) as HTMLInputElement
+                      if (inputElement) {
+                        allAnswers[blankId] = inputElement.value || ''
+                      } else {
+                        allAnswers[blankId] = answerValue
+                      }
+                    }
+                  })
+                  
+                  return (
+                    <div key={groupId} className="question" style={{ marginTop: 20 }}>
+                      <div className="question-prompt">
+                        <p><strong>Complete the table below.</strong></p>
+                        <p>Write <strong>ONE WORD AND/OR A NUMBER</strong> for each answer.</p>
+                      </div>
+                      <DynamicTableEditor
+                        structure={tableStructure}
+                        onStructureChange={() => {}} // Read-only for students
+                        initialAnswers={allAnswers}
+                        onAnswersChange={(newAnswers) => {
+                          // Update individual input fields
+                          questions.forEach((q: any, index: number) => {
+                            const blankId = blankIds[index]
+                            if (blankId !== undefined) {
+                              const inputElement = document.getElementById(`q${q.questionNumber}`) as HTMLInputElement
+                              if (inputElement && newAnswers[blankId] !== undefined) {
+                                inputElement.value = newAnswers[blankId]
+                                inputElement.dispatchEvent(new Event('change', { bubbles: true }))
+                              }
+                            }
+                          })
+                        }}
+                        readOnly={false}
+                        questionNumbers={questionNumberMap}
+                      />
+                    </div>
+                  )
+                })
+              })()}
             </div>
           )}
 
@@ -646,6 +1027,117 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
                   </div>
                 </div>
               </div>
+              
+              {/* Flow Chart Completion Questions */}
+              {(data.parts[1].flowChartQuestions && Array.isArray(data.parts[1].flowChartQuestions) && data.parts[1].flowChartQuestions.length > 0) && (() => {
+                // Group questions by groupId
+                const groups = new Map<string, any[]>()
+                data.parts[1].flowChartQuestions.filter((q: any) => q != null).forEach((q: any) => {
+                  const gid = q.groupId || 'default'
+                  if (!groups.has(gid)) {
+                    groups.set(gid, [])
+                  }
+                  groups.get(gid)!.push(q)
+                })
+                
+                return Array.from(groups.entries()).map(([groupId, questions]) => {
+                  if (!questions || questions.length === 0) return null
+                  const firstQuestion = questions[0]
+                  if (!firstQuestion) return null
+                  const imageUrl = firstQuestion.imageUrl
+                  
+                  return (
+                    <div key={groupId} className="question" style={{ marginTop: 20 }}>
+                      <div className="question-prompt">
+                        <p><strong>Complete the flow chart below.</strong></p>
+                        <p>Write <strong>ONE WORD AND/OR A NUMBER</strong> for each answer.</p>
+            </div>
+                      {imageUrl && (
+                        <FlowChartImage
+                          imageUrl={imageUrl}
+                          questions={questions}
+                        />
+                      )}
+                    </div>
+                  )
+                })
+              })()}
+              
+              {/* Table Completion Questions */}
+              {(data.parts[1].tableCompletionQuestions && Array.isArray(data.parts[1].tableCompletionQuestions) && data.parts[1].tableCompletionQuestions.length > 0) && (() => {
+                const groups = new Map<string, any[]>()
+                data.parts[1].tableCompletionQuestions.filter((q: any) => q != null).forEach((q: any) => {
+                  const gid = q.groupId || 'default'
+                  if (!groups.has(gid)) groups.set(gid, [])
+                  groups.get(gid)!.push(q)
+                })
+                
+                return Array.from(groups.entries()).map(([groupId, questions]) => {
+                  if (!questions || questions.length === 0) return null
+                  const firstQuestion = questions[0]
+                  if (!firstQuestion) return null
+                  const tableStructure: TableStructure | null = firstQuestion?.tableStructure || null
+                  
+                  if (!tableStructure) {
+                    return (
+                      <div key={groupId} className="question" style={{ marginTop: 20 }}>
+                        <p className="text-red-500">Error: Table structure not defined</p>
+                      </div>
+                    )
+                  }
+                  
+                  const blankIds: number[] = []
+                  tableStructure.rows.forEach(row => {
+                    (row.columns || []).forEach(column => {
+                      column.forEach(cell => {
+                        if (cell.type === 'blank' && cell.blankId !== undefined) {
+                          blankIds.push(cell.blankId)
+                        }
+                      })
+                    })
+                  })
+                  blankIds.sort((a, b) => a - b)
+                  
+                  const allAnswers: Record<number, string> = {}
+                  const questionNumberMap: Record<number, number> = {}
+                  questions.sort((a: any, b: any) => a.questionNumber - b.questionNumber).forEach((q: any, index: number) => {
+                    const blankId = blankIds[index]
+                    if (blankId !== undefined) {
+                      questionNumberMap[blankId] = q.questionNumber
+                      const inputElement = document.getElementById(`q${q.questionNumber}`) as HTMLInputElement
+                      allAnswers[blankId] = inputElement?.value || q.answers?.[blankId] || ''
+                    }
+                  })
+                  
+                  return (
+                    <div key={groupId} className="question" style={{ marginTop: 20 }}>
+                      <div className="question-prompt">
+                        <p><strong>Complete the table below.</strong></p>
+                        <p>Write <strong>ONE WORD AND/OR A NUMBER</strong> for each answer.</p>
+                      </div>
+                      <DynamicTableEditor
+                        structure={tableStructure}
+                        onStructureChange={() => {}}
+                        initialAnswers={allAnswers}
+                        onAnswersChange={(newAnswers) => {
+                          questions.forEach((q: any, index: number) => {
+                            const blankId = blankIds[index]
+                            if (blankId !== undefined) {
+                              const inputElement = document.getElementById(`q${q.questionNumber}`) as HTMLInputElement
+                              if (inputElement && newAnswers[blankId] !== undefined) {
+                                inputElement.value = newAnswers[blankId]
+                                inputElement.dispatchEvent(new Event('change', { bubbles: true }))
+                              }
+                            }
+                          })
+                        }}
+                        readOnly={false}
+                        questionNumbers={questionNumberMap}
+                      />
+                    </div>
+                  )
+                })
+              })()}
             </div>
           )}
 
@@ -677,6 +1169,117 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
                   </div>
                 </div>
               </div>
+              
+              {/* Flow Chart Completion Questions */}
+              {(data.parts[2].flowChartQuestions && Array.isArray(data.parts[2].flowChartQuestions) && data.parts[2].flowChartQuestions.length > 0) && (() => {
+                // Group questions by groupId
+                const groups = new Map<string, any[]>()
+                data.parts[2].flowChartQuestions.filter((q: any) => q != null).forEach((q: any) => {
+                  const gid = q.groupId || 'default'
+                  if (!groups.has(gid)) {
+                    groups.set(gid, [])
+                  }
+                  groups.get(gid)!.push(q)
+                })
+                
+                return Array.from(groups.entries()).map(([groupId, questions]) => {
+                  if (!questions || questions.length === 0) return null
+                  const firstQuestion = questions[0]
+                  if (!firstQuestion) return null
+                  const imageUrl = firstQuestion.imageUrl
+                  
+                  return (
+                    <div key={groupId} className="question" style={{ marginTop: 20 }}>
+                      <div className="question-prompt">
+                        <p><strong>Complete the flow chart below.</strong></p>
+                        <p>Write <strong>ONE WORD AND/OR A NUMBER</strong> for each answer.</p>
+            </div>
+                      {imageUrl && (
+                        <FlowChartImage
+                          imageUrl={imageUrl}
+                          questions={questions}
+                        />
+                      )}
+                    </div>
+                  )
+                })
+              })()}
+              
+              {/* Table Completion Questions */}
+              {(data.parts[2].tableCompletionQuestions && Array.isArray(data.parts[2].tableCompletionQuestions) && data.parts[2].tableCompletionQuestions.length > 0) && (() => {
+                const groups = new Map<string, any[]>()
+                data.parts[2].tableCompletionQuestions.filter((q: any) => q != null).forEach((q: any) => {
+                  const gid = q.groupId || 'default'
+                  if (!groups.has(gid)) groups.set(gid, [])
+                  groups.get(gid)!.push(q)
+                })
+                
+                return Array.from(groups.entries()).map(([groupId, questions]) => {
+                  if (!questions || questions.length === 0) return null
+                  const firstQuestion = questions[0]
+                  if (!firstQuestion) return null
+                  const tableStructure: TableStructure | null = firstQuestion?.tableStructure || null
+                  
+                  if (!tableStructure) {
+                    return (
+                      <div key={groupId} className="question" style={{ marginTop: 20 }}>
+                        <p className="text-red-500">Error: Table structure not defined</p>
+                      </div>
+                    )
+                  }
+                  
+                  const blankIds: number[] = []
+                  tableStructure.rows.forEach(row => {
+                    (row.columns || []).forEach(column => {
+                      column.forEach(cell => {
+                        if (cell.type === 'blank' && cell.blankId !== undefined) {
+                          blankIds.push(cell.blankId)
+                        }
+                      })
+                    })
+                  })
+                  blankIds.sort((a, b) => a - b)
+                  
+                  const allAnswers: Record<number, string> = {}
+                  const questionNumberMap: Record<number, number> = {}
+                  questions.sort((a: any, b: any) => a.questionNumber - b.questionNumber).forEach((q: any, index: number) => {
+                    const blankId = blankIds[index]
+                    if (blankId !== undefined) {
+                      questionNumberMap[blankId] = q.questionNumber
+                      const inputElement = document.getElementById(`q${q.questionNumber}`) as HTMLInputElement
+                      allAnswers[blankId] = inputElement?.value || q.answers?.[blankId] || ''
+                    }
+                  })
+                  
+                  return (
+                    <div key={groupId} className="question" style={{ marginTop: 20 }}>
+                      <div className="question-prompt">
+                        <p><strong>Complete the table below.</strong></p>
+                        <p>Write <strong>ONE WORD AND/OR A NUMBER</strong> for each answer.</p>
+                      </div>
+                      <DynamicTableEditor
+                        structure={tableStructure}
+                        onStructureChange={() => {}}
+                        initialAnswers={allAnswers}
+                        onAnswersChange={(newAnswers) => {
+                          questions.forEach((q: any, index: number) => {
+                            const blankId = blankIds[index]
+                            if (blankId !== undefined) {
+                              const inputElement = document.getElementById(`q${q.questionNumber}`) as HTMLInputElement
+                              if (inputElement && newAnswers[blankId] !== undefined) {
+                                inputElement.value = newAnswers[blankId]
+                                inputElement.dispatchEvent(new Event('change', { bubbles: true }))
+                              }
+                            }
+                          })
+                        }}
+                        readOnly={false}
+                        questionNumbers={questionNumberMap}
+                      />
+                    </div>
+                  )
+                })
+              })()}
             </div>
           )}
 
@@ -740,6 +1343,115 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
                   </div>
                 </div>
               </div>
+              
+              {/* Flow Chart Completion Questions */}
+              {(data.parts[3].flowChartQuestions && Array.isArray(data.parts[3].flowChartQuestions) && data.parts[3].flowChartQuestions.length > 0) && (() => {
+                // Group questions by groupId
+                const groups = new Map<string, any[]>()
+                data.parts[3].flowChartQuestions.filter((q: any) => q != null).forEach((q: any) => {
+                  const gid = q.groupId || 'default'
+                  if (!groups.has(gid)) {
+                    groups.set(gid, [])
+                  }
+                  groups.get(gid)!.push(q)
+                })
+                
+                return Array.from(groups.entries()).map(([groupId, questions]) => {
+                  const firstQuestion = questions[0]
+                  const imageUrl = firstQuestion.imageUrl
+                  
+                  return (
+                    <div key={groupId} className="question" style={{ marginTop: 20 }}>
+                      <div className="question-prompt">
+                        <p><strong>Complete the flow chart below.</strong></p>
+                        <p>Write <strong>ONE WORD ONLY</strong> for each answer.</p>
+            </div>
+                      {imageUrl && (
+                        <FlowChartImage
+                          imageUrl={imageUrl}
+                          questions={questions}
+                        />
+                      )}
+                    </div>
+                  )
+                })
+              })()}
+              
+              {/* Table Completion Questions */}
+              {(data.parts[3].tableCompletionQuestions && Array.isArray(data.parts[3].tableCompletionQuestions) && data.parts[3].tableCompletionQuestions.length > 0) && (() => {
+                const groups = new Map<string, any[]>()
+                data.parts[3].tableCompletionQuestions.filter((q: any) => q != null).forEach((q: any) => {
+                  const gid = q.groupId || 'default'
+                  if (!groups.has(gid)) groups.set(gid, [])
+                  groups.get(gid)!.push(q)
+                })
+                
+                return Array.from(groups.entries()).map(([groupId, questions]) => {
+                  if (!questions || questions.length === 0) return null
+                  const firstQuestion = questions[0]
+                  if (!firstQuestion) return null
+                  const tableStructure: TableStructure | null = firstQuestion?.tableStructure || null
+                  
+                  if (!tableStructure) {
+                    return (
+                      <div key={groupId} className="question" style={{ marginTop: 20 }}>
+                        <p className="text-red-500">Error: Table structure not defined</p>
+                      </div>
+                    )
+                  }
+                  
+                  const blankIds: number[] = []
+                  tableStructure.rows.forEach(row => {
+                    (row.columns || []).forEach(column => {
+                      column.forEach(cell => {
+                        if (cell.type === 'blank' && cell.blankId !== undefined) {
+                          blankIds.push(cell.blankId)
+                        }
+                      })
+                    })
+                  })
+                  blankIds.sort((a, b) => a - b)
+                  
+                  const allAnswers: Record<number, string> = {}
+                  const questionNumberMap: Record<number, number> = {}
+                  questions.sort((a: any, b: any) => a.questionNumber - b.questionNumber).forEach((q: any, index: number) => {
+                    const blankId = blankIds[index]
+                    if (blankId !== undefined) {
+                      questionNumberMap[blankId] = q.questionNumber
+                      const inputElement = document.getElementById(`q${q.questionNumber}`) as HTMLInputElement
+                      allAnswers[blankId] = inputElement?.value || q.answers?.[blankId] || ''
+                    }
+                  })
+                  
+                  return (
+                    <div key={groupId} className="question" style={{ marginTop: 20 }}>
+                      <div className="question-prompt">
+                        <p><strong>Complete the table below.</strong></p>
+                        <p>Write <strong>ONE WORD ONLY</strong> for each answer.</p>
+                      </div>
+                      <DynamicTableEditor
+                        structure={tableStructure}
+                        onStructureChange={() => {}}
+                        initialAnswers={allAnswers}
+                        onAnswersChange={(newAnswers: Record<number, string>) => {
+                          questions.forEach((q: any, index: number) => {
+                            const blankId = blankIds[index]
+                            if (blankId !== undefined) {
+                              const inputElement = document.getElementById(`q${q.questionNumber}`) as HTMLInputElement
+                              if (inputElement && newAnswers[blankId] !== undefined) {
+                                inputElement.value = newAnswers[blankId]
+                                inputElement.dispatchEvent(new Event('change', { bubbles: true }))
+                              }
+                            }
+                          })
+                        }}
+                        readOnly={false}
+                        questionNumbers={questionNumberMap}
+                      />
+                    </div>
+                  )
+                })
+              })()}
             </div>
           )}
         </div>
@@ -753,16 +1465,19 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
       <audio id="global-audio-player" className="hidden" preload="auto" ref={audioRef} src={data.audioSource} />
 
       <nav className="nav-row">
-        {[1, 2, 3, 4].map((p) => (
+        {partsWithQuestions.map((partInfo: any) => {
+          const p = partInfo.partIndex
+          return (
           <div key={p} className={`footer__questionWrapper___1tZ46 ${currentPart === p ? 'selected' : ''}`} onClick={(e) => { e.stopPropagation(); switchToPart(p) }}>
             <button className="footer__questionNo___3WNct"><span>{`Part ${p}`}</span></button>
             <div className="footer__subquestionWrapper___9GgoP">
-              {Array.from({ length: 10 }, (_, idx) => (p - 1) * 10 + idx + 1).map(q => (
+                {partInfo.questionNumbers.map((q: number) => (
                 <button key={q} className={`subQuestion ${currentQuestion === q ? 'active' : ''}`} data-q={q} onClick={(e) => { e.stopPropagation(); goToQuestion(q) }}>{q}</button>
               ))}
             </div>
           </div>
-        ))}
+          )
+        })}
         <div className="volume-container">
           <button id="volume-btn" className="icon" aria-label="Volume">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
@@ -777,7 +1492,7 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
         <div id="result-modal" className="modal-overlay">
           <div className="modal-content">
             <div className="modal-header"><h2>Your Results</h2><button id="modal-close-button" className="modal-close-btn" onClick={() => setResultModalOpen(false)}>&times;</button></div>
-            <div id="score-summary">{`You scored ${results.score} out of 40 (Band ${((raw:number)=>{if(raw>=39)return 9; if(raw>=37)return 8.5; if(raw>=35)return 8; if(raw>=32)return 7.5; if(raw>=30)return 7; if(raw>=26)return 6.5; if(raw>=23)return 6; if(raw>=18)return 5.5; if(raw>=16)return 5; if(raw>=13)return 4.5; if(raw>=10)return 4; if(raw>=8)return 3.5; return 0;})(results.score)}).`}</div>
+            <div id="score-summary">{`You scored ${results.score} out of ${results.rows.length} (Band ${((raw:number, total:number)=>{const percentage = (raw/total)*100; if(percentage>=97.5)return 9; if(percentage>=92.5)return 8.5; if(percentage>=87.5)return 8; if(percentage>=80)return 7.5; if(percentage>=75)return 7; if(percentage>=65)return 6.5; if(percentage>=57.5)return 6; if(percentage>=45)return 5.5; if(percentage>=40)return 5; if(percentage>=32.5)return 4.5; if(percentage>=25)return 4; if(percentage>=20)return 3.5; return 0;})(results.score, results.rows.length)}).`}</div>
             <div id="result-details">
               <table>
                 <thead><tr><th>Question</th><th>Your Answer</th><th>Correct Answer</th><th>Result</th></tr></thead>

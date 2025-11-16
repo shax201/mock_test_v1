@@ -83,6 +83,61 @@ export async function uploadAudio(file: File | Buffer, filename?: string): Promi
   }
 }
 
+export async function uploadImage(file: File | Buffer, filename?: string): Promise<UploadResult> {
+  try {
+    let fileData: string;
+    
+    if (file instanceof File) {
+      const buffer = await fileToBuffer(file);
+      fileData = `data:${file.type};base64,${buffer.toString('base64')}`;
+    } else {
+      fileData = `data:image/png;base64,${file.toString('base64')}`;
+    }
+    
+    const uploadOptions = {
+      resource_type: 'image' as const,
+      folder: 'ielts-mock/images',
+      public_id: filename ? `image_${filename}` : undefined,
+      quality: 'auto',
+      fetch_format: 'auto',
+      use_filename: false,
+      unique_filename: true,
+      overwrite: false,
+      invalidate: true,
+      tags: ['ielts', 'image', 'flow-chart', 'mock-test']
+    };
+    
+    console.log(`Starting image upload: ${filename || 'unnamed'}, size: ${file instanceof File ? file.size : file.length} bytes`);
+    
+    const result = await cloudinary.uploader.upload(
+      fileData,
+      uploadOptions
+    );
+
+    console.log(`Image upload completed successfully: ${result.public_id}`);
+    
+    return {
+      public_id: result.public_id,
+      secure_url: result.secure_url,
+      format: result.format,
+      bytes: result.bytes
+    }
+  } catch (error: any) {
+    console.error('Error uploading image to Cloudinary:', error);
+    
+    // Provide more specific error messages
+    if (error.http_code === 400) {
+      throw new Error('Invalid image format. Please ensure the file is a valid image format.');
+    } else if (error.http_code === 413) {
+      throw new Error('Image too large. Please compress the image or use a smaller file.');
+    } else if (error.http_code === 401) {
+      throw new Error('Authentication failed. Please check Cloudinary configuration.');
+    } else {
+      throw new Error(`Upload failed: ${error.message || 'Unknown error occurred'}`);
+    }
+  }
+}
+
 export async function uploadPDF(file: Buffer, filename: string): Promise<UploadResult> {
   try {
     const result = await cloudinary.uploader.upload(

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyJWT } from '@/lib/auth/jwt'
 import { revalidatePath, revalidateTag } from 'next/cache'
+import { ListeningQuestionType } from '@prisma/client'
 
 export async function GET(
   request: NextRequest,
@@ -106,13 +107,18 @@ export async function PUT(
               questions: {
                 create: part.questions?.map((question: any) => ({
                   number: question.number,
-                  type: question.type,
+                  type: question.type as ListeningQuestionType,
                   labelPrefix: question.labelPrefix || null,
                   textPrefix: question.textPrefix || null,
                   textSuffix: question.textSuffix || null,
                   questionText: question.questionText || null,
                   options: question.options || null,
                   matchingLabel: question.matchingLabel || null,
+                  imageUrl: question.imageUrl || null,
+                  field: question.field || null,
+                  groupId: question.groupId || null,
+                  answers: question.answers || null, // For TABLE_COMPLETION
+                  tableStructure: question.tableStructure || null, // For TABLE_COMPLETION
                   correctAnswer: question.correctAnswer ? {
                     create: {
                       answer: question.correctAnswer

@@ -4,11 +4,14 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import ListeningTestForm from '@/components/admin/ListeningTestForm'
+import { useHydrationFix } from '@/hooks/useHydrationFix'
 
 export default function CreateListeningTestPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  
+  useHydrationFix()
 
   const loadFromJson = async () => {
     if (!confirm('Are you sure you want to load data from listening-test-data.json? This will create a new listening test with all parts and questions.')) {

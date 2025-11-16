@@ -18,6 +18,11 @@ export default function EditListeningTestPage() {
     }
   }, [params.id])
 
+  const handleSuccess = () => {
+    // Redirect to the listening tests list after successful update
+    router.push('/admin/listening-tests')
+  }
+
   const fetchTestData = async () => {
     try {
       setLoading(true)
@@ -91,10 +96,21 @@ export default function EditListeningTestPage() {
             Edit Listening Test
           </h2>
           <p className="mt-1 text-sm text-gray-500">
-            Update the listening test details, parts, and questions.
+            Update the listening test details, parts, and questions. Use the preview feature to see how Flow Chart questions will appear to students.
           </p>
         </div>
-        <div className="mt-4 flex md:mt-0 md:ml-4">
+        <div className="mt-4 flex md:mt-0 md:ml-4 space-x-3">
+          <Link
+            href={`/student/listening-tests/${testData.id}`}
+            target="_blank"
+            className="inline-flex items-center px-4 py-2 border border-blue-300 shadow-sm text-sm font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100"
+          >
+            <svg className="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            Preview Test
+          </Link>
           <Link
             href="/admin/listening-tests"
             className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
@@ -111,6 +127,8 @@ export default function EditListeningTestPage() {
         testId={testData.id}
         initialData={testData}
         mode="edit"
+        apiEndpoint="/api/admin/listening-tests"
+        onSuccess={handleSuccess}
       />
     </div>
   )

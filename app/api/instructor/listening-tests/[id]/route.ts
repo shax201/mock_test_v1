@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyJWT } from '@/lib/auth/jwt'
+import { ListeningQuestionType } from '@prisma/client'
 
 export async function GET(
   request: NextRequest,
@@ -105,13 +106,16 @@ export async function PUT(
               questions: {
                 create: part.questions?.map((question: any) => ({
                   number: question.number,
-                  type: question.type,
+                  type: question.type as ListeningQuestionType,
                   labelPrefix: question.labelPrefix || null,
                   textPrefix: question.textPrefix || null,
                   textSuffix: question.textSuffix || null,
                   questionText: question.questionText || null,
                   options: question.options || null,
                   matchingLabel: question.matchingLabel || null,
+                  imageUrl: question.imageUrl || null,
+                  field: question.field || null,
+                  groupId: question.groupId || null,
                   correctAnswer: question.correctAnswer ? {
                     create: {
                       answer: question.correctAnswer
