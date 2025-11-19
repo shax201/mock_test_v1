@@ -14,12 +14,16 @@ interface WritingNote {
   comment: string
 }
 
+type ModuleType = 'LISTENING' | 'READING' | 'WRITING'
+
 interface TestResultsData {
   testTitle: string
   testDate: string
   candidateNumber: string
   studentName: string
   mockTestId: string
+  testType: ModuleType
+  itemWiseModuleType?: ModuleType | null
   bandScores: {
     listening: number
     reading: number

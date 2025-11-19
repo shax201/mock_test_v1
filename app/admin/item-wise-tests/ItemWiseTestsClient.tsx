@@ -4,94 +4,89 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
-interface ListeningTest {
+export type ItemWiseTestListItem = {
   id: string
   title: string
-  audioSource: string
-  totalTimeMinutes: number
   isActive: boolean
+  testType: string
+  questionType: string
+  moduleType: 'READING' | 'LISTENING' | 'WRITING'
   createdAt: string
-  readingTest?: {
-    id: string
-    title: string
-  } | null
-  _count: {
-    parts: number
-  }
-  parts: Array<{
-    _count: {
-      questions: number
-    }
-  }>
+  updatedAt: string
+  readingTests: { id: string; title: string }[]
+  listeningTests: { id: string; title: string }[]
+  writingTests: { id: string; title: string }[]
 }
 
-interface ListeningTestsClientProps {
-  initialListeningTests: ListeningTest[]
+interface ItemWiseTestsClientProps {
+  initialItemWiseTests: ItemWiseTestListItem[]
   error: string
 }
 
-export default function ListeningTestsClient({ initialListeningTests, error: initialError }: ListeningTestsClientProps) {
+export default function ItemWiseTestsClient({ initialItemWiseTests, error: initialError }: ItemWiseTestsClientProps) {
   const router = useRouter()
-  const [listeningTests, setListeningTests] = useState<ListeningTest[]>(initialListeningTests)
+  const [itemWiseTests, setItemWiseTests] = useState<ItemWiseTestListItem[]>(initialItemWiseTests)
   const [error, setError] = useState(initialError)
 
   const handleDelete = async (testId: string, title: string) => {
-    if (!confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) {
+    if (!confirm(`Delete item-wise test "${title}"? This cannot be undone.`)) {
       return
     }
 
     try {
-      const response = await fetch(`/api/admin/listening-tests/${testId}`, {
+      const response = await fetch(`/api/admin/item-wise-tests/${testId}`, {
         method: 'DELETE'
       })
 
       if (response.ok) {
-        // Remove from local state
-        setListeningTests(listeningTests.filter(test => test.id !== testId))
-        // Revalidate the page to update the cache
+        setItemWiseTests(prev => prev.filter(test => test.id !== testId))
         router.refresh()
       } else {
-        alert('Failed to delete listening test')
+        const data = await response.json().catch(() => ({ error: 'Failed to delete item-wise test' }))
+        setError(data.error || 'Failed to delete item-wise test')
       }
-    } catch (error) {
-      alert('Network error. Please try again.')
+    } catch (err) {
+      console.error('Delete error:', err)
+      setError('Network error. Please try again.')
     }
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
+  const formatDate = (value: string) => {
+    try {
+      return new Date(value).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      })
+    } catch (err) {
+      return value
+    }
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="md:flex md:items-center md:justify-between">
         <div className="flex-1 min-w-0">
           <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
-            Listening Tests
+            Item-wise Tests
           </h2>
           <p className="mt-1 text-sm text-gray-500">
-            Manage IELTS listening tests, parts, and questions.
+            Bundle existing reading, listening, or writing tests into item-wise mock experiences.
           </p>
         </div>
         <div className="mt-4 flex md:mt-0 md:ml-4">
           <Link
-            href="/admin/listening-tests/create"
+            href="/admin/item-wise-tests/create"
             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             <svg className="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
-            Create Listening Test
+            Create Item-wise Test
           </Link>
         </div>
       </div>
 
-      {/* Error Message */}
       {error && (
         <div className="rounded-md bg-red-50 p-4">
           <div className="flex">
@@ -108,31 +103,30 @@ export default function ListeningTestsClient({ initialListeningTests, error: ini
         </div>
       )}
 
-      {/* Listening Tests List */}
-      {listeningTests.length === 0 ? (
+      {itemWiseTests.length === 0 ? (
         <div className="text-center py-12">
           <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5h12M9 9h12M9 13h12M5 7h.01M5 11h.01M5 15h.01M9 17h12M5 19h.01" />
           </svg>
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No listening tests</h3>
-          <p className="mt-1 text-sm text-gray-500">Get started by creating a new listening test.</p>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">No item-wise tests</h3>
+          <p className="mt-1 text-sm text-gray-500">Create an item-wise test to get started.</p>
           <div className="mt-6">
             <Link
-              href="/admin/listening-tests/create"
+              href="/admin/item-wise-tests/create"
               className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               <svg className="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-              Create Listening Test
+              Create Item-wise Test
             </Link>
           </div>
         </div>
       ) : (
         <div className="bg-white shadow overflow-hidden sm:rounded-md">
           <ul className="divide-y divide-gray-200">
-            {listeningTests.map((test) => {
-              const totalQuestions = test.parts.reduce((sum, part) => sum + part._count.questions, 0)
+            {itemWiseTests.map((test) => {
+              const totalLinked = test.readingTests.length + test.listeningTests.length + test.writingTests.length
 
               return (
                 <li key={test.id}>
@@ -141,30 +135,47 @@ export default function ListeningTestsClient({ initialListeningTests, error: ini
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center">
                           <h3 className="text-lg font-medium text-gray-900 truncate">{test.title}</h3>
-                          {test.isActive && (
+                          {test.isActive ? (
                             <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                               Active
                             </span>
-                          )}
-                        </div>
-                        <div className="mt-2 flex items-center text-sm text-gray-500 space-x-6">
-                          <span>{test._count.parts} parts</span>
-                          <span>{totalQuestions} questions</span>
-                          <span>{test.totalTimeMinutes || 30} minutes</span>
-                          {test.readingTest && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                              Reading: {test.readingTest.title}
+                          ) : (
+                            <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                              Inactive
                             </span>
                           )}
-                          <span className="truncate max-w-xs" title={test.audioSource}>
-                            Audio: {test.audioSource.split('/').pop() || 'N/A'}
-                          </span>
-                          <span>Created {formatDate(test.createdAt)}</span>
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center text-sm text-gray-500 gap-y-1">
+                          <span className="mr-4">Test type: {test.testType.replace(/_/g, ' ')}</span>
+                          <span className="mr-4">Question type: {test.questionType.replace(/_/g, ' ')}</span>
+                          <span className="mr-4">Module: {test.moduleType}</span>
+                          <span className="mr-4">Linked tests: {totalLinked}</span>
+                          <span>Updated {formatDate(test.updatedAt)}</span>
+                        </div>
+                        <div className="mt-2 text-sm text-gray-600 space-y-1">
+                          {test.readingTests.length > 0 && (
+                            <p>
+                              <span className="font-medium text-gray-800">Reading:</span>{' '}
+                              {test.readingTests.map((rt) => rt.title).join(', ')}
+                            </p>
+                          )}
+                          {test.listeningTests.length > 0 && (
+                            <p>
+                              <span className="font-medium text-gray-800">Listening:</span>{' '}
+                              {test.listeningTests.map((lt) => lt.title).join(', ')}
+                            </p>
+                          )}
+                          {test.writingTests.length > 0 && (
+                            <p>
+                              <span className="font-medium text-gray-800">Writing:</span>{' '}
+                              {test.writingTests.map((wt) => wt.title).join(', ')}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Link
-                          href={`/admin/listening-tests/${test.id}/edit`}
+                          href={`/admin/item-wise-tests/${test.id}/edit`}
                           className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                         >
                           <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -193,4 +204,3 @@ export default function ListeningTestsClient({ initialListeningTests, error: ini
     </div>
   )
 }
-

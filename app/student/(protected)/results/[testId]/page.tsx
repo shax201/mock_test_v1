@@ -62,12 +62,16 @@ const normalizeWritingAnswer = (raw: unknown): NormalizedWritingAnswer => {
 // Enable ISR with time-based revalidation (revalidate every 60 seconds)
 export const revalidate = 60
 
+type ModuleType = 'LISTENING' | 'READING' | 'WRITING'
+
 interface TestResultsData {
   testTitle: string
   testDate: string
   candidateNumber: string
   studentName: string
   mockTestId: string
+  testType: ModuleType
+  itemWiseModuleType?: ModuleType | null
   bandScores: {
     listening: number
     reading: number
@@ -150,7 +154,20 @@ const getCachedResultDetail = unstable_cache(
         orderBy: { completedAt: 'desc' }
       })
 
-      // If not READING, try WRITING
+      // If not READING, try LISTENING
+      if (!session) {
+        session = await prisma.testSession.findFirst({
+          where: {
+            testId: testId,
+            studentId: studentId,
+            testType: 'LISTENING',
+            isCompleted: true
+          },
+          orderBy: { completedAt: 'desc' }
+        })
+      }
+
+      // If not LISTENING, try WRITING
       if (!session) {
         session = await prisma.testSession.findFirst({
           where: {
@@ -172,6 +189,23 @@ const getCachedResultDetail = unstable_cache(
     let testDetails: any = null
     let testTitle = 'Test'
     let testDate = session.completedAt?.toISOString() || new Date().toISOString()
+    
+    // Check if this is an item-wise test
+    let itemWiseTest: { id: string; title: string; moduleType: string } | null = null
+    if (session.itemWiseTestId) {
+      const itemWise = await prisma.itemWiseTest.findUnique({
+        where: { id: session.itemWiseTestId },
+        select: {
+          id: true,
+          title: true,
+          moduleType: true
+        }
+      })
+      if (itemWise) {
+        itemWiseTest = itemWise
+        testTitle = itemWise.title
+      }
+    }
 
     if (session.testType === 'READING') {
       const readingTest = await prisma.readingTest.findUnique({
@@ -185,7 +219,24 @@ const getCachedResultDetail = unstable_cache(
       })
       if (readingTest) {
         testDetails = readingTest
-        testTitle = readingTest.title
+        if (!itemWiseTest) {
+          testTitle = readingTest.title
+        }
+      }
+    } else if (session.testType === 'LISTENING') {
+      const listeningTest = await prisma.listeningTest.findUnique({
+        where: { id: session.testId },
+        select: {
+          id: true,
+          title: true,
+          totalTimeMinutes: true
+        }
+      })
+      if (listeningTest) {
+        testDetails = listeningTest
+        if (!itemWiseTest) {
+          testTitle = listeningTest.title
+        }
       }
     } else if (session.testType === 'WRITING') {
       const writingTest = await prisma.writingTest.findUnique({
@@ -209,7 +260,9 @@ const getCachedResultDetail = unstable_cache(
       })
       if (writingTest) {
         testDetails = writingTest
-        testTitle = writingTest.title
+        if (!itemWiseTest) {
+          testTitle = writingTest.title
+        }
       }
     }
 
@@ -220,8 +273,10 @@ const getCachedResultDetail = unstable_cache(
       candidateNumber: '',
       studentName: 'Student',
       mockTestId: session.testId,
+      testType: session.testType as ModuleType,
+      itemWiseModuleType: itemWiseTest?.moduleType as ModuleType | undefined,
       bandScores: {
-        listening: 0,
+        listening: session.testType === 'LISTENING' ? (session.band ?? 0) : 0,
         reading: session.testType === 'READING' ? (session.band ?? 0) : 0,
         writing: session.testType === 'WRITING' ? (session.band ?? 0) : 0
       },
@@ -266,6 +321,7 @@ const getCachedResultDetail = unstable_cache(
             
             readingQuestions.push({
               id: question.id,
+              questionNumber: question.questionNumber,
               question: question.questionText,
               type: question.type,
               part: passageIndex + 1,
@@ -305,6 +361,228 @@ const getCachedResultDetail = unstable_cache(
           }
         }
       }
+    } else if (session.testType === 'LISTENING') {
+      const listeningTest = await prisma.listeningTest.findUnique({
+        where: { id: session.testId },
+        include: {
+          parts: {
+            include: {
+              questions: {
+                include: {
+                  correctAnswer: true
+                },
+                orderBy: { number: 'asc' }
+              }
+            },
+            orderBy: { index: 'asc' }
+          }
+        }
+      })
+
+      if (listeningTest) {
+        const tableGroupCache = new Map<
+          string,
+          {
+            questionIdToBlankId: Record<string, number>
+            blankIdToQuestionNumber: Record<number, number>
+          }
+        >()
+        const flowChartGroupCache = new Map<
+          string,
+          {
+            imageUrl: string | null
+            nodes: {
+              questionId: string
+              questionNumber: number
+              field: any
+            }[]
+          }
+        >()
+
+        const extractBlankIds = (tableStructure: any): number[] => {
+          const ids: number[] = []
+          if (!tableStructure?.rows) return ids
+          tableStructure.rows.forEach((row: any) => {
+            ;(row.columns || []).forEach((column: any) => {
+              column.forEach((cell: any) => {
+                if (cell?.type === 'blank' && typeof cell.blankId === 'number') {
+                  ids.push(cell.blankId)
+                }
+              })
+            })
+          })
+          ids.sort((a, b) => a - b)
+          return ids
+        }
+
+        const normalizeTableAnswers = (answers: any): Record<number, string> | null => {
+          if (!answers || typeof answers !== 'object') return null
+          const normalized: Record<number, string> = {}
+          Object.entries(answers).forEach(([key, value]) => {
+            const numericKey = Number(key)
+            if (!Number.isNaN(numericKey)) {
+              normalized[numericKey] =
+                value === null || value === undefined ? '' : String(value).trim()
+            }
+          })
+          return Object.keys(normalized).length ? normalized : null
+        }
+
+        const listeningQuestions: any[] = []
+        listeningTest.parts.forEach((part, partIndex) => {
+          part.questions.forEach((question) => {
+            const questionKey = question.number.toString()
+            const studentAnswer = (session.answers as any)?.[questionKey] || 'Unattempted'
+            let correctAnswer = ''
+            const isTableCompletion = question.type === 'TABLE_COMPLETION'
+            const tableAnswersNormalized = isTableCompletion
+              ? normalizeTableAnswers(question.answers)
+              : null
+            let tableQuestionNumbers: Record<number, number> | undefined
+            
+            // Handle different question types
+            if (question.type === 'TEXT' || question.type === 'TABLE_COMPLETION') {
+              // For text and table completion, get answer from correctAnswer
+              const answerData = question.correctAnswer?.answer
+              if (answerData !== null && answerData !== undefined) {
+                if (Array.isArray(answerData)) {
+                  correctAnswer = answerData.join(' / ')
+                } else if (typeof answerData === 'object') {
+                  // If it's an object, try to extract the value or stringify
+                  correctAnswer = JSON.stringify(answerData)
+                } else {
+                  correctAnswer = String(answerData).trim()
+                }
+              }
+              
+              // Fallback: For TABLE_COMPLETION, also check the answers JSON field
+              if (!correctAnswer && isTableCompletion && question.tableStructure) {
+                const groupKey = question.groupId || question.id
+                let groupData = tableGroupCache.get(groupKey)
+
+                if (!groupData) {
+                  const blankIds = extractBlankIds(question.tableStructure)
+                  const questionsInGroup = part.questions
+                    .filter(
+                      (q: any) =>
+                        q.type === 'TABLE_COMPLETION' && (q.groupId || q.id) === groupKey
+                    )
+                    .sort((a: any, b: any) => a.number - b.number)
+
+                  const questionIdToBlankId: Record<string, number> = {}
+                  const blankIdToQuestionNumber: Record<number, number> = {}
+
+                  questionsInGroup.forEach((qItem: any, idx: number) => {
+                    const blankId = blankIds[idx]
+                    if (blankId !== undefined) {
+                      questionIdToBlankId[qItem.id] = blankId
+                      blankIdToQuestionNumber[blankId] = qItem.number
+                    }
+                  })
+
+                  groupData = { questionIdToBlankId, blankIdToQuestionNumber }
+                  tableGroupCache.set(groupKey, groupData)
+                }
+
+                tableQuestionNumbers = groupData?.blankIdToQuestionNumber
+
+                if (tableAnswersNormalized && groupData?.questionIdToBlankId) {
+                  const blankId = groupData.questionIdToBlankId[question.id]
+                  if (blankId !== undefined && tableAnswersNormalized[blankId] !== undefined) {
+                    correctAnswer = tableAnswersNormalized[blankId]
+                  }
+                }
+              }
+            } else if (question.type === 'FLOW_CHART') {
+              const answerData = question.correctAnswer?.answer
+              if (answerData !== null && answerData !== undefined) {
+                if (Array.isArray(answerData)) {
+                  correctAnswer = answerData.join(' / ')
+                } else if (typeof answerData === 'object') {
+                  correctAnswer = JSON.stringify(answerData)
+                } else {
+                  correctAnswer = String(answerData).trim()
+                }
+              }
+            } else if (question.type === 'RADIO' || question.type === 'SELECT') {
+              // For radio and select, get answer from correctAnswer
+              const answerData = question.correctAnswer?.answer
+              if (answerData !== null && answerData !== undefined) {
+                if (Array.isArray(answerData)) {
+                  correctAnswer = answerData.join(' / ')
+                } else {
+                  correctAnswer = String(answerData).trim()
+                }
+              }
+            }
+            
+            // For table completion questions, show correct answer in results page
+            // (We hide it during the test, but show it in results for learning)
+            let flowChartDiagram: {
+              imageUrl: string | null
+              nodes: {
+                questionNumber: number
+                field: any
+                studentAnswer: string
+              }[]
+            } | null = null
+
+            if (question.type === 'FLOW_CHART') {
+              const groupKey = question.groupId || question.id
+              let groupData = flowChartGroupCache.get(groupKey)
+
+              if (!groupData) {
+                const questionsInGroup = part.questions
+                  .filter(
+                    (q: any) =>
+                      q.type === 'FLOW_CHART' && (q.groupId || q.id) === groupKey
+                  )
+                  .sort((a: any, b: any) => a.number - b.number)
+
+                groupData = {
+                  imageUrl: questionsInGroup[0]?.imageUrl || question.imageUrl || null,
+                  nodes: questionsInGroup.map((qItem: any) => ({
+                    questionId: qItem.id,
+                    questionNumber: qItem.number,
+                    field: qItem.field || null
+                  }))
+                }
+
+                flowChartGroupCache.set(groupKey, groupData)
+              }
+
+              flowChartDiagram = {
+                imageUrl: groupData.imageUrl,
+                nodes: groupData.nodes.map((node) => ({
+                  questionNumber: node.questionNumber,
+                  field: node.field,
+                  studentAnswer:
+                    (session.answers as any)?.[node.questionNumber.toString()] || 'Unattempted'
+                }))
+              }
+            }
+
+            listeningQuestions.push({
+              id: question.id,
+              questionNumber: question.number,
+              question: question.questionText || question.labelPrefix || `Question ${question.number}`,
+              type: question.type,
+              part: partIndex + 1,
+              options: question.options || [],
+              studentAnswer: studentAnswer,
+              correctAnswer: correctAnswer, // Show correct answer in results page
+              isCorrect: correctAnswer ? (studentAnswer.toLowerCase() === correctAnswer.toLowerCase()) : false,
+              explanation: '',
+              tableStructure: isTableCompletion ? question.tableStructure : null,
+              tableAnswers: tableAnswersNormalized,
+              tableQuestionNumbers,
+              flowChartDiagram
+            })
+          })
+        })
+        results.questionDetails = results.questionDetails || {}
+        results.questionDetails.listening = listeningQuestions
+      }
     } else if (session.testType === 'WRITING') {
       const writingFeedback = results.feedback?.writing || []
       if (testDetails && testDetails.passages) {
@@ -315,6 +593,7 @@ const getCachedResultDetail = unstable_cache(
 
             writingQuestions.push({
               id: question.id,
+              questionNumber: question.questionNumber,
               question: question.questionText,
               type: question.type,
               part: passage.order,

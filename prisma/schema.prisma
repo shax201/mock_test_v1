@@ -13,6 +13,7 @@ model ListeningTest {
   title         String          @default("IELTS Listening Test")
   audioSource   String          @map("audio_source")
   instructions  Json
+  totalTimeMinutes Int          @default(30) @map("total_time_minutes")
   isActive      Boolean         @default(true)
   createdAt     DateTime        @default(now()) @map("created_at")
   updatedAt     DateTime        @updatedAt @map("updated_at")
@@ -54,13 +55,13 @@ model ListeningQuestion {
   questionText    String?
   options         Json?
   matchingLabel   String?
-  imageUrl        String?               @map("image_url")
-  field           Json? // For FLOW_CHART: { id, x, y, width, value }
-  groupId         String?               @map("group_id") // Groups questions from same flow chart
-  answers         Json? // For TABLE_COMPLETION: { 1: "answer1", 2: "answer2", ... }
-  tableStructure  Json? // For TABLE_COMPLETION: { title, columns, rows }
   createdAt       DateTime              @default(now()) @map("created_at")
   updatedAt       DateTime              @updatedAt @map("updated_at")
+  field           Json?
+  groupId         String?               @map("group_id")
+  imageUrl        String?               @map("image_url")
+  answers         Json?
+  tableStructure  Json?
   correctAnswer   ListeningAnswer?
   part            ListeningPart         @relation(fields: [listeningPartId], references: [id], onDelete: Cascade)
 
@@ -205,6 +206,8 @@ model TestSession {
   testId      String    @map("test_id")
   studentId   String    @map("student_id")
   testType    String    @map("test_type")
+  itemWiseTestId String?  @map("item_wise_test_id")
+  itemWiseTest   ItemWiseTest? @relation(fields: [itemWiseTestId], references: [id], onDelete: SetNull)
   startedAt   DateTime? @map("started_at")
   answers     Json?
   isCompleted Boolean   @default(false) @map("is_completed")
@@ -305,6 +308,37 @@ model Assignment {
   student       User             @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@map("assignments")
+}
+
+model ItemWiseTest {
+  id               String                   @id @default(cuid())
+  title            String
+  isActive         Boolean                  @default(true)
+  testType         ItemWiseTestType
+  questionType     ItemWiseTestQuestionType
+  moduleType       ItemWiseModuleType       @default(READING) @map("module_type")
+  createdAt        DateTime                 @default(now()) @map("created_at")
+  updatedAt        DateTime                 @updatedAt @map("updated_at")
+  readingTestIds   String[]                 @map("reading_test_ids")
+  listeningTestIds String[]                 @map("listening_test_ids")
+  writingTestIds   String[]                 @map("writing_test_ids")
+  sessions         TestSession[]
+
+  @@map("item_wise_tests")
+}
+
+enum ItemWiseTestType {
+  ITEM_WISE_TEST
+}
+
+enum ItemWiseTestQuestionType {
+  FLOW_CHART_COMPLETION
+}
+
+enum ItemWiseModuleType {
+  READING
+  LISTENING
+  WRITING
 }
 
 enum UserRole {

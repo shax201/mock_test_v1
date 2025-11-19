@@ -219,6 +219,7 @@ export default function ListeningTestForm({
   const [title, setTitle] = useState('IELTS Listening Test')
   const [audioSource, setAudioSource] = useState('')
   const [audioPublicId, setAudioPublicId] = useState('')
+  const [totalTimeMinutes, setTotalTimeMinutes] = useState(30)
   const [instructions, setInstructions] = useState<string[]>([
     '◉ Check your headphones carefully before you start.',
     '◉ The Listening test has 4 parts.',
@@ -283,6 +284,7 @@ export default function ListeningTestForm({
     if (mode === 'edit' && initialData) {
       setTitle(initialData.title || 'IELTS Listening Test')
       setAudioSource(initialData.audioSource || '')
+      setTotalTimeMinutes(initialData.totalTimeMinutes || 30)
       setReadingTestId(initialData.readingTestId || '')
       
       if (Array.isArray(initialData.instructions)) {
@@ -304,7 +306,8 @@ export default function ListeningTestForm({
             fillRows: [],
             singleChoice: [],
             matchingItems: [],
-            flowChartQuestions: []
+            flowChartQuestions: [],
+            tableCompletionQuestions: []
           }
 
           // Transform questions based on type
@@ -823,15 +826,24 @@ export default function ListeningTestForm({
               .sort((a, b) => a.questionNumber - b.questionNumber) || []
             const questionIndex = sortedQuestions.findIndex(t => t.id === tc.id)
             const blankId = blankIds[questionIndex]
-            const answer = blankId !== undefined ? (tc.answers?.[blankId] || '') : ''
+            
+            // Extract the correct answer for this specific blank
+            // First try to get from tc.answers[blankId], fallback to empty string
+            let answer = ''
+            if (blankId !== undefined && tc.answers) {
+              answer = tc.answers[blankId] || ''
+            }
+            
+            // Ensure answers object exists
+            const answersObject = tc.answers || {}
             
             questions.push({
               number: tc.questionNumber,
               type: 'TABLE_COMPLETION',
-              answers: tc.answers, // Store all answers for the group
+              answers: answersObject, // Store all answers for the group (keyed by blankId)
               tableStructure: tc.tableStructure, // Store table structure
               groupId: tc.groupId, // Group ID to link questions from same table
-              correctAnswer: answer // The answer for this specific blank
+              correctAnswer: answer // The answer for this specific blank (stored in ListeningAnswer table)
             })
           })
 
@@ -891,9 +903,14 @@ export default function ListeningTestForm({
         .filter(part => part.hasQuestions) // Only include parts with questions
         .map(({ hasQuestions, ...part }) => part) // Remove hasQuestions flag
 
+      if (!totalTimeMinutes || totalTimeMinutes <= 0) {
+        throw new Error('Total time must be greater than 0 minutes')
+      }
+
       const payload = {
         title,
         audioSource,
+        totalTimeMinutes,
         instructions,
         readingTestId: readingTestId || null,
         parts: transformedParts
@@ -1019,6 +1036,22 @@ export default function ListeningTestForm({
               onChange={(e) => setTitle(e.target.value)}
               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
               placeholder="IELTS Listening Test"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="total-time" className="block text-sm font-medium text-gray-700 mb-2">
+              Total Time (minutes)
+            </label>
+            <input
+              type="number"
+              id="total-time"
+              min={5}
+              max={120}
+              value={totalTimeMinutes}
+              onChange={(e) => setTotalTimeMinutes(Math.max(1, Number.parseInt(e.target.value) || 0))}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              placeholder="30"
             />
           </div>
 
@@ -1954,44 +1987,75 @@ export default function ListeningTestForm({
                           />
                         </div>
 
-                        {/* Show individual questions */}
+                        {/* Show individual questions with answer entry */}
                         {questions.length > 0 && (
                           <div className="mt-4 pt-4 border-t border-gray-300">
                             <label className="block text-xs font-medium text-gray-700 mb-2">
-                              Individual Questions ({questions.length})
+                              Individual Questions & Correct Answers ({questions.length})
                             </label>
-                            <div className="space-y-2">
+                            <div className="space-y-3">
                               {questions.map((q, index) => {
-                                const answerKey = index + 1
-                                const answerValue = q.answers?.[answerKey] || ''
+                                const blankId = blankIds[index]
+                                const answerValue = blankId !== undefined ? (q.answers?.[blankId] || '') : ''
                                 return (
-                                  <div key={q.id} className="flex items-center justify-between bg-white p-2 rounded border border-gray-200">
-                                    <div className="flex items-center space-x-3">
-                                      <span className="text-sm font-medium text-gray-700">
-                                        Question {q.questionNumber} (Blank {answerKey})
-                                      </span>
-                                      <span className="text-xs text-gray-500">
-                                        Answer: {answerValue || '(empty)'}
-                                      </span>
+                                  <div key={q.id} className="bg-white p-3 rounded border border-gray-200">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="flex items-center space-x-3">
+                                        <span className="text-sm font-medium text-gray-700">
+                                          Question {q.questionNumber}
+                                        </span>
+                                        {blankId !== undefined && (
+                                          <span className="text-xs text-gray-500">
+                                            (Blank #{blankId})
+                                          </span>
+                                        )}
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const remaining = questions.filter(q2 => q2.id !== q.id)
+                                          if (remaining.length === 0) {
+                                            updatePart(partIndex, {
+                                              tableCompletionQuestions: part.tableCompletionQuestions?.filter(tq => tq.groupId !== groupId)
+                                            })
+                                          } else {
+                                            updatePart(partIndex, {
+                                              tableCompletionQuestions: part.tableCompletionQuestions?.filter(tq => tq.id !== q.id)
+                                            })
+                                          }
+                                        }}
+                                        className="text-xs text-red-600 hover:text-red-800"
+                                      >
+                                        Remove
+                                      </button>
                                     </div>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const remaining = questions.filter(q2 => q2.id !== q.id)
-                                        if (remaining.length === 0) {
-                                          updatePart(partIndex, {
-                                            tableCompletionQuestions: part.tableCompletionQuestions?.filter(tq => tq.groupId !== groupId)
-                                          })
-                                        } else {
-                                          updatePart(partIndex, {
-                                            tableCompletionQuestions: part.tableCompletionQuestions?.filter(tq => tq.id !== q.id)
-                                          })
-                                        }
-                                      }}
-                                      className="text-xs text-red-600 hover:text-red-800"
-                                    >
-                                      Remove
-                                    </button>
+                                    <div className="flex items-center gap-3">
+                                      <label className="text-xs font-medium text-gray-700 whitespace-nowrap">
+                                        Correct Answer:
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={answerValue}
+                                        onChange={(e) => {
+                                          if (blankId !== undefined) {
+                                            updatePart(partIndex, {
+                                              tableCompletionQuestions: part.tableCompletionQuestions?.map(tq => 
+                                                tq.id === q.id 
+                                                  ? { ...tq, answers: { ...tq.answers, [blankId]: e.target.value } }
+                                                  : tq
+                                              )
+                                            })
+                                          }
+                                        }}
+                                        placeholder="Enter correct answer"
+                                        className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                      />
+                                      {answerValue && (
+                                        <span className="text-xs text-green-600">
+                                          ✓ Saved
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                 )
                               })}

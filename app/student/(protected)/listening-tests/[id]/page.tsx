@@ -1,12 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import ListeningTestComponent, { ListeningTestData } from '@/components/test/ListeningTestComponent'
 
 export default function StudentListeningTestPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [data, setData] = useState<ListeningTestData | null>(null)
+  const itemWiseTestId = searchParams.get('itemWiseTestId')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -54,7 +56,11 @@ export default function StudentListeningTestPage({ params }: { params: Promise<{
 
       // Step 2: Submit listening test results to backend
       const { id } = await params
-      const response = await fetch(`/api/student/listening-tests/${id}/results`, {
+      const resultsEndpoint = itemWiseTestId
+        ? `/api/student/listening-tests/${id}/results?itemWiseTestId=${itemWiseTestId}`
+        : `/api/student/listening-tests/${id}/results`
+
+      const response = await fetch(resultsEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -62,6 +68,7 @@ export default function StudentListeningTestPage({ params }: { params: Promise<{
         body: JSON.stringify({
           score: results.score || 0,
           answers: answers,
+          itemWiseTestId
         }),
       })
 
@@ -74,11 +81,22 @@ export default function StudentListeningTestPage({ params }: { params: Promise<{
         // Get session ID from response for more accurate navigation
         const sessionId = data.session?.id || id
 
-        // Step 4: Get reading test ID from the response
+        // Step 4: Check if this is an item-wise test
+        if (itemWiseTestId) {
+          // For item-wise tests, redirect directly to results page showing the item-wise test result
+          console.log('ℹ️ Item-wise test completed, redirecting to results')
+          setIsRedirecting(true)
+          setTimeout(() => {
+            router.push(`/student/results/${sessionId}?itemWiseTestId=${itemWiseTestId}`)
+          }, 500)
+          return // Exit early
+        }
+
+        // Step 5: Get reading test ID from the response
         const readingTestId = data.readingTestId
 
         if (readingTestId) {
-          // Step 5: Check for associated writing test
+          // Step 6: Check for associated writing test
           try {
             const writingTestResponse = await fetch(
               `/api/student/writing-tests/by-reading-test/${readingTestId}`
@@ -89,7 +107,7 @@ export default function StudentListeningTestPage({ params }: { params: Promise<{
               const writingTestId = writingTestData.writingTest?.id
 
               if (writingTestId) {
-                // Step 6: Navigate to writing test page
+                // Step 7: Navigate to writing test page
                 console.log('📝 Navigating to writing test:', writingTestId)
                 setIsRedirecting(true)
                 setTimeout(() => {
@@ -102,7 +120,7 @@ export default function StudentListeningTestPage({ params }: { params: Promise<{
             console.error('❌ Error fetching writing test:', writingTestError)
           }
 
-          // Step 7: No writing test found, redirect to results page
+          // Step 8: No writing test found, redirect to results page
           // Use reading test ID to show combined results
           console.log('ℹ️ No writing test found, redirecting to results')
           setIsRedirecting(true)

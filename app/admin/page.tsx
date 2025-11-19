@@ -149,6 +149,18 @@ const getCachedDashboardData = unstable_cache(
       }
     })
 
+    const recentItemWiseTests = await prisma.itemWiseTest.findMany({
+      take: 2,
+      orderBy: {
+        createdAt: 'desc'
+      },
+      select: {
+        id: true,
+        title: true,
+        createdAt: true
+      }
+    })
+
     // Combine and format recent activity
     const activities: any[] = []
 
@@ -207,6 +219,16 @@ const getCachedDashboardData = unstable_cache(
       })
     })
 
+    recentItemWiseTests.forEach((test) => {
+      activities.push({
+        id: test.id,
+        type: 'test_created',
+        description: 'New item-wise test created',
+        timestamp: test.createdAt.toISOString(),
+        testName: test.title
+      })
+    })
+
     // Sort by timestamp and take the 4 most recent
     activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     const recentActivity = activities.slice(0, 4).map((activity) => {
@@ -246,7 +268,7 @@ const getCachedDashboardData = unstable_cache(
   ['admin-dashboard'],
   {
     revalidate: 60,
-    tags: ['admin-dashboard', 'assignments', 'students', 'writing-submissions', 'reading-tests', 'listening-tests', 'writing-tests']
+    tags: ['admin-dashboard', 'assignments', 'students', 'writing-submissions', 'reading-tests', 'listening-tests', 'writing-tests', 'item-wise-tests']
   }
 )
 

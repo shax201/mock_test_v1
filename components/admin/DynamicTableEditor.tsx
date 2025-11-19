@@ -40,6 +40,7 @@ const inputBox = (
   readOnly: boolean = false
 ) => {
   const inputId = questionNumber ? `q${questionNumber}` : `table-blank-${blankId}`
+  const placeholder = questionNumber ? String(questionNumber) : ''
   return (
     <input
       type="text"
@@ -51,6 +52,7 @@ const inputBox = (
       disabled={readOnly}
       spellCheck={false}
       autoComplete="off"
+      placeholder={placeholder}
       style={{
         width: `${width}px`,
         border: '2px solid #007bff',

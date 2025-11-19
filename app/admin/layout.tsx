@@ -65,6 +65,15 @@ const navigation = [
     ),
   },
   {
+    name: 'Item-wise Tests',
+    href: '/admin/item-wise-tests',
+    icon: ({ className }: IconProps): ReactNode => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5h12M9 9h12M9 13h12M5 7h.01M5 11h.01M5 15h.01M9 17h12M5 19h.01" />
+      </svg>
+    ),
+  },
+  {
     name: 'Writing Tests',
     href: '/admin/writing-tests',
     icon: ({ className }: IconProps): ReactNode => (

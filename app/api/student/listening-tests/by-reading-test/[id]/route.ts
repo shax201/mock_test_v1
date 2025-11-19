@@ -36,7 +36,8 @@ export async function GET(
       select: {
         id: true,
         title: true,
-        audioSource: true
+        audioSource: true,
+        totalTimeMinutes: true
       }
     })
 

@@ -20,6 +20,20 @@ interface MockTest {
   isReadingTest?: boolean
 }
 
+interface ItemWiseTest {
+  id: string
+  title: string
+  testType: string
+  questionType: string
+  moduleType: 'READING' | 'LISTENING' | 'WRITING'
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+  readingTests: Array<{ id: string; title: string; totalTimeMinutes: number; totalQuestions?: number; attempted: boolean; attemptedAt?: string | null; sessionId?: string | null }>
+  listeningTests: Array<{ id: string; title: string; audioSource: string; totalTimeMinutes?: number | null; totalQuestions?: number; attempted: boolean; attemptedAt?: string | null; sessionId?: string | null }>
+  writingTests: Array<{ id: string; title: string; totalTimeMinutes: number; totalQuestions?: number; attempted: boolean; attemptedAt?: string | null; sessionId?: string | null }>
+}
+
 export default function StudentTests() {
   const [activeTab, setActiveTab] = useState('ielts')
   const [activeSubTab, setActiveSubTab] = useState('premium')
@@ -28,10 +42,13 @@ export default function StudentTests() {
   const [publicMockTests, setPublicMockTests] = useState<MockTest[]>([])
   const [readingTests, setReadingTests] = useState<MockTest[]>([])
   const [listeningTests, setListeningTests] = useState<MockTest[]>([])
+  const [itemWiseTests, setItemWiseTests] = useState<ItemWiseTest[]>([])
+  const [expandedItemWise, setExpandedItemWise] = useState<Record<string, boolean>>({})
   const [loading, setLoading] = useState(true)
   const [publicLoading, setPublicLoading] = useState(true)
   const [readingLoading, setReadingLoading] = useState(true)
   const [listeningLoading, setListeningLoading] = useState(true)
+  const [itemWiseLoading, setItemWiseLoading] = useState(true)
   const [startingTest, setStartingTest] = useState<string | null>(null)
   const [joiningTest, setJoiningTest] = useState<string | null>(null)
 
@@ -74,7 +91,7 @@ export default function StudentTests() {
           const readingTestsList = data.readingTests || []
           
           // Check completion status for each reading test
-          const testsWithStatus = await Promise.all(
+      const testsWithStatus = await Promise.all(
             readingTestsList.map(async (test: any) => {
               try {
                 // Check if there's a completed session for this test
@@ -82,18 +99,18 @@ export default function StudentTests() {
                 if (sessionResponse.ok) {
                   const sessionData = await sessionResponse.json()
                   return {
-                    id: test.id,
-                    title: test.title,
-                    description: `Reading test with ${test._count.passages} passage${test._count.passages !== 1 ? 's' : ''} and ${test.totalQuestions} questions`,
-                    duration: test.totalTimeMinutes,
-                    status: 'COMPLETED',
-                    createdAt: test.createdAt,
-                    isReadingTest: true,
-                    writingTestId: test.writingTestId,
-                    completionInfo: {
-                      completedAt: sessionData.completedAt || new Date().toISOString(),
-                      autoScore: sessionData.band || undefined
-                    }
+                  id: test.id,
+                  title: test.title,
+                  description: `Reading test with ${test._count.passages} passage${test._count.passages !== 1 ? 's' : ''} and ${test.totalQuestions} questions`,
+                  duration: test.totalTimeMinutes,
+                  status: 'COMPLETED',
+                  createdAt: test.createdAt,
+                  isReadingTest: true,
+                  writingTestId: test.writingTestId,
+                  completionInfo: {
+                    completedAt: sessionData.completedAt || new Date().toISOString(),
+                    autoScore: sessionData.band || undefined
+                  }
                   }
                 } else {
                   // No completed session found
@@ -141,10 +158,27 @@ export default function StudentTests() {
       setListeningLoading(false)
     }
 
+    const fetchItemWiseTests = async () => {
+      try {
+        const response = await fetch('/api/student/item-wise-tests')
+        if (response.ok) {
+          const data = await response.json()
+          setItemWiseTests(data.itemWiseTests || [])
+        } else {
+          console.error('Failed to fetch item-wise tests:', response.status)
+        }
+      } catch (error) {
+        console.error('Error fetching item-wise tests:', error)
+      } finally {
+        setItemWiseLoading(false)
+      }
+    }
+
     fetchMockTests()
     fetchPublicMockTests()
     fetchReadingTests()
     fetchListeningTests()
+    fetchItemWiseTests()
   }, [])
 
   const handleStartTest = async (mockId: string) => {
@@ -209,9 +243,26 @@ export default function StudentTests() {
     }
   }
 
-  const handleStartReadingTest = (readingTestId: string) => {
-    // Navigate directly to the reading test page
-    window.location.href = `/student/reading-tests/${readingTestId}`
+  const handleStartReadingTest = (readingTestId: string, itemWiseTestId?: string) => {
+    const query = itemWiseTestId ? `?itemWiseTestId=${itemWiseTestId}` : ''
+    window.location.href = `/student/reading-tests/${readingTestId}${query}`
+  }
+
+  const handleStartListeningTest = (listeningTestId: string, itemWiseTestId?: string) => {
+    const query = itemWiseTestId ? `?itemWiseTestId=${itemWiseTestId}` : ''
+    window.location.href = `/student/listening-tests/${listeningTestId}${query}`
+  }
+
+  const handleStartWritingTest = (writingTestId: string, itemWiseTestId?: string) => {
+    const query = itemWiseTestId ? `?itemWiseTestId=${itemWiseTestId}` : ''
+    window.location.href = `/student/writing-tests/${writingTestId}${query}`
+  }
+
+  const toggleItemWiseCard = (id: string) => {
+    setExpandedItemWise(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }))
   }
 
 
@@ -281,7 +332,7 @@ export default function StudentTests() {
                       CD-IELTS Mocks
                   </button>
                   
-                  {/* <button
+                  <button
                     onClick={() => setActiveSidebarItem('item-wise')}
                     className={`w-full flex items-center px-3 py-3 text-sm font-medium transition-colors relative ${
                       activeSidebarItem === 'item-wise'
@@ -293,7 +344,7 @@ export default function StudentTests() {
                       <div className="absolute right-0 top-0 bottom-0 w-1 bg-green-500"></div>
                     )}
                     Item-wise Tests
-                  </button> */}
+                  </button>
                 </div>
               </nav>
             </div>
@@ -487,6 +538,154 @@ export default function StudentTests() {
                         </div>
                       )}
                     </>
+                  )}
+                </div>
+              )}
+
+              {activeSidebarItem === 'item-wise' && (
+                <div className="space-y-4">
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Item-wise Tests</h3>
+                    <p className="text-sm text-gray-600">
+                      Focus on targeted IELTS listening/reading tasks such as Flow Chart Completion without taking a full-length mock.
+                    </p>
+                  </div>
+
+                  {itemWiseLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                    </div>
+                  ) : itemWiseTests.length > 0 ? (
+                    itemWiseTests.map((test) => {
+                      const isReadingModule = test.moduleType === 'READING'
+                      const isListeningModule = test.moduleType === 'LISTENING'
+                      const isWritingModule = test.moduleType === 'WRITING'
+                      const isExpanded = expandedItemWise[test.id] ?? false
+                      const moduleLabel = isReadingModule ? 'Reading Module' : isListeningModule ? 'Listening Module' : 'Writing Module'
+                      const moduleBadgeColor = isReadingModule
+                        ? 'bg-blue-100 text-blue-700'
+                        : isListeningModule
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-purple-100 text-purple-700'
+                      const moduleIcon = '🍌'
+
+                      const components = isReadingModule
+                        ? test.readingTests.map(reading => ({
+                            id: reading.id,
+                            title: reading.title,
+                            subtitle: `${reading.totalTimeMinutes} minutes`,
+                            meta: `${reading.totalQuestions ?? 0} questions`,
+                            attempted: reading.attempted,
+                            attemptedAt: reading.attemptedAt,
+                            sessionId: reading.sessionId,
+                            start: () => handleStartReadingTest(reading.id, test.id)
+                          }))
+                        : isListeningModule
+                        ? test.listeningTests.map(listening => ({
+                            id: listening.id,
+                            title: listening.title,
+                            subtitle: listening.totalTimeMinutes ? `${listening.totalTimeMinutes} minutes` : 'Flexible duration',
+                            meta: `${listening.totalQuestions ?? 0} questions`,
+                            attempted: listening.attempted,
+                            attemptedAt: listening.attemptedAt,
+                            sessionId: listening.sessionId,
+                            start: () => handleStartListeningTest(listening.id, test.id)
+                          }))
+                        : test.writingTests.map(writing => ({
+                            id: writing.id,
+                            title: writing.title,
+                            subtitle: `${writing.totalTimeMinutes} minutes`,
+                            meta: `${writing.totalQuestions ?? 0} questions`,
+                            attempted: writing.attempted,
+                            attemptedAt: writing.attemptedAt,
+                            sessionId: writing.sessionId,
+                            start: () => handleStartWritingTest(writing.id, test.id)
+                          }))
+                      const toggleLabel = isExpanded ? 'Hide tests' : `${components.length} Test${components.length === 1 ? '' : 's'}`
+
+                      return (
+                        <div key={test.id} className="p-4 border border-gray-200 rounded-lg bg-white shadow-sm">
+                            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div>
+                              <h4 className="text-base font-semibold text-gray-900">{test.title}</h4>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {test.testType.replace(/_/g, ' ')} • {test.questionType.replace(/_/g, ' ')} • {moduleLabel}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => toggleItemWiseCard(test.id)}
+                                className="inline-flex items-center text-xs font-medium text-gray-600 border border-gray-200 rounded px-2 py-1 hover:bg-gray-50"
+                              >
+                                {toggleLabel}
+                                <svg
+                                  className={`w-3 h-3 ml-1 transition-transform duration-150 ${isExpanded ? 'rotate-180' : ''}`}
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+
+                          {isExpanded && (
+                            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                              {components.length > 0 ? (
+                                components.map((component) => (
+                                  <div
+                                    key={component.id}
+                                    className="rounded-lg border border-gray-100 bg-gradient-to-b from-white to-gray-50 p-4 shadow-sm hover:shadow-md transition-shadow"
+                                  >
+                                    <div className="flex flex-col items-center text-center space-y-2">
+                                      <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-xl">
+                                        {moduleIcon}
+                                      </div>
+                                      <p className="text-sm font-semibold text-gray-900 truncate w-full">{component.title}</p>
+                                      <p className="text-xs text-gray-500">{component.subtitle}</p>
+                                    {component.meta && <p className="text-[11px] text-gray-400">{component.meta}</p>}
+                                    {component.attempted && component.attemptedAt && (
+                                      <p className="text-[11px] text-green-600">Attempted {new Date(component.attemptedAt).toLocaleString()}</p>
+                                    )}
+                                    {component.attempted ? (
+                                      <Link
+                                        href={`/student/results/${component.sessionId || component.id}`}
+                                        className="w-full mt-2 inline-flex items-center justify-center bg-green-600 text-white px-3 py-1.5 rounded text-xs hover:bg-green-700"
+                                      >
+                                        View Analysis
+                                      </Link>
+                                    ) : (
+                                      <button
+                                        onClick={component.start}
+                                        className="w-full mt-2 bg-blue-600 text-white px-3 py-1.5 rounded text-xs hover:bg-blue-700"
+                                      >
+                                        Take Test
+                                      </button>
+                                    )}
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="col-span-full text-center text-xs text-gray-500 py-8">
+                                  No {moduleLabel.toLowerCase()} linked yet.
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="text-gray-500">
+                        <svg className="mx-auto h-12 w-12 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                        </svg>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No Item-wise Tests Available</h3>
+                        <p className="text-gray-500">Please check back later for focused practice sets.</p>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}

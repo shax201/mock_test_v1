@@ -88,6 +88,25 @@ export default function TableStructureEditor({
     })
   }
 
+  // Helper function to get next available blank ID
+  const getNextBlankId = (): number => {
+    const allBlankIds = new Set<number>()
+    localStructure.rows.forEach(r => {
+      (r.columns || []).forEach(col => {
+        col.forEach(c => {
+          if (c.type === 'blank' && c.blankId !== undefined) {
+            allBlankIds.add(c.blankId)
+          }
+        })
+      })
+    })
+    let nextBlankId = 1
+    while (allBlankIds.has(nextBlankId)) {
+      nextBlankId++
+    }
+    return nextBlankId
+  }
+
   const addCell = (rowId: string, colIndex: number, afterCellId?: string) => {
     const newCell: TableCell = {
       id: `cell-${Date.now()}-${Math.random()}`,
@@ -112,6 +131,39 @@ export default function TableStructureEditor({
         
         const newColumns = [...currentColumns]
         newColumns[colIndex] = [...columnCells, newCell]
+        return { ...row, columns: newColumns }
+      })
+    })
+  }
+
+  // Add a blank cell directly to a specific column in a row
+  const addBlankToRow = (rowId: string, colIndex: number, afterCellId?: string) => {
+    const nextBlankId = getNextBlankId()
+    const newBlankCell: TableCell = {
+      id: `cell-${Date.now()}-${Math.random()}`,
+      type: 'blank',
+      content: '',
+      blankId: nextBlankId,
+      width: 120
+    }
+    updateStructure({
+      ...localStructure,
+      rows: localStructure.rows.map(row => {
+        if (row.id !== rowId) return row
+        const currentColumns = row.columns || []
+        const columnCells = currentColumns[colIndex] || []
+        
+        if (afterCellId) {
+          const index = columnCells.findIndex(c => c.id === afterCellId)
+          const newCells = [...columnCells]
+          newCells.splice(index + 1, 0, newBlankCell)
+          const newColumns = [...currentColumns]
+          newColumns[colIndex] = newCells
+          return { ...row, columns: newColumns }
+        }
+        
+        const newColumns = [...currentColumns]
+        newColumns[colIndex] = [...columnCells, newBlankCell]
         return { ...row, columns: newColumns }
       })
     })
@@ -154,21 +206,7 @@ export default function TableStructureEditor({
 
     if (cell.type === 'text') {
       // Convert to blank - need to assign a blankId
-      const allBlankIds = new Set<number>()
-      localStructure.rows.forEach(r => {
-        (r.columns || []).forEach(col => {
-          col.forEach(c => {
-            if (c.type === 'blank' && c.blankId !== undefined) {
-              allBlankIds.add(c.blankId)
-            }
-          })
-        })
-      })
-      // Find next available blank ID
-      let nextBlankId = 1
-      while (allBlankIds.has(nextBlankId)) {
-        nextBlankId++
-      }
+      const nextBlankId = getNextBlankId()
       updateCell(rowId, colIndex, cellId, {
         type: 'blank',
         blankId: nextBlankId,
@@ -288,13 +326,29 @@ export default function TableStructureEditor({
                 <label className="block text-xs font-medium text-gray-700">
                   Row {rowIndex + 1}
                 </label>
-                <button
-                  type="button"
-                  onClick={() => removeRow(row.id)}
-                  className="text-xs text-red-600 hover:text-red-800"
-                >
-                  Remove Row
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Add blank to the last column (usually where answers go)
+                      const targetColIndex = localStructure.columns.length > 1 
+                        ? localStructure.columns.length - 1 
+                        : 0
+                      addBlankToRow(row.id, targetColIndex)
+                    }}
+                    className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    title="Add blank to this row"
+                  >
+                    + Add Blank
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeRow(row.id)}
+                    className="text-xs text-red-600 hover:text-red-800"
+                  >
+                    Remove Row
+                  </button>
+                </div>
               </div>
 
               {/* Columns for this row */}
@@ -307,13 +361,23 @@ export default function TableStructureEditor({
                         <label className="block text-xs font-medium text-gray-700">
                           {col.label || `Column ${colIndex + 1}`}
                         </label>
-                        <button
-                          type="button"
-                          onClick={() => addCell(row.id, colIndex)}
-                          className="text-xs text-blue-600 hover:text-blue-800"
-                        >
-                          + Add Cell
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => addBlankToRow(row.id, colIndex)}
+                            className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                            title="Add blank to this column"
+                          >
+                            + Blank
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => addCell(row.id, colIndex)}
+                            className="text-xs text-blue-600 hover:text-blue-800"
+                          >
+                            + Text
+                          </button>
+                        </div>
                       </div>
 
                       {columnCells.map((cell, cellIndex) => (

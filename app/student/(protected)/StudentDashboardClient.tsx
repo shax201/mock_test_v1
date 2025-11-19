@@ -75,10 +75,29 @@ interface SummaryStats {
   totalTestTime: number
 }
 
+interface ItemWiseTestCard {
+  id: string
+  title: string
+  moduleType: 'READING' | 'LISTENING' | 'WRITING'
+  questionType: string
+  totalTests: number
+  attemptedTests: number
+  tests: Array<{
+    id: string
+    title: string
+    type: 'READING' | 'LISTENING' | 'WRITING'
+    duration?: number | null
+    attempted: boolean
+    attemptedAt?: string | null
+    sessionId?: string
+  }>
+}
+
 interface StudentDashboardClientProps {
   initialStats: DashboardStats | null
   initialParticipationHistory: ParticipationHistoryItem[]
   initialSummaryStats: SummaryStats | null
+  itemWiseTests?: ItemWiseTestCard[]
   error: string
 }
 
@@ -86,6 +105,7 @@ export default function StudentDashboardClient({
   initialStats,
   initialParticipationHistory,
   initialSummaryStats,
+  itemWiseTests: initialItemWiseTests = [],
   error
 }: StudentDashboardClientProps) {
   const stats = initialStats || {
@@ -110,6 +130,17 @@ export default function StudentDashboardClient({
     expiredTests: 0,
     averageBand: 0,
     totalTestTime: 0
+  }
+  const itemWiseTests = initialItemWiseTests || []
+
+  const formatAttemptDate = (value?: string | null) => {
+    if (!value) return ''
+    return new Date(value).toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    })
   }
 
   return (
@@ -277,6 +308,135 @@ export default function StudentDashboardClient({
             </div>
           </div>
         </div>
+
+        {/* Item-wise Practice Section */}
+        {itemWiseTests.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="px-6 py-5 space-y-6">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Item-wise Practice</h2>
+                  <p className="text-sm text-gray-600">
+                    Target specific IELTS skills such as Flow Chart or Form Completion.
+                  </p>
+                </div>
+                <Link
+                  href="/student/tests?tab=item-wise"
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+                >
+                  Explore All
+                </Link>
+              </div>
+
+              <div className="space-y-4">
+                {itemWiseTests.map((bundle) => (
+                  <div key={bundle.id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">{bundle.title}</h3>
+                        <p className="text-sm text-gray-500">
+                          {bundle.moduleType === 'READING'
+                            ? 'Reading Module'
+                            : bundle.moduleType === 'LISTENING'
+                            ? 'Listening Module'
+                            : 'Writing Module'}{' '}
+                          • {bundle.questionType}
+                        </p>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Attempted {bundle.attemptedTests} of {bundle.totalTests} tests
+                        </p>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center text-xs text-gray-500">
+                          <svg className="w-4 h-4 mr-1 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M2.5 3A1.5 1.5 0 001 4.5v11A1.5 1.5 0 002.5 17h15a1.5 1.5 0 001.5-1.5v-11A1.5 1.5 0 0017.5 3h-15zm4 2h7l-3.5 4.5L6.5 5z" />
+                          </svg>
+                          1 Video
+                        </div>
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                          {bundle.totalTests} Tests
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                      {bundle.tests.map((test) => {
+                        const isReading = test.type === 'READING'
+                        const isListening = test.type === 'LISTENING'
+                        const query = bundle.id ? `?itemWiseTestId=${bundle.id}` : ''
+                        const linkHref = isReading
+                          ? `/student/reading-tests/${test.id}${query}`
+                          : isListening
+                          ? `/student/listening-tests/${test.id}${query}`
+                          : `/student/writing-tests/${test.id}${query}`
+
+                        return (
+                          <div
+                            key={`${bundle.id}-${test.id}`}
+                            className={`rounded-lg border p-4 ${
+                              test.attempted ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <p className="text-sm font-semibold text-gray-900 truncate">{test.title}</p>
+                                <p className="text-xs text-gray-500">
+                                  {isReading ? 'Reading' : isListening ? 'Listening' : 'Writing'} •{' '}
+                                  {test.duration ? `${test.duration} mins` : '—'}
+                                </p>
+                                {test.attempted && (
+                                  <p className="text-xs text-gray-600 mt-1">
+                                    Attempted: {formatAttemptDate(test.attemptedAt)}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="w-8 h-8 rounded-full bg-white border flex items-center justify-center">
+                                {isReading ? (
+                                  <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                  </svg>
+                                ) : isListening ? (
+                                  <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                                  </svg>
+                                ) : (
+                                  <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 20h9" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4h9" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 4H5a2 2 0 00-2 2v12a2 2 0 002 2h1" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 8h9m-9 4h9m-9 4h9" />
+                                  </svg>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="mt-4">
+                              {test.attempted ? (
+                                <Link
+                                  href={`/student/results/${test.sessionId || test.id}`}
+                                  className="inline-flex items-center px-3 py-1.5 rounded text-xs font-medium text-white bg-green-600 hover:bg-green-700"
+                                >
+                                  View Analysis
+                                </Link>
+                              ) : (
+                                <Link
+                                  href={linkHref}
+                                  className="inline-flex items-center px-3 py-1.5 rounded text-xs font-medium text-white bg-blue-600 hover:bg-blue-700"
+                                >
+                                  Take Test
+                                </Link>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

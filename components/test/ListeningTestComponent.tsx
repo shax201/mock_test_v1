@@ -140,6 +140,7 @@ export type ListeningTestData = {
   instructions: string[]
   parts: any[]
   correctAnswers: Record<string, string | string[]>
+  totalTimeMinutes?: number
 }
 
 export default function ListeningTestComponent({ data, onSubmit }: { data: ListeningTestData, onSubmit?: (payload: { score: number; rows: ResultRow[] }) => void }) {
@@ -246,10 +247,14 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
 
   const [currentPart, setCurrentPart] = useState<number>(initialPart)
   const [currentQuestion, setCurrentQuestion] = useState<number>(initialQuestion)
+  const configuredDurationSeconds = useMemo(
+    () => Math.max(60, Math.floor((data.totalTimeMinutes ?? 30) * 60)),
+    [data.totalTimeMinutes]
+  )
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false)
   const [isReviewTime, setIsReviewTime] = useState<boolean>(false)
   const [overlayStage, setOverlayStage] = useState<'instructions' | 'loading' | 'play' | 'hidden'>('instructions')
-  const [totalTime, setTotalTime] = useState<number>(0)
+  const [totalTime, setTotalTime] = useState<number>(configuredDurationSeconds)
   const [results, setResults] = useState<{ score: number; rows: ResultRow[] } | null>(null)
   const [resultModalOpen, setResultModalOpen] = useState<boolean>(false)
   const [notesOpen, setNotesOpen] = useState<boolean>(false)
@@ -289,15 +294,19 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
     return `${min < 10 ? '0' : ''}${min}:${sec < 10 ? '0' : ''}${sec}`
   }, [])
 
+  useEffect(() => {
+    if (!isReviewTime && !isSubmitted) {
+      setTotalTime(configuredDurationSeconds)
+    }
+  }, [configuredDurationSeconds, isReviewTime, isSubmitted])
+
   const startTimer = useCallback(() => {
-    if (!audioRef.current) return
-    const d = Math.floor(audioRef.current.duration || 0)
-    setTotalTime(d)
     if (timerRef.current) window.clearInterval(timerRef.current)
+    setTotalTime(configuredDurationSeconds)
     timerRef.current = window.setInterval(() => {
       setTotalTime(prev => (prev > 0 ? prev - 1 : 0))
     }, 1000)
-  }, [])
+  }, [configuredDurationSeconds])
 
   useEffect(() => {
     if (totalTime <= 0 && !isSubmitted) {
@@ -431,6 +440,18 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
       })
     })
     
+    // Build a set of table completion question numbers
+    const tableCompletionQuestionNumbers = new Set<number>()
+    data.parts.forEach((part: any) => {
+      if (part.tableCompletionQuestions && Array.isArray(part.tableCompletionQuestions)) {
+        part.tableCompletionQuestions.forEach((q: any) => {
+          if (q && q.questionNumber) {
+            tableCompletionQuestionNumbers.add(q.questionNumber)
+          }
+        })
+      }
+    })
+    
     // Sort question numbers
     const sortedQuestions = Array.from(allQuestionNumbers).sort((a, b) => a - b)
     
@@ -442,21 +463,24 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
       let userAnswer = ''
       let isCorrect = false
       let correctAnswerText = ''
+      const isTableCompletion = tableCompletionQuestionNumbers.has(i)
+      
       if (textOrSelect) {
         const element = textOrSelect as HTMLInputElement | HTMLSelectElement
         element.setAttribute('disabled', 'true')
         userAnswer = (element as HTMLInputElement).value?.trim() || ''
         const accepted = Array.isArray(correctAnswers[key]) ? (correctAnswers[key] as string[]) : [String(correctAnswers[key])]
         isCorrect = accepted.some(a => a.toLowerCase() === userAnswer.toLowerCase())
-        // Do not display or inject correct answers in the UI after submission
-        correctAnswerText = accepted.join(' / ')
+        // For table completion questions, don't show correct answers
+        correctAnswerText = isTableCompletion ? '' : accepted.join(' / ')
         element.classList.add(isCorrect ? 'correct' : 'incorrect')
       } else {
         const radioChecked = document.querySelector(`input[name="${key}"]:checked`) as HTMLInputElement | null
         const radios = document.querySelectorAll(`input[name="${key}"]`) as NodeListOf<HTMLInputElement>
         userAnswer = radioChecked ? radioChecked.value : ''
         const correct = String(correctAnswers[key])
-        correctAnswerText = correct
+        // For table completion questions, don't show correct answers
+        correctAnswerText = isTableCompletion ? '' : correct
         isCorrect = userAnswer.toLowerCase() === correct.toLowerCase()
         radios.forEach(r => {
           // Disable selection without revealing the correct option
@@ -956,12 +980,12 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
                     const blankId = blankIds[index]
                     if (blankId !== undefined) {
                       questionNumberMap[blankId] = q.questionNumber
-                      const answerValue = q.answers?.[blankId] || ''
+                      // Only use user's input from DOM, never use correct answers from q.answers
                       const inputElement = document.getElementById(`q${q.questionNumber}`) as HTMLInputElement
                       if (inputElement) {
                         allAnswers[blankId] = inputElement.value || ''
                       } else {
-                        allAnswers[blankId] = answerValue
+                        allAnswers[blankId] = '' // Don't populate with correct answers
                       }
                     }
                   })
@@ -989,7 +1013,7 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
                             }
                           })
                         }}
-                        readOnly={false}
+                        readOnly={isSubmitted}
                         questionNumbers={questionNumberMap}
                       />
                     </div>
@@ -1104,8 +1128,9 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
                     const blankId = blankIds[index]
                     if (blankId !== undefined) {
                       questionNumberMap[blankId] = q.questionNumber
+                      // Only use user's input from DOM, never use correct answers from q.answers
                       const inputElement = document.getElementById(`q${q.questionNumber}`) as HTMLInputElement
-                      allAnswers[blankId] = inputElement?.value || q.answers?.[blankId] || ''
+                      allAnswers[blankId] = inputElement?.value || ''
                     }
                   })
                   
@@ -1131,7 +1156,7 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
                             }
                           })
                         }}
-                        readOnly={false}
+                        readOnly={isSubmitted}
                         questionNumbers={questionNumberMap}
                       />
                     </div>
@@ -1246,8 +1271,9 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
                     const blankId = blankIds[index]
                     if (blankId !== undefined) {
                       questionNumberMap[blankId] = q.questionNumber
+                      // Only use user's input from DOM, never use correct answers from q.answers
                       const inputElement = document.getElementById(`q${q.questionNumber}`) as HTMLInputElement
-                      allAnswers[blankId] = inputElement?.value || q.answers?.[blankId] || ''
+                      allAnswers[blankId] = inputElement?.value || ''
                     }
                   })
                   
@@ -1273,7 +1299,7 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
                             }
                           })
                         }}
-                        readOnly={false}
+                        readOnly={isSubmitted}
                         questionNumbers={questionNumberMap}
                       />
                     </div>
@@ -1418,8 +1444,9 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
                     const blankId = blankIds[index]
                     if (blankId !== undefined) {
                       questionNumberMap[blankId] = q.questionNumber
+                      // Only use user's input from DOM, never use correct answers from q.answers
                       const inputElement = document.getElementById(`q${q.questionNumber}`) as HTMLInputElement
-                      allAnswers[blankId] = inputElement?.value || q.answers?.[blankId] || ''
+                      allAnswers[blankId] = inputElement?.value || ''
                     }
                   })
                   
@@ -1445,7 +1472,7 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
                             }
                           })
                         }}
-                        readOnly={false}
+                        readOnly={isSubmitted}
                         questionNumbers={questionNumberMap}
                       />
                     </div>

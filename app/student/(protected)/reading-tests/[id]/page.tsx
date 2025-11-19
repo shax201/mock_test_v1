@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import ReadingTestComponent from '@/components/test/ReadingTestComponent'
 import Link from 'next/link'
 import StudentHeader from '@/components/student/StudentHeader'
@@ -49,7 +49,9 @@ interface TestData {
 
 export default function StudentReadingTestPage() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const router = useRouter()
+  const itemWiseTestId = searchParams.get('itemWiseTestId')
   const [testData, setTestData] = useState<TestData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -98,7 +100,11 @@ export default function StudentReadingTestPage() {
 
       // Step 2: Submit reading test results to backend
       // This saves the test session and marks it as completed
-      const response = await fetch(`/api/student/reading-tests/${params.id}/results`, {
+      const resultsEndpoint = itemWiseTestId
+        ? `/api/student/reading-tests/${params.id}/results?itemWiseTestId=${itemWiseTestId}`
+        : `/api/student/reading-tests/${params.id}/results`
+
+      const response = await fetch(resultsEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -107,6 +113,7 @@ export default function StudentReadingTestPage() {
           score: results.score || 0,
           band: results.band || 0,
           answers: answers,
+          itemWiseTestId
         }),
       })
 

@@ -25,7 +25,9 @@ export async function POST(
     }
 
     const resolvedParams = await params
-    const { score, answers, timeSpent } = await request.json()
+    const { score, answers, timeSpent, itemWiseTestId } = await request.json()
+    const normalizedItemWiseTestId =
+      typeof itemWiseTestId === 'string' && itemWiseTestId.trim().length > 0 ? itemWiseTestId : null
 
     // Validate required fields
     if (score === undefined || !answers) {
@@ -71,7 +73,8 @@ export async function POST(
       where: {
         testId: resolvedParams.id,
         studentId: payload.userId,
-        testType: 'LISTENING'
+        testType: 'LISTENING',
+        itemWiseTestId: normalizedItemWiseTestId
       },
       orderBy: { createdAt: 'desc' }
     })
@@ -85,7 +88,8 @@ export async function POST(
           score,
           band,
           isCompleted: true,
-          completedAt: new Date()
+          completedAt: new Date(),
+          itemWiseTestId: normalizedItemWiseTestId
         }
       })
     } else {
@@ -100,7 +104,8 @@ export async function POST(
           band,
           isCompleted: true,
           startedAt: new Date(),
-          completedAt: new Date()
+          completedAt: new Date(),
+          itemWiseTestId: normalizedItemWiseTestId
         }
       })
     }

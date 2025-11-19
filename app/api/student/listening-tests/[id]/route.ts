@@ -106,6 +106,7 @@ export async function GET(
     const payload = {
       audioSource: test.audioSource,
       instructions: Array.isArray(test.instructions) ? test.instructions : [],
+      totalTimeMinutes: test.totalTimeMinutes ?? 30,
       parts,
       correctAnswers
     }

@@ -8,6 +8,7 @@ interface ListeningTest {
   id: string
   title: string
   audioSource: string
+  totalTimeMinutes: number
   isActive: boolean
   createdAt: string
   readingTest?: {
@@ -59,6 +60,7 @@ const getCachedListeningTests = unstable_cache(
       id: test.id,
       title: test.title,
       audioSource: test.audioSource,
+      totalTimeMinutes: test.totalTimeMinutes,
       isActive: test.isActive,
       createdAt: test.createdAt.toISOString(),
       readingTest: test.readingTest,

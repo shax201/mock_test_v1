@@ -5,8 +5,18 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import StudentHeader from '@/components/student/StudentHeader'
 
+type ModuleBandType = 'LISTENING' | 'READING' | 'WRITING'
+
+interface ModuleResult {
+  type: ModuleBandType
+  title: string
+  band: number
+  completedAt: string | null
+}
+
 interface TestResult {
   id: string
+  itemWiseTestId?: string | null
   testTitle: string
   overallBand: number
   listeningBand: number
@@ -16,6 +26,7 @@ interface TestResult {
   completedAt: string
   status: string
   candidateNumber: string
+  modules: ModuleResult[]
 }
 
 interface StudentResultsClientProps {
@@ -87,7 +98,14 @@ export default function StudentResultsClient({ initialResults, error: initialErr
                 <div className="px-4 py-5 sm:p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div>
+                      <div className="flex items-center gap-2">
                       <h3 className="text-lg font-medium text-gray-900">{result.testTitle}</h3>
+                        {result.itemWiseTestId && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-50 text-green-700 border border-green-100">
+                            Item-wise
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-gray-500">Candidate Number: {result.candidateNumber}</p>
                       <p className="text-sm text-gray-500">Completed: {new Date(result.completedAt).toLocaleString()}</p>
                     </div>
@@ -97,33 +115,37 @@ export default function StudentResultsClient({ initialResults, error: initialErr
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-2xl font-bold text-blue-600">
-                        {result.listeningBand > 0 ? result.listeningBand.toFixed(1) : '-'}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                    {result.modules.length > 0 ? (
+                      result.modules.map(module => {
+                        const colorClass =
+                          module.type === 'LISTENING'
+                            ? 'text-blue-600'
+                            : module.type === 'READING'
+                            ? 'text-green-600'
+                            : 'text-yellow-600'
+                        const label =
+                          module.type === 'LISTENING'
+                            ? 'Listening'
+                            : module.type === 'READING'
+                            ? 'Reading'
+                            : 'Writing'
+                        return (
+                          <div key={`${result.id}-${module.type}`} className="text-center p-4 bg-gray-50 rounded-lg">
+                            <div className={`text-2xl font-bold ${colorClass}`}>
+                              {module.band > 0 ? module.band.toFixed(1) : (
+                                <span className="text-sm text-gray-400">Pending</span>
+                              )}
+                            </div>
+                            <div className="text-sm text-gray-500">{label}</div>
+                          </div>
+                        )
+                      })
+                    ) : (
+                      <div className="col-span-full text-center text-sm text-gray-500 py-4">
+                        No module scores yet.
                       </div>
-                      <div className="text-sm text-gray-500">Listening</div>
-                    </div>
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-2xl font-bold text-green-600">
-                        {result.readingBand > 0 ? result.readingBand.toFixed(1) : '-'}
-                      </div>
-                      <div className="text-sm text-gray-500">Reading</div>
-                    </div>
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-2xl font-bold text-yellow-600">
-                        {result.writingBand > 0 ? result.writingBand.toFixed(1) : (
-                          <span className="text-sm text-gray-400">Pending</span>
-                        )}
-                      </div>
-                      <div className="text-sm text-gray-500">Writing</div>
-                    </div>
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-2xl font-bold text-purple-600">
-                        {result.speakingBand > 0 ? result.speakingBand.toFixed(1) : '-'}
-                      </div>
-                      <div className="text-sm text-gray-500">Speaking</div>
-                    </div>
+                    )}
                   </div>
 
                   <div className="mt-6 flex space-x-4">

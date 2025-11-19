@@ -75,7 +75,7 @@ export async function PUT(
     }
 
     const resolvedParams = await params
-    const { title, audioSource, instructions, readingTestId, isActive, parts } = await request.json()
+    const { title, audioSource, instructions, readingTestId, isActive, totalTimeMinutes, parts } = await request.json()
 
     // If parts are provided, do a full update (delete existing parts and recreate)
     if (parts && Array.isArray(parts)) {
@@ -92,6 +92,7 @@ export async function PUT(
           ...(audioSource !== undefined && { audioSource }),
           ...(instructions !== undefined && { instructions }),
           ...(readingTestId !== undefined && { readingTestId: readingTestId || null }),
+          ...(totalTimeMinutes !== undefined && { totalTimeMinutes: totalTimeMinutes > 0 ? totalTimeMinutes : 30 }),
           ...(isActive !== undefined && { isActive }),
           parts: {
             create: parts.map((part: any, partIndex: number) => ({
@@ -158,6 +159,7 @@ export async function PUT(
           ...(audioSource !== undefined && { audioSource }),
           ...(instructions !== undefined && { instructions }),
           ...(readingTestId !== undefined && { readingTestId: readingTestId || null }),
+          ...(totalTimeMinutes !== undefined && { totalTimeMinutes: totalTimeMinutes > 0 ? totalTimeMinutes : 30 }),
           ...(isActive !== undefined && { isActive })
         },
         include: {

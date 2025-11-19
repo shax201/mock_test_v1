@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import StudentHeader from '@/components/student/StudentHeader'
 import styles from './WritingTest.module.css'
 
@@ -49,6 +49,8 @@ interface WritingTestData {
 export default function StudentWritingTestPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const itemWiseTestId = searchParams.get('itemWiseTestId')
   const [testData, setTestData] = useState<WritingTestData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -272,12 +274,17 @@ export default function StudentWritingTestPage() {
         answers: answers,
         timeSpent: testData?.test?.totalTimeMinutes
           ? testData.test.totalTimeMinutes * 60 - timeRemaining
-          : 0
+          : 0,
+        itemWiseTestId
       }
 
       // Step 2: Submit to backend API
       // Save writing test responses to database
-      const response = await fetch(`/api/student/writing-tests/${params.id}/results`, {
+      const resultsEndpoint = itemWiseTestId
+        ? `/api/student/writing-tests/${params.id}/results?itemWiseTestId=${itemWiseTestId}`
+        : `/api/student/writing-tests/${params.id}/results`
+
+      const response = await fetch(resultsEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

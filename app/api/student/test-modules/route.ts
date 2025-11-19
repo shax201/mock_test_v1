@@ -44,7 +44,8 @@ export async function GET(request: NextRequest) {
         listeningTests: {
           select: {
             id: true,
-            title: true
+            title: true,
+            totalTimeMinutes: true
           },
           take: 1
         },
@@ -101,7 +102,7 @@ export async function GET(request: NextRequest) {
       modules.push({
         id: `listening-${listeningTest.id}`,
         type: 'LISTENING',
-        duration: 30, // Default duration for listening tests (typically 30 minutes)
+        duration: listeningTest.totalTimeMinutes || 30,
         instructions: 'Complete the listening test. You will hear each recording once only.',
         isCompleted: listeningSession?.isCompleted || false,
         submittedAt: listeningSession?.completedAt || null,

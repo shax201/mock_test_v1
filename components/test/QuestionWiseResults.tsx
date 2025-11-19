@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import DynamicTableEditor, { TableStructure } from '@/components/admin/DynamicTableEditor'
 
 interface WritingNote {
   id: string
@@ -13,6 +14,7 @@ interface WritingNote {
 
 interface Question {
   id: string
+  questionNumber?: number
   question: string
   type: string
   part: number
@@ -24,6 +26,105 @@ interface Question {
   explanation?: string
   moduleType: 'reading' | 'listening' | 'writing'
   wordCount?: number
+  tableStructure?: TableStructure | null
+  tableAnswers?: Record<number, string> | null
+  tableQuestionNumbers?: Record<number, number> | null
+  flowChartDiagram?: FlowChartDiagram | null
+}
+
+interface FlowChartField {
+  x: number
+  y: number
+  width?: number
+  height?: number
+  label?: string
+}
+
+interface FlowChartDiagram {
+  imageUrl: string | null
+  nodes: {
+    questionNumber: number
+    field?: FlowChartField | null
+    studentAnswer: string
+  }[]
+}
+
+function FlowChartPreview({
+  diagram,
+  activeQuestionNumber
+}: {
+  diagram: FlowChartDiagram
+  activeQuestionNumber?: number
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const imageRef = useRef<HTMLImageElement>(null)
+  const [scale, setScale] = useState({ x: 1, y: 1 })
+
+  const updateScale = () => {
+    if (!imageRef.current) return
+    const img = imageRef.current
+    if (!img.naturalWidth || !img.naturalHeight) return
+    setScale({
+      x: img.clientWidth / img.naturalWidth,
+      y: img.clientHeight / img.naturalHeight
+    })
+  }
+
+  useEffect(() => {
+    updateScale()
+    window.addEventListener('resize', updateScale)
+    return () => window.removeEventListener('resize', updateScale)
+  }, [])
+
+  const nodes = Array.isArray(diagram.nodes) ? diagram.nodes : []
+
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden bg-white max-w-3xl mx-auto">
+      <div ref={containerRef} className="relative w-full">
+        {diagram.imageUrl ? (
+          <img
+            ref={imageRef}
+            src={diagram.imageUrl}
+            alt="Flow chart"
+            className="w-full h-auto block"
+            onLoad={updateScale}
+          />
+        ) : (
+          <div className="w-full h-64 flex items-center justify-center text-sm text-gray-500">
+            Flow chart image unavailable
+          </div>
+        )}
+        {nodes.map((node) => {
+          const field = node.field
+          if (!field || typeof field.x !== 'number' || typeof field.y !== 'number') return null
+          const scaledX = field.x * scale.x
+          const scaledY = field.y * scale.y
+          const scaledWidth = (field.width || 140) * scale.x
+          const scaledHeight = (field.height || 36) * scale.y
+          const displayStudentAnswer =
+            node.studentAnswer && node.studentAnswer !== 'Unattempted' ? node.studentAnswer : '—'
+          const isActive = node.questionNumber === activeQuestionNumber
+
+          return (
+            <div
+              key={node.questionNumber}
+              className={`absolute rounded border-2 bg-white/95 shadow-sm flex items-center justify-center px-3 text-sm font-semibold ${
+                isActive ? 'border-blue-500 text-blue-700' : 'border-gray-300 text-gray-800'
+              }`}
+              style={{
+                left: `${scaledX}px`,
+                top: `${scaledY}px`,
+                width: `${scaledWidth}px`,
+                height: `${scaledHeight}px`
+              }}
+            >
+              {displayStudentAnswer}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 interface QuestionWiseResultsProps {
@@ -312,6 +413,32 @@ export default function QuestionWiseResults({ testId, questions, totalQuestions 
             <h4 className="text-lg font-semibold text-gray-900 mb-4">Question:</h4>
             <p className="text-gray-800 leading-relaxed">{selectedQuestion.question}</p>
           </div>
+
+          {/* Flow Chart Preview */}
+          {selectedQuestion.type === 'FLOW_CHART' &&
+            selectedQuestion.flowChartDiagram && (
+              <div className="bg-gray-50 rounded-lg p-6">
+                <h4 className="text-lg font-semibold text-gray-900 mb-4">Flow Chart:</h4>
+                <FlowChartPreview
+                  diagram={selectedQuestion.flowChartDiagram}
+                  activeQuestionNumber={selectedQuestion.questionNumber}
+                />
+              </div>
+            )}
+
+          {/* Table Preview for Table Completion */}
+          {selectedQuestion.type === 'TABLE_COMPLETION' && selectedQuestion.tableStructure && (
+            <div className="bg-gray-50 rounded-lg p-6">
+              <h4 className="text-lg font-semibold text-gray-900 mb-4">Table Context:</h4>
+              <DynamicTableEditor
+                structure={selectedQuestion.tableStructure}
+                onStructureChange={() => {}}
+                initialAnswers={selectedQuestion.tableAnswers || {}}
+                readOnly
+                questionNumbers={selectedQuestion.tableQuestionNumbers || undefined}
+              />
+            </div>
+          )}
 
           {/* Options (if available) */}
           {selectedQuestion.options && selectedQuestion.options.length > 0 && (

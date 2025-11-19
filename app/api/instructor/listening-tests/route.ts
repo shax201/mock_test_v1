@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const { title, audioSource, instructions, parts, readingTestId } = await request.json()
+    const { title, audioSource, instructions, parts, readingTestId, totalTimeMinutes } = await request.json()
 
     if (!title || !audioSource || !instructions || !parts) {
       return NextResponse.json(
@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
         title: title || 'IELTS Listening Test',
         audioSource,
         instructions,
+        totalTimeMinutes: totalTimeMinutes && Number(totalTimeMinutes) > 0 ? Number(totalTimeMinutes) : 30,
         readingTestId: readingTestId || null,
         parts: {
           create: parts.map((part: any, partIndex: number) => ({

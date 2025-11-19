@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     const requestBody = await request.json().catch(() => ({}))
     const { readingTestId } = requestBody
 
-    const { audioSource, instructions, parts, correctAnswers } = jsonData
+    const { audioSource, instructions, parts, correctAnswers, totalTimeMinutes } = jsonData
 
     // Transform parts with their questions
     console.log('🔄 Transforming parts...')
@@ -142,6 +142,7 @@ export async function POST(request: NextRequest) {
         title: 'IELTS Listening Test',
         audioSource,
         instructions,
+        totalTimeMinutes: totalTimeMinutes && Number(totalTimeMinutes) > 0 ? Number(totalTimeMinutes) : 30,
         readingTestId: readingTestId || null,
         parts: {
           create: transformedParts.map((part: any) => ({

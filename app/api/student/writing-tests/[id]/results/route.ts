@@ -27,7 +27,9 @@ export async function POST(
     }
 
     const resolvedParams = await params
-    const { answers, timeSpent } = await request.json()
+    const { answers, timeSpent, itemWiseTestId } = await request.json()
+    const normalizedItemWiseTestId =
+      typeof itemWiseTestId === 'string' && itemWiseTestId.trim().length > 0 ? itemWiseTestId : null
 
     // Step 2: Validate required fields
     // Ensure answers object is provided
@@ -61,7 +63,8 @@ export async function POST(
       where: {
         testId: resolvedParams.id,
         studentId: payload.userId,
-        testType: 'WRITING'
+        testType: 'WRITING',
+        itemWiseTestId: normalizedItemWiseTestId
       },
       orderBy: { createdAt: 'desc' }
     })
@@ -75,7 +78,8 @@ export async function POST(
           answers: answers || {},
           isCompleted: true,
           completedAt: new Date(),
-          startedAt: session.startedAt || new Date()
+          startedAt: session.startedAt || new Date(),
+          itemWiseTestId: normalizedItemWiseTestId
         }
       })
     } else {
@@ -89,7 +93,8 @@ export async function POST(
           startedAt: new Date(),
           answers: answers || {},
           isCompleted: true,
-          completedAt: new Date()
+          completedAt: new Date(),
+          itemWiseTestId: normalizedItemWiseTestId
         }
       })
     }
@@ -119,6 +124,7 @@ export async function POST(
         answers: session.answers || {},
         isCompleted: session.isCompleted,
         completedAt: session.completedAt?.toISOString() || null,
+        itemWiseTestId: session.itemWiseTestId,
         createdAt: session.createdAt.toISOString(),
         updatedAt: session.updatedAt.toISOString()
       },

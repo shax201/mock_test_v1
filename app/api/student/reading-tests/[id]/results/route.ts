@@ -25,7 +25,9 @@ export async function POST(
     }
 
     const resolvedParams = await params
-    const { score, band, answers, timeSpent } = await request.json()
+    const { score, band, answers, timeSpent, itemWiseTestId } = await request.json()
+    const normalizedItemWiseTestId =
+      typeof itemWiseTestId === 'string' && itemWiseTestId.trim().length > 0 ? itemWiseTestId : null
 
     // Validate required fields
     if (score === undefined || band === undefined || !answers) {
@@ -49,7 +51,8 @@ export async function POST(
       where: {
         testId: resolvedParams.id,
         studentId: payload.userId,
-        testType: 'READING'
+        testType: 'READING',
+        itemWiseTestId: normalizedItemWiseTestId
       },
       orderBy: { createdAt: 'desc' }
     })
@@ -64,7 +67,8 @@ export async function POST(
           completedAt: new Date(),
           score: score || 0,
           band: band || 0,
-          startedAt: session.startedAt || new Date()
+          startedAt: session.startedAt || new Date(),
+          itemWiseTestId: normalizedItemWiseTestId
         }
       })
     } else {
@@ -79,7 +83,8 @@ export async function POST(
           isCompleted: true,
           completedAt: new Date(),
           score: score || 0,
-          band: band || 0
+          band: band || 0,
+          itemWiseTestId: normalizedItemWiseTestId
         }
       })
     }
@@ -106,6 +111,7 @@ export async function POST(
         completedAt: session.completedAt?.toISOString() || null,
         score: session.score,
         band: session.band,
+        itemWiseTestId: session.itemWiseTestId,
         createdAt: session.createdAt.toISOString(),
         updatedAt: session.updatedAt.toISOString()
       }
@@ -144,6 +150,9 @@ export async function GET(
     }
 
     const resolvedParams = await params
+    const itemWiseTestIdParam = request.nextUrl.searchParams.get('itemWiseTestId')
+    const normalizedItemWiseTestId =
+      itemWiseTestIdParam && itemWiseTestIdParam.trim().length > 0 ? itemWiseTestIdParam : null
 
     // Find completed session
     const session = await prisma.testSession.findFirst({
@@ -151,7 +160,8 @@ export async function GET(
         testId: resolvedParams.id,
         studentId: payload.userId,
         testType: 'READING',
-        isCompleted: true
+        isCompleted: true,
+        itemWiseTestId: normalizedItemWiseTestId
       },
       orderBy: { completedAt: 'desc' }
     })
@@ -170,6 +180,7 @@ export async function GET(
       completedAt: session.completedAt?.toISOString() || null,
       score: session.score,
       band: session.band,
+      itemWiseTestId: session.itemWiseTestId,
       createdAt: session.createdAt.toISOString(),
       updatedAt: session.updatedAt.toISOString()
     })

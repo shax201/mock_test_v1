@@ -76,6 +76,24 @@ interface SummaryStats {
   totalTestTime: number
 }
 
+interface ItemWiseTestCard {
+  id: string
+  title: string
+  moduleType: 'READING' | 'LISTENING' | 'WRITING'
+  questionType: string
+  totalTests: number
+  attemptedTests: number
+  tests: Array<{
+    id: string
+    title: string
+    type: 'READING' | 'LISTENING' | 'WRITING'
+    duration?: number | null
+    attempted: boolean
+    attemptedAt?: string | null
+    sessionId?: string
+  }>
+}
+
 // Enable ISR with time-based revalidation (revalidate every 60 seconds)
 export const revalidate = 60
 
@@ -420,6 +438,7 @@ export default async function StudentDashboard() {
     averageBand: 0,
     totalTestTime: 0
   }
+  let itemWiseTests: ItemWiseTestCard[] = []
   let error = ''
 
   try {
@@ -430,6 +449,128 @@ export default async function StudentDashboard() {
     stats = dashboardData
     participationHistory = historyData.participationHistory
     summaryStats = historyData.summaryStats
+
+    const rawItemWise = await prisma.itemWiseTest.findMany({
+      where: { isActive: true },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    const readingIds = Array.from(new Set(rawItemWise.flatMap(test => test.readingTestIds || [])))
+    const listeningIds = Array.from(new Set(rawItemWise.flatMap(test => test.listeningTestIds || [])))
+    const writingIds = Array.from(new Set(rawItemWise.flatMap(test => test.writingTestIds || [])))
+    const relevantTestIds = Array.from(new Set([...readingIds, ...listeningIds, ...writingIds]))
+
+    const [readingTests, listeningTests, writingTests, sessions] = await Promise.all([
+      readingIds.length
+        ? prisma.readingTest.findMany({
+            where: { id: { in: readingIds } },
+            select: { id: true, title: true, totalTimeMinutes: true }
+          })
+        : Promise.resolve([]),
+      listeningIds.length
+        ? prisma.listeningTest.findMany({
+            where: { id: { in: listeningIds } },
+            select: { id: true, title: true, totalTimeMinutes: true }
+          })
+        : Promise.resolve([]),
+      writingIds.length
+        ? prisma.writingTest.findMany({
+            where: { id: { in: writingIds } },
+            select: { id: true, title: true, totalTimeMinutes: true }
+          })
+        : Promise.resolve([]),
+      relevantTestIds.length
+        ? prisma.testSession.findMany({
+            where: {
+              studentId,
+              testId: { in: relevantTestIds }
+            },
+            orderBy: { completedAt: 'desc' }
+          })
+        : Promise.resolve([])
+    ])
+
+    const readingMap = new Map(readingTests.map(test => [test.id, test]))
+    const listeningMap = new Map(listeningTests.map(test => [test.id, test]))
+    const writingMap = new Map(writingTests.map(test => [test.id, test]))
+    const sessionMap = new Map<string, (typeof sessions)[number]>()
+    sessions.forEach(session => {
+      const specificKey = `${session.itemWiseTestId || 'global'}:${session.testId}`
+      if (!sessionMap.has(specificKey)) {
+        sessionMap.set(specificKey, session)
+      }
+      const globalKey = `global:${session.testId}`
+      if (!session.itemWiseTestId && !sessionMap.has(globalKey)) {
+        sessionMap.set(globalKey, session)
+      }
+    })
+
+    const getSessionForTest = (bundleId: string, testId: string) => {
+      return sessionMap.get(`${bundleId}:${testId}`) || sessionMap.get(`global:${testId}`)
+    }
+
+    itemWiseTests = rawItemWise
+      .map(bundle => {
+        const tests: ItemWiseTestCard['tests'] = []
+
+        ;(bundle.readingTestIds || []).forEach(id => {
+          const reading = readingMap.get(id)
+          if (!reading) return
+          const session = getSessionForTest(bundle.id, id)
+          tests.push({
+            id,
+            title: reading.title,
+            type: 'READING',
+            duration: reading.totalTimeMinutes,
+            attempted: Boolean(session?.isCompleted),
+            attemptedAt: session?.completedAt?.toISOString() || null,
+            sessionId: session?.id
+          })
+        })
+
+        ;(bundle.listeningTestIds || []).forEach(id => {
+          const listening = listeningMap.get(id)
+          if (!listening) return
+          const session = getSessionForTest(bundle.id, id)
+          tests.push({
+            id,
+            title: listening.title,
+            type: 'LISTENING',
+            duration: listening.totalTimeMinutes,
+            attempted: Boolean(session?.isCompleted),
+            attemptedAt: session?.completedAt?.toISOString() || null,
+            sessionId: session?.id
+          })
+        })
+
+        ;(bundle.writingTestIds || []).forEach(id => {
+          const writing = writingMap.get(id)
+          if (!writing) return
+          const session = getSessionForTest(bundle.id, id)
+          tests.push({
+            id,
+            title: writing.title,
+            type: 'WRITING',
+            duration: writing.totalTimeMinutes,
+            attempted: Boolean(session?.isCompleted),
+            attemptedAt: session?.completedAt?.toISOString() || null,
+            sessionId: session?.id
+          })
+        })
+
+        if (!tests.length) return null
+
+        return {
+          id: bundle.id,
+          title: bundle.title,
+          moduleType: bundle.moduleType,
+          questionType: bundle.questionType.replace(/_/g, ' '),
+          totalTests: tests.length,
+          attemptedTests: tests.filter(test => test.attempted).length,
+          tests
+        }
+      })
+      .filter((bundle): bundle is ItemWiseTestCard => Boolean(bundle))
   } catch (err) {
     console.error('Error fetching student dashboard data:', err)
     error = 'Failed to fetch dashboard data'
@@ -440,6 +581,7 @@ export default async function StudentDashboard() {
       initialStats={stats}
       initialParticipationHistory={participationHistory}
       initialSummaryStats={summaryStats}
+      itemWiseTests={itemWiseTests}
       error={error}
     />
   )
