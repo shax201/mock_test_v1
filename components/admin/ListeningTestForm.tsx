@@ -2000,34 +2000,34 @@ export default function ListeningTestForm({
                                 return (
                                   <div key={q.id} className="bg-white p-3 rounded border border-gray-200">
                                     <div className="flex items-center justify-between mb-2">
-                                      <div className="flex items-center space-x-3">
-                                        <span className="text-sm font-medium text-gray-700">
+                                    <div className="flex items-center space-x-3">
+                                      <span className="text-sm font-medium text-gray-700">
                                           Question {q.questionNumber}
-                                        </span>
+                                      </span>
                                         {blankId !== undefined && (
-                                          <span className="text-xs text-gray-500">
+                                      <span className="text-xs text-gray-500">
                                             (Blank #{blankId})
-                                          </span>
+                                      </span>
                                         )}
-                                      </div>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          const remaining = questions.filter(q2 => q2.id !== q.id)
-                                          if (remaining.length === 0) {
-                                            updatePart(partIndex, {
-                                              tableCompletionQuestions: part.tableCompletionQuestions?.filter(tq => tq.groupId !== groupId)
-                                            })
-                                          } else {
-                                            updatePart(partIndex, {
-                                              tableCompletionQuestions: part.tableCompletionQuestions?.filter(tq => tq.id !== q.id)
-                                            })
-                                          }
-                                        }}
-                                        className="text-xs text-red-600 hover:text-red-800"
-                                      >
-                                        Remove
-                                      </button>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const remaining = questions.filter(q2 => q2.id !== q.id)
+                                        if (remaining.length === 0) {
+                                          updatePart(partIndex, {
+                                            tableCompletionQuestions: part.tableCompletionQuestions?.filter(tq => tq.groupId !== groupId)
+                                          })
+                                        } else {
+                                          updatePart(partIndex, {
+                                            tableCompletionQuestions: part.tableCompletionQuestions?.filter(tq => tq.id !== q.id)
+                                          })
+                                        }
+                                      }}
+                                      className="text-xs text-red-600 hover:text-red-800"
+                                    >
+                                      Remove
+                                    </button>
                                     </div>
                                     <div className="flex items-center gap-3">
                                       <label className="text-xs font-medium text-gray-700 whitespace-nowrap">

@@ -373,78 +373,78 @@ export default function TestResultsAnalysis({ testId, initialTab, initialResults
                 </div>
               ) : (
                 <>
-                  {/* Overall Band Score (Average of Reading + Listening + Writing) */}
-                  {results.overallBand !== undefined && results.overallBand !== null && results.overallBand > 0 && (
-                    <div className="mb-8">
-                      <div className="inline-block bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl p-6 shadow-lg">
-                        <div className="text-sm font-medium text-green-700 mb-2">Overall Band Score</div>
-                        <div className="text-5xl font-bold text-green-900 mb-1">{results.overallBand.toFixed(1)}</div>
-                        <div className="text-xs text-green-600">Average of Reading + Listening + Writing</div>
-                      </div>
-                    </div>
-                  )}
-                  {/* Band Score Cards */}
-                  <div className="flex justify-center space-x-8 mb-8">
-                    {/* Listening Card */}
-                    <div className="bg-white border border-gray-300 rounded-lg p-6 text-center min-w-[150px]">
+          {/* Overall Band Score (Average of Reading + Listening + Writing) */}
+          {results.overallBand !== undefined && results.overallBand !== null && results.overallBand > 0 && (
+            <div className="mb-8">
+              <div className="inline-block bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl p-6 shadow-lg">
+                <div className="text-sm font-medium text-green-700 mb-2">Overall Band Score</div>
+                <div className="text-5xl font-bold text-green-900 mb-1">{results.overallBand.toFixed(1)}</div>
+                <div className="text-xs text-green-600">Average of Reading + Listening + Writing</div>
+              </div>
+            </div>
+          )}
+          {/* Band Score Cards */}
+          <div className="flex justify-center space-x-8 mb-8">
+            {/* Listening Card */}
+            <div className="bg-white border border-gray-300 rounded-lg p-6 text-center min-w-[150px]">
                       <div className="text-4xl font-bold text-gray-900 mb-2">
                         {moduleBand.LISTENING > 0 ? moduleBand.LISTENING.toFixed(1) : '0.0'}
                       </div>
-                      <div className="text-sm text-gray-600 mb-1">Band Score</div>
-                      <div className="text-sm font-medium text-gray-800">LISTENING</div>
-                    </div>
+              <div className="text-sm text-gray-600 mb-1">Band Score</div>
+              <div className="text-sm font-medium text-gray-800">LISTENING</div>
+            </div>
 
-                    {/* Reading Card */}
-                    <div className="bg-white border border-gray-300 rounded-lg p-6 text-center min-w-[150px]">
-                      <div className="text-4xl font-bold text-gray-900 mb-2">
+            {/* Reading Card */}
+              <div className="bg-white border border-gray-300 rounded-lg p-6 text-center min-w-[150px]">
+                <div className="text-4xl font-bold text-gray-900 mb-2">
                         {moduleBand.READING > 0 ? moduleBand.READING.toFixed(1) : '0.0'}
-                      </div>
-                      <div className="text-sm text-gray-600 mb-1">Band Score</div>
-                      <div className="text-sm font-medium text-gray-800">READING</div>
-                    </div>
+                </div>
+                <div className="text-sm text-gray-600 mb-1">Band Score</div>
+                <div className="text-sm font-medium text-gray-800">READING</div>
+              </div>
 
-                    {/* Writing Card */}
-                    <div className="bg-white border border-gray-300 rounded-lg p-6 text-center min-w-[150px]">
+            {/* Writing Card */}
+            <div className="bg-white border border-gray-300 rounded-lg p-6 text-center min-w-[150px]">
                       {moduleBand.WRITING > 0 ? (
-                        <>
+                <>
                           <div className="text-4xl font-bold text-gray-900 mb-2">{moduleBand.WRITING.toFixed(1)}</div>
-                          <div className="text-sm text-gray-600 mb-1">Band Score</div>
-                          <div className="text-sm font-medium text-gray-800">WRITING</div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="text-lg font-medium text-gray-400 mb-2">Pending</div>
-                          <div className="text-sm text-gray-600 mb-1">Band Score</div>
-                          <div className="text-sm font-medium text-gray-800">WRITING</div>
-                        </>
-                      )}
-                    </div>
+                  <div className="text-sm text-gray-600 mb-1">Band Score</div>
+                  <div className="text-sm font-medium text-gray-800">WRITING</div>
+                </>
+              ) : (
+                <>
+                  <div className="text-lg font-medium text-gray-400 mb-2">Pending</div>
+                  <div className="text-sm text-gray-600 mb-1">Band Score</div>
+                  <div className="text-sm font-medium text-gray-800">WRITING</div>
+                </>
+              )}
+            </div>
 
-                    {/* Speaking Card */}
-                    {results.bandScores?.speaking !== undefined && results.bandScores.speaking !== null && (
-                      <div className="bg-white border border-gray-300 rounded-lg p-6 text-center min-w-[150px]">
-                        {results.bandScores.speaking > 0 ? (
-                          <>
-                            <div className="text-4xl font-bold text-purple-900 mb-2">{results.bandScores.speaking.toFixed(1)}</div>
-                            <div className="text-sm text-gray-600 mb-1">Band Score</div>
-                            <div className="text-sm font-medium text-purple-800">SPEAKING</div>
-                          </>
-                        ) : (
-                          <>
-                            <div className="text-lg font-medium text-gray-400 mb-2">Pending</div>
-                            <div className="text-sm text-gray-600 mb-1">Band Score</div>
-                            <div className="text-sm font-medium text-gray-800">SPEAKING</div>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
+            {/* Speaking Card */}
+            {results.bandScores?.speaking !== undefined && results.bandScores.speaking !== null && (
+              <div className="bg-white border border-gray-300 rounded-lg p-6 text-center min-w-[150px]">
+                {results.bandScores.speaking > 0 ? (
+                  <>
+                    <div className="text-4xl font-bold text-purple-900 mb-2">{results.bandScores.speaking.toFixed(1)}</div>
+                    <div className="text-sm text-gray-600 mb-1">Band Score</div>
+                    <div className="text-sm font-medium text-purple-800">SPEAKING</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-lg font-medium text-gray-400 mb-2">Pending</div>
+                    <div className="text-sm text-gray-600 mb-1">Band Score</div>
+                    <div className="text-sm font-medium text-gray-800">SPEAKING</div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
                 </>
               )}
 
               {/* Review Link */}
               <div className="text-center">
-                <button
+                <button 
                   onClick={() => setActiveSubTab('question-wise')}
                   className="text-blue-600 hover:text-blue-800 flex items-center justify-center mx-auto"
                 >

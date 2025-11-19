@@ -341,13 +341,13 @@ export default function TableStructureEditor({
                   >
                     + Add Blank
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => removeRow(row.id)}
-                    className="text-xs text-red-600 hover:text-red-800"
-                  >
-                    Remove Row
-                  </button>
+                <button
+                  type="button"
+                  onClick={() => removeRow(row.id)}
+                  className="text-xs text-red-600 hover:text-red-800"
+                >
+                  Remove Row
+                </button>
                 </div>
               </div>
 
@@ -370,13 +370,13 @@ export default function TableStructureEditor({
                           >
                             + Blank
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => addCell(row.id, colIndex)}
-                            className="text-xs text-blue-600 hover:text-blue-800"
-                          >
+                        <button
+                          type="button"
+                          onClick={() => addCell(row.id, colIndex)}
+                          className="text-xs text-blue-600 hover:text-blue-800"
+                        >
                             + Text
-                          </button>
+                        </button>
                         </div>
                       </div>
 

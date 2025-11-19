@@ -220,7 +220,7 @@ const getCachedResultDetail = unstable_cache(
       if (readingTest) {
         testDetails = readingTest
         if (!itemWiseTest) {
-          testTitle = readingTest.title
+        testTitle = readingTest.title
         }
       }
     } else if (session.testType === 'LISTENING') {
@@ -261,7 +261,7 @@ const getCachedResultDetail = unstable_cache(
       if (writingTest) {
         testDetails = writingTest
         if (!itemWiseTest) {
-          testTitle = writingTest.title
+        testTitle = writingTest.title
         }
       }
     }

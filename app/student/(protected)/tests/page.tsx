@@ -91,7 +91,7 @@ export default function StudentTests() {
           const readingTestsList = data.readingTests || []
           
           // Check completion status for each reading test
-      const testsWithStatus = await Promise.all(
+          const testsWithStatus = await Promise.all(
             readingTestsList.map(async (test: any) => {
               try {
                 // Check if there's a completed session for this test
@@ -99,18 +99,18 @@ export default function StudentTests() {
                 if (sessionResponse.ok) {
                   const sessionData = await sessionResponse.json()
                   return {
-                  id: test.id,
-                  title: test.title,
-                  description: `Reading test with ${test._count.passages} passage${test._count.passages !== 1 ? 's' : ''} and ${test.totalQuestions} questions`,
-                  duration: test.totalTimeMinutes,
-                  status: 'COMPLETED',
-                  createdAt: test.createdAt,
-                  isReadingTest: true,
-                  writingTestId: test.writingTestId,
-                  completionInfo: {
-                    completedAt: sessionData.completedAt || new Date().toISOString(),
-                    autoScore: sessionData.band || undefined
-                  }
+                    id: test.id,
+                    title: test.title,
+                    description: `Reading test with ${test._count.passages} passage${test._count.passages !== 1 ? 's' : ''} and ${test.totalQuestions} questions`,
+                    duration: test.totalTimeMinutes,
+                    status: 'COMPLETED',
+                    createdAt: test.createdAt,
+                    isReadingTest: true,
+                    writingTestId: test.writingTestId,
+                    completionInfo: {
+                      completedAt: sessionData.completedAt || new Date().toISOString(),
+                      autoScore: sessionData.band || undefined
+                    }
                   }
                 } else {
                   // No completed session found

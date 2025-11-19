@@ -134,11 +134,11 @@ export default function StudentResultsClient({ initialResults, error: initialErr
                           <div key={`${result.id}-${module.type}`} className="text-center p-4 bg-gray-50 rounded-lg">
                             <div className={`text-2xl font-bold ${colorClass}`}>
                               {module.band > 0 ? module.band.toFixed(1) : (
-                                <span className="text-sm text-gray-400">Pending</span>
-                              )}
-                            </div>
+                          <span className="text-sm text-gray-400">Pending</span>
+                        )}
+                      </div>
                             <div className="text-sm text-gray-500">{label}</div>
-                          </div>
+                    </div>
                         )
                       })
                     ) : (
