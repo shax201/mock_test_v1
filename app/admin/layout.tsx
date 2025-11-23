@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
+import DynamicLogo from '@/components/admin/DynamicLogo'
 
 type IconProps = {
   className?: string
@@ -100,6 +101,15 @@ const navigation = [
       </svg>
     ),
   },
+  {
+    name: 'Branding',
+    href: '/admin/branding',
+    icon: ({ className }: IconProps): ReactNode => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+      </svg>
+    ),
+  },
 ]
 
 export default function AdminLayout({
@@ -165,12 +175,8 @@ export default function AdminLayout({
         {/* Logo and Brand */}
         <div className="flex items-center justify-between h-16 px-6 bg-gradient-to-r from-blue-600 to-blue-700">
           <Link href="/admin" className="flex items-center justify-center flex-1">
-            {/* IELTS Logo */}
-            <img 
-              src="https://res.cloudinary.com/dza2t1htw/image/upload/v1763020133/IELTS-logo_d7an4g.png" 
-              alt="IELTS Logo" 
-              className="h-12 w-auto object-contain"
-            />
+            {/* Dynamic Logo */}
+            <DynamicLogo defaultLogo="https://res.cloudinary.com/dza2t1htw/image/upload/v1763020133/IELTS-logo_d7an4g.png" />
           </Link>
           <button
             onClick={() => setSidebarOpen(false)}

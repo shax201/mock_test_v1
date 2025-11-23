@@ -15,9 +15,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Find user by email
-    const user = await prisma.user.findUnique({
-      where: { email }
+    // Find user by email (case-insensitive)
+    const user = await prisma.user.findFirst({
+      where: { 
+        email: email.toLowerCase()
+      }
     })
 
     if (!user) {
@@ -54,11 +56,18 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    response.cookies.set('auth-token', token, {
+    // Set appropriate cookie based on role
+    // Students use 'student-token', others use 'auth-token'
+    const cookieName = user.role === UserRole.STUDENT ? 'student-token' : 'auth-token'
+    const maxAge = user.role === UserRole.STUDENT 
+      ? 7 * 24 * 60 * 60 // 7 days for students
+      : 24 * 60 * 60 // 24 hours for admin/instructor
+
+    response.cookies.set(cookieName, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 24 * 60 * 60 // 24 hours
+      maxAge
     })
 
     return response

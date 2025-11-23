@@ -138,6 +138,69 @@ export async function uploadImage(file: File | Buffer, filename?: string): Promi
   }
 }
 
+/**
+ * Upload branding assets (logo/favicon) to Cloudinary
+ * Uses a dedicated folder for better organization
+ */
+export async function uploadBrandingAsset(
+  file: File | Buffer, 
+  assetType: 'logo' | 'favicon',
+  filename?: string
+): Promise<UploadResult> {
+  try {
+    let fileData: string;
+    
+    if (file instanceof File) {
+      const buffer = await fileToBuffer(file);
+      fileData = `data:${file.type};base64,${buffer.toString('base64')}`;
+    } else {
+      fileData = `data:image/png;base64,${file.toString('base64')}`;
+    }
+    
+    const uploadOptions = {
+      resource_type: 'image' as const,
+      folder: `ielts-mock/branding/${assetType}`,
+      public_id: filename ? `${assetType}_${filename}` : undefined,
+      quality: 'auto',
+      fetch_format: 'auto',
+      use_filename: false,
+      unique_filename: true,
+      overwrite: false,
+      invalidate: true,
+      tags: ['ielts', 'branding', assetType, 'mock-test']
+    };
+    
+    console.log(`Starting ${assetType} upload: ${filename || 'unnamed'}, size: ${file instanceof File ? file.size : file.length} bytes`);
+    
+    const result = await cloudinary.uploader.upload(
+      fileData,
+      uploadOptions
+    );
+
+    console.log(`${assetType} upload completed successfully: ${result.public_id}`);
+    
+    return {
+      public_id: result.public_id,
+      secure_url: result.secure_url,
+      format: result.format,
+      bytes: result.bytes
+    }
+  } catch (error: any) {
+    console.error(`Error uploading ${assetType} to Cloudinary:`, error);
+    
+    // Provide more specific error messages
+    if (error.http_code === 400) {
+      throw new Error(`Invalid ${assetType} format. Please ensure the file is a valid image format.`);
+    } else if (error.http_code === 413) {
+      throw new Error(`${assetType} too large. Please compress the image or use a smaller file.`);
+    } else if (error.http_code === 401) {
+      throw new Error('Authentication failed. Please check Cloudinary configuration.');
+    } else {
+      throw new Error(`Upload failed: ${error.message || 'Unknown error occurred'}`);
+    }
+  }
+}
+
 export async function uploadPDF(file: Buffer, filename: string): Promise<UploadResult> {
   try {
     const result = await cloudinary.uploader.upload(

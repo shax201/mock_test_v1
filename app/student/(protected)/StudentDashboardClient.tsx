@@ -174,7 +174,7 @@ export default function StudentDashboardClient({
 
         {/* Motivational Header */}
         <div className="text-center">
-          <p className="text-lg text-gray-700 font-medium">
+          <p className="text-lg text-gray-700 font-medium">  
             Hey Student, week after week, witness compounded growth!
           </p>
         </div>

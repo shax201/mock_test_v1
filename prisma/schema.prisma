@@ -327,6 +327,18 @@ model ItemWiseTest {
   @@map("item_wise_tests")
 }
 
+model SiteSettings {
+  id            String   @id @default(cuid())
+  logoUrl       String?  @map("logo_url")
+  faviconUrl    String?  @map("favicon_url")
+  logoPublicId  String?  @map("logo_public_id")
+  faviconPublicId String? @map("favicon_public_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("site_settings")
+}
+
 enum ItemWiseTestType {
   ITEM_WISE_TEST
 }

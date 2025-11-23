@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
+import DynamicLogo from '@/components/admin/DynamicLogo'
 
 interface Student {
   id: string
@@ -99,12 +100,8 @@ export default function StudentHeader() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center py-4">
             <Link href="/student" className="flex items-center">
-              {/* IELTS Logo */}
-              <img 
-                src="https://res.cloudinary.com/dza2t1htw/image/upload/v1763020133/IELTS-logo_d7an4g.png" 
-                alt="IELTS Logo" 
-                className="h-16 w-auto object-contain"
-              />
+              {/* Dynamic Logo */}
+              <DynamicLogo defaultLogo="https://res.cloudinary.com/dza2t1htw/image/upload/v1763020133/IELTS-logo_d7an4g.png" />
             </Link>
           </div>
         </div>
@@ -145,17 +142,8 @@ export default function StudentHeader() {
               >
                 Assigned Test
               </Link>
-              <Link 
-                href="/student/participation-history" 
-                className={`px-4 py-3 text-sm font-medium transition-colors ${
-                  pathname?.startsWith('/student/participation-history') 
-                    ? 'bg-[#4A8FB1] text-white' 
-                    : 'text-white hover:text-gray-200'
-                }`}
-              >
-                Test History
-              </Link>
-              <Link 
+
+              {/* <Link 
                 href="/student/results" 
                 className={`px-4 py-3 text-sm font-medium transition-colors ${
                   pathname?.startsWith('/student/results') 
@@ -164,18 +152,9 @@ export default function StudentHeader() {
                 }`}
               >
                 Results
-              </Link>
-              <Link 
-                href="/student/courses" 
-                className={`px-4 py-3 text-sm font-medium transition-colors ${
-                  pathname?.startsWith('/student/courses') 
-                    ? 'bg-[#4A8FB1] text-white' 
-                    : 'text-white hover:text-gray-200'
-                }`}
-              >
-                Assigned Courses
-              </Link>
-              <Link 
+              </Link> */}
+        
+              {/* <Link 
                 href="/student/sessions" 
                 className={`px-4 py-3 text-sm font-medium transition-colors ${
                   pathname?.startsWith('/student/sessions') 
@@ -184,8 +163,8 @@ export default function StudentHeader() {
                 }`}
               >
                 Online Sessions
-              </Link>
-              <Link 
+              </Link> */}
+              {/* <Link 
                 href="/student/ebooks" 
                 className={`px-4 py-3 text-sm font-medium transition-colors ${
                   pathname?.startsWith('/student/ebooks') 
@@ -194,9 +173,9 @@ export default function StudentHeader() {
                 }`}
               >
                 EBooks
-              </Link>
+              </Link> */}
               {/* Learning Tools Dropdown */}
-              <div className="relative tests-dropdown">
+              {/* <div className="relative tests-dropdown">
                 <button
                   onClick={() => setIsTestsOpen(v => !v)}
                   className="flex items-center px-4 py-3 text-sm font-medium text-white hover:text-gray-200 transition-colors"
@@ -234,7 +213,7 @@ export default function StudentHeader() {
                     </div>
                   </div>
                 )}
-              </div>
+              </div> */}
             </div>
             
             {/* User Profile Dropdown */}

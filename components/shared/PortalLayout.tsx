@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
+import DynamicLogo from '@/components/admin/DynamicLogo'
 
 interface NavigationItem {
   name: string
@@ -104,12 +105,8 @@ export default function PortalLayout({
         {/* Logo and Brand */}
         <div className={`flex items-center justify-between h-16 px-6 ${colors.bg}`}>
           <div className="flex items-center justify-center flex-1">
-            {/* IELTS Logo */}
-            <img 
-              src="https://res.cloudinary.com/dza2t1htw/image/upload/v1763020133/IELTS-logo_d7an4g.png" 
-              alt="IELTS Logo" 
-              className="h-12 w-auto object-contain"
-            />
+            {/* Dynamic Logo */}
+            <DynamicLogo defaultLogo="https://res.cloudinary.com/dza2t1htw/image/upload/v1763020133/IELTS-logo_d7an4g.png" />
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
