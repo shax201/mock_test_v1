@@ -877,23 +877,69 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
         <div className="left-panel" id="main-content-area" ref={mainContentAreaRef} onContextMenu={onContextMenu}>
           {currentPart === 1 && (
             <div id="part-1" className="question-part">
-              <div className="part-header"><p><strong>{data.parts[0].title}</strong></p></div>
+              <div className="part-header">
+                <p>
+                  <strong>{data.parts[0].title}</strong>
+                </p>
+              </div>
               <div className="question">
-                {/* <div className="question-prompt">
-                  {(data.parts[0].prompt as string[]).map((p: string, i: number) => (
-                    <p key={i} dangerouslySetInnerHTML={{ __html: p.replace('ONE WORD AND/OR A NUMBER', '<strong>ONE WORD AND/OR A NUMBER</strong>') }} />
-                  ))}
-                </div> */}
-                {/* <h3 className="centered-title">{data.parts[0].sectionTitle}</h3> */}
-                {/* <div style={{ border: '1px solid #ddd', padding: 25, borderRadius: 5 }}>
-                  <p><strong>Course required:</strong> {data.parts[0].courseRequired}</p>
-                  <div className="aligned-form" style={{ marginTop: 20 }}>
-                    {(data.parts[0].fillRows || []).map((row: any) => (
-                      <div key={row.q} className="question-row"><span className="question-label">{row.labelPrefix}</span> {row.textPrefix}<strong>{row.q}</strong> <input type="text" id={`q${row.q}`} className="answer-input" placeholder={`${row.q}`} spellCheck={false} autoComplete="off" />{row.textSuffix}</div>
+                {Array.isArray(data.parts[0].prompt) && data.parts[0].prompt.length > 0 && (
+                  <div className="question-prompt">
+                    {(data.parts[0].prompt as string[]).map((p: string, i: number) => (
+                      <p
+                        key={i}
+                        // Highlight the IELTS wording like in the original implementation
+                        dangerouslySetInnerHTML={{
+                          __html: p.replace(
+                            'ONE WORD AND/OR A NUMBER',
+                            '<strong>ONE WORD AND/OR A NUMBER</strong>'
+                          )
+                        }}
+                      />
                     ))}
                   </div>
-                </div> */}
-                </div>
+                )}
+
+                {data.parts[0].sectionTitle && (
+                  <h3 className="centered-title">{data.parts[0].sectionTitle}</h3>
+                )}
+
+                {/* {(data.parts[0].courseRequired ||
+                  (Array.isArray(data.parts[0].fillRows) && data.parts[0].fillRows.length > 0)) && (
+                  <div style={{ border: '1px solid #ddd', padding: 25, borderRadius: 5 }}>
+                    {data.parts[0].courseRequired && (
+                      <p>
+                        <strong>Course required:</strong> {data.parts[0].courseRequired}
+                      </p>
+                    )}
+
+                    {Array.isArray(data.parts[0].fillRows) && data.parts[0].fillRows.length > 0 && (
+                      <div className="aligned-form" style={{ marginTop: 20 }}>
+                        {(data.parts[0].fillRows || []).map((row: any) => {
+                          const qNum = row.q ?? row.questionNumber
+                          if (!qNum) return null
+                          return (
+                            <div key={qNum} className="question-row">
+                              <span className="question-label">{row.labelPrefix}</span>{' '}
+                              {row.textPrefix}
+                              <strong>{qNum}</strong>{' '}
+                              <input
+                                type="text"
+                                id={`q${qNum}`}
+                                className="answer-input"
+                                placeholder={`${qNum}`}
+                                spellCheck={false}
+                                autoComplete="off"
+                              />
+                              {row.textSuffix}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )} */}
+              </div>
               
               {/* Flow Chart Completion Questions */}
               {(data.parts[0].flowChartQuestions && Array.isArray(data.parts[0].flowChartQuestions) && data.parts[0].flowChartQuestions.length > 0) && (() => {
@@ -992,10 +1038,10 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
                   
                   return (
                     <div key={groupId} className="question" style={{ marginTop: 20 }}>
-                      <div className="question-prompt">
+                      {/* <div className="question-prompt">
                         <p><strong>Complete the table below.</strong></p>
                         <p>Write <strong>ONE WORD AND/OR A NUMBER</strong> for each answer.</p>
-                      </div>
+                      </div> */}
                       <DynamicTableEditor
                         structure={tableStructure}
                         onStructureChange={() => {}} // Read-only for students
