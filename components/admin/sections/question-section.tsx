@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react"
+import ImageChartEditor, { ChartField } from "@/components/admin/ImageChartEditor"
 
 interface QuestionSectionProps {
   questions: any[]
@@ -28,6 +29,8 @@ const QUESTION_TYPES = [
   { value: "NOTES_COMPLETION", label: "Notes Completion" },
   { value: "SUMMARY_COMPLETION", label: "Summary Completion" },
   { value: "MULTIPLE_CHOICE", label: "Multiple Choice" },
+  // New reading question type similar to listening flow chart questions
+  { value: "FLOW_CHART", label: "Flow Chart" },
 ]
 
 export default function QuestionSection({
@@ -49,6 +52,9 @@ export default function QuestionSection({
     options: ["", "", "", ""],
     correctAnswer: "",
     subQuestions: [] as Array<{ number: string; answer: string }>,
+    // Flow chart specific fields
+    imageUrl: "",
+    fields: [] as ChartField[],
   })
 
   const handleAddOption = () => {
@@ -103,6 +109,60 @@ export default function QuestionSection({
       alert("Please select a passage")
       return
     }
+
+    // For flow chart questions, each field becomes a separate question
+    if (formData.questionType === "FLOW_CHART") {
+      if (!formData.imageUrl.trim()) {
+        alert("Please upload a flow chart image")
+        return
+      }
+      if (formData.fields.length === 0) {
+        alert("Please create at least one input field on the flow chart image")
+        return
+      }
+
+      // Get the starting question number (use formData.number as base, or calculate from existing questions)
+      const startQuestionNumber = formData.number || (questions.length > 0 ? Math.max(...questions.map((q) => q.number || q.questionNumber || 0)) + 1 : 1)
+
+      // Create a separate question for each field
+      formData.fields.forEach((field: any, index: number) => {
+        const questionNumber = startQuestionNumber + index
+        const questionData = {
+          passageId: formData.passageId,
+          part: formData.part,
+          number: questionNumber,
+          questionNumber: questionNumber,
+          questionType: "FLOW_CHART",
+          type: "FLOW_CHART",
+          text: formData.text || "Complete the flow chart below.",
+          questionText: formData.text || "Complete the flow chart below.",
+          imageUrl: formData.imageUrl,
+          field: field, // Each question gets its own field
+          fields: formData.fields, // Store all fields for reference
+          correctAnswer: field.value || "", // Answer comes from field value
+          points: 1,
+        }
+
+        onAdd(questionData)
+      })
+
+      // Reset form
+      setFormData({
+        passageId: "",
+        part: "1",
+        number: questions.length + formData.fields.length + 1,
+        questionType: "MCQ",
+        text: "",
+        options: ["", "", "", ""],
+        correctAnswer: "",
+        subQuestions: [],
+        imageUrl: "",
+        fields: [],
+      })
+      return
+    }
+
+    // For non-flow-chart questions, use the original logic
     if (!formData.text.trim()) {
       alert("Please enter the question text")
       return
@@ -130,6 +190,7 @@ export default function QuestionSection({
 
     const questionData = {
       ...formData,
+      questionNumber: formData.number,
       subQuestions:
         formData.subQuestions.length > 0
           ? formData.subQuestions.map((sq) => ({ number: sq.number, answer: sq.answer }))
@@ -153,6 +214,8 @@ export default function QuestionSection({
       options: ["", "", "", ""],
       correctAnswer: "",
       subQuestions: [],
+      imageUrl: "",
+      fields: [],
     })
   }
 
@@ -176,6 +239,13 @@ export default function QuestionSection({
             answer: sq.answer || ""
           }))
         : [],
+      // Flow chart fields
+      imageUrl: question.imageUrl || "",
+      fields: question.fields && Array.isArray(question.fields)
+        ? question.fields
+        : question.field
+        ? [question.field]
+        : [],
     })
     setIsExpanded(true)
   }
@@ -191,6 +261,8 @@ export default function QuestionSection({
       options: ["", "", "", ""],
       correctAnswer: "",
       subQuestions: [],
+      imageUrl: "",
+      fields: [],
     })
   }
 
@@ -199,7 +271,8 @@ export default function QuestionSection({
   }
 
   const supportsSubQuestions = (type: string) => {
-    return ["NOTES_COMPLETION", "SUMMARY_COMPLETION", "FIB"].includes(type)
+    // Flow chart questions can also have multiple numbered blanks
+    return ["NOTES_COMPLETION", "SUMMARY_COMPLETION", "FIB", "FLOW_CHART"].includes(type)
   }
 
   const getNextQuestionNumber = () => {
@@ -267,6 +340,9 @@ export default function QuestionSection({
                       questionType: v,
                       options: needsOptions(v) ? ["", "", "", ""] : [],
                       subQuestions: [],
+                      // Reset flow chart fields when switching away
+                      imageUrl: v === "FLOW_CHART" ? prev.imageUrl : "",
+                      fields: v === "FLOW_CHART" ? prev.fields : [],
                     }))
                   }
                 >
@@ -283,16 +359,19 @@ export default function QuestionSection({
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="question-number">Question Number</Label>
-                <Input
-                  id="question-number"
-                  type="number"
-                  value={formData.number}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, number: Number.parseInt(e.target.value) }))}
-                  min="1"
-                />
-              </div>
+              {/* Hide Question Number for FLOW_CHART - each field becomes its own question */}
+              {formData.questionType !== "FLOW_CHART" && (
+                <div className="space-y-2">
+                  <Label htmlFor="question-number">Question Number</Label>
+                  <Input
+                    id="question-number"
+                    type="number"
+                    value={formData.number}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, number: Number.parseInt(e.target.value) }))}
+                    min="1"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -371,34 +450,63 @@ export default function QuestionSection({
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="correct-answer">Correct Answer</Label>
-              <Textarea
-                id="correct-answer"
-                placeholder={
-                  formData.questionType === "MCQ" || formData.questionType === "MULTIPLE_CHOICE"
-                    ? "e.g., A"
-                    : formData.questionType === "FIB"
-                      ? "e.g., critical"
-                      : formData.questionType === "MATCHING"
-                        ? "e.g., 1-C, 2-A, 3-D, 4-B"
-                        : formData.questionType === "TRUE_FALSE"
-                          ? "e.g., True or False"
-                          : formData.questionType === "NOT_GIVEN"
-                            ? "e.g., Yes / No / Not Given"
-                            : formData.questionType === "TRUE_FALSE_NOT_GIVEN"
-                              ? "e.g., True / False / Not Given"
-                              : ["NOTES_COMPLETION", "SUMMARY_COMPLETION"].includes(formData.questionType)
-                                ? "e.g., increased / reduced"
-                                : "Enter the correct answer..."
-                }
-                value={formData.correctAnswer}
-                onChange={(e) => setFormData((prev) => ({ ...prev, correctAnswer: e.target.value }))}
-                rows={2}
-              />
-            </div>
+            {/* Hide Correct Answer for FLOW_CHART - answers come from field values */}
+            {formData.questionType !== "FLOW_CHART" && (
+              <div className="space-y-2">
+                <Label htmlFor="correct-answer">Correct Answer</Label>
+                <Textarea
+                  id="correct-answer"
+                  placeholder={
+                    formData.questionType === "MCQ" || formData.questionType === "MULTIPLE_CHOICE"
+                      ? "e.g., A"
+                      : formData.questionType === "FIB"
+                        ? "e.g., critical"
+                        : formData.questionType === "MATCHING"
+                          ? "e.g., 1-C, 2-A, 3-D, 4-B"
+                          : formData.questionType === "TRUE_FALSE"
+                            ? "e.g., True or False"
+                            : formData.questionType === "NOT_GIVEN"
+                              ? "e.g., Yes / No / Not Given"
+                              : formData.questionType === "TRUE_FALSE_NOT_GIVEN"
+                                ? "e.g., True / False / Not Given"
+                                : ["NOTES_COMPLETION", "SUMMARY_COMPLETION"].includes(formData.questionType)
+                                  ? "e.g., increased / reduced"
+                                  : "Enter the correct answer..."
+                  }
+                  value={formData.correctAnswer}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, correctAnswer: e.target.value }))}
+                  rows={2}
+                />
+              </div>
+            )}
 
-            {supportsSubQuestions(formData.questionType) && (
+            {/* Flow Chart Image Editor */}
+            {formData.questionType === "FLOW_CHART" && (
+              <div className="space-y-3 border-t pt-4">
+                <Label>Flow Chart Image</Label>
+                <ImageChartEditor
+                  defaultFieldWidth={140}
+                  defaultFieldHeight={32}
+                  initialImageUrl={formData.imageUrl}
+                  initialFields={formData.fields}
+                  onImageChange={(newImageUrl) => {
+                    setFormData((prev) => ({ ...prev, imageUrl: newImageUrl }))
+                  }}
+                  onSave={(newFields) => {
+                    // Store fields - each will become a separate question when submitted
+                    setFormData((prev) => ({
+                      ...prev,
+                      fields: newFields,
+                    }))
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Upload an image, then click on it to create input fields. <strong>Each field you create will automatically become a separate question</strong> with its own question number and correct answer (from the field value). Enter the correct answer in each field, then click "Save Fields" to save the positions. When you click "Add Question", each field will be created as an individual question.
+                </p>
+              </div>
+            )}
+
+            {supportsSubQuestions(formData.questionType) && formData.questionType !== "FLOW_CHART" && (
               <div className="space-y-3 border-t pt-4">
                 <div className="flex items-center justify-between">
                   <Label>Sub-Questions (For Multi-Blank Items)</Label>
@@ -525,6 +633,18 @@ export default function QuestionSection({
                             Q{subQ.number || subQ.questionNumber}: {subQ.answer}
                           </p>
                         ))}
+                      </div>
+                    )}
+                    {question.imageUrl && (
+                      <div className="mt-2">
+                        <p className="text-xs text-muted-foreground">
+                          <strong>Flow Chart Image:</strong> {question.imageUrl.substring(0, 50)}...
+                        </p>
+                        {question.fields && Array.isArray(question.fields) && question.fields.length > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            <strong>Fields:</strong> {question.fields.length} input field(s)
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>

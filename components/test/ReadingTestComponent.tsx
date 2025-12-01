@@ -5,6 +5,132 @@ import styles from '../../app/full-exam-reading/ReadingTest.module.css';
 import { ReadingTestData } from '@/lib/types/reading-test';
 
 
+type FlowChartField = {
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+};
+
+interface FlowChartImageProps {
+  imageUrl: string;
+  questionNumbers: number[];
+  fields: FlowChartField[];
+  userAnswers: Record<string, string>;
+  onAnswerChange: (qNum: number, value: string) => void;
+}
+
+// Simple flow chart image renderer for reading test
+// Reuses field coordinates from admin ImageChartEditor to position inputs
+const FlowChartImage: React.FC<FlowChartImageProps> = ({
+  imageUrl,
+  questionNumbers,
+  fields,
+  userAnswers,
+  onAnswerChange,
+}) => {
+  const imageRef = useRef<HTMLImageElement | null>(null);
+  const [scale, setScale] = useState({ x: 1, y: 1 });
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  const updateScale = useCallback(() => {
+    if (!imageRef.current) return;
+    const img = imageRef.current;
+    const naturalWidth = img.naturalWidth;
+    const naturalHeight = img.naturalHeight;
+    const displayedWidth = img.clientWidth;
+    const displayedHeight = img.clientHeight;
+    if (!naturalWidth || !naturalHeight || !displayedWidth || !displayedHeight) return;
+    setScale({
+      x: displayedWidth / naturalWidth,
+      y: displayedHeight / naturalHeight,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!imageLoaded) return;
+    const handle = setTimeout(updateScale, 100);
+    window.addEventListener('resize', updateScale);
+    return () => {
+      clearTimeout(handle);
+      window.removeEventListener('resize', updateScale);
+    };
+  }, [imageLoaded, updateScale]);
+
+  const handleImageLoad = () => {
+    setImageLoaded(true);
+    setTimeout(updateScale, 50);
+  };
+
+  // Ensure we have matching lengths
+  const safeFields = Array.isArray(fields) ? fields : [];
+  const pairs = questionNumbers.map((qNum, idx) => ({
+    qNum,
+    field: safeFields[idx],
+  }));
+
+  return (
+    <div
+      style={{
+        position: 'relative',
+        display: 'inline-block',
+        width: '100%',
+        border: '1px solid #e5e7eb',
+        borderRadius: 8,
+        overflow: 'hidden',
+        backgroundColor: '#f9fafb',
+        marginTop: 16,
+      }}
+    >
+      <img
+        ref={imageRef}
+        src={imageUrl}
+        alt="Flow chart"
+        style={{ maxWidth: '100%', height: 'auto', display: 'block', width: '100%' }}
+        onLoad={handleImageLoad}
+      />
+      {imageLoaded &&
+        pairs.map(({ qNum, field }) => {
+          if (!field || typeof field.x !== 'number' || typeof field.y !== 'number') return null;
+          const width = (field.width ?? 140) * scale.x;
+          const height = (field.height ?? 32) * scale.y;
+          const left = field.x * scale.x;
+          const top = field.y * scale.y;
+          const value = userAnswers[qNum.toString()] ?? '';
+          return (
+            <input
+              key={qNum}
+              id={`q${qNum}`}
+              type="text"
+              className={styles.answerInput}
+              placeholder={qNum.toString()}
+              spellCheck={false}
+              autoComplete="off"
+              style={{
+                position: 'absolute',
+                left,
+                top,
+                width,
+                height,
+                border: '2px solid #333',
+                borderRadius: 4,
+                padding: '4px 8px',
+                fontSize: 14,
+                backgroundColor: 'rgba(255,255,255,0.95)',
+                boxSizing: 'border-box',
+                textAlign: 'center',
+                zIndex: 10,
+              }}
+              value={value}
+              onChange={(e) => onAnswerChange(qNum, e.target.value)}
+            />
+          );
+        })}
+    </div>
+  );
+};
+
+
 interface ResultDetail {
   qNum: number;
   userAnswer: string;
@@ -1012,6 +1138,44 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
                 })}
               </ul>
             </div>
+          </div>
+        );
+
+      case 'flow-chart':
+        // Flow chart questions: render image with positioned inputs
+        if (!questionData.imageUrl || !Array.isArray(questionData.fields) || !Array.isArray(questionData.subQuestions)) {
+          return null;
+        }
+
+        // subQuestions holds the actual question numbers for each blank
+        const flowQuestionNumbers: number[] = questionData.subQuestions.map((q: string) =>
+          parseInt(q, 10)
+        );
+
+        return (
+          <div
+            key={questionId}
+            className={`${styles.question} ${isActive ? styles.activeQuestion : ''}`}
+            data-q-start={questionId}
+          >
+            <div className={styles.questionPrompt}>
+              <p>
+                <strong>
+                  Questions {flowQuestionNumbers[0]}-{flowQuestionNumbers[flowQuestionNumbers.length - 1]}
+                </strong>
+              </p>
+              <p>Complete the flow chart below.</p>
+              <p>
+                Write <strong>ONE WORD AND/OR A NUMBER</strong> for each answer.
+              </p>
+            </div>
+            <FlowChartImage
+              imageUrl={questionData.imageUrl}
+              questionNumbers={flowQuestionNumbers}
+              fields={questionData.fields || []}
+              userAnswers={userAnswers}
+              onAnswerChange={handleAnswerChange}
+            />
           </div>
         );
 

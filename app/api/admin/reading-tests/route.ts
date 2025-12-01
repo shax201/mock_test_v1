@@ -85,17 +85,47 @@ export async function POST(request: NextRequest) {
               })) || []
             },
             questions: {
-              create: passage.questions?.create?.map((question: any, questionIndex: number) => ({
-                questionNumber: question.questionNumber,
-                type: question.type,
-                questionText: question.questionText,
-                options: question.options,
-                headingsList: question.headingsList,
-                summaryText: question.summaryText,
-                subQuestions: question.subQuestions,
-                points: question.points || 1,
-                correctAnswer: question.correctAnswer
-              })) || []
+              create: passage.questions?.create?.map((question: any, questionIndex: number) => {
+                // Normalize question type to match enum values
+                let questionType = question.type || question.questionType || 'MULTIPLE_CHOICE'
+                // Convert FLOW_CHART to match enum
+                if (questionType === 'FLOW_CHART' || questionType === 'FLOWCHART') {
+                  questionType = 'FLOW_CHART'
+                }
+                // Convert other types to uppercase with underscores
+                questionType = questionType.toUpperCase().replace(/-/g, '_')
+                
+                const questionData: any = {
+                  questionNumber: question.questionNumber || question.number,
+                  type: questionType,
+                  questionText: question.questionText || question.text || '',
+                  points: question.points || 1,
+                }
+
+                // Add optional fields
+                if (question.options) questionData.options = question.options
+                if (question.headingsList) questionData.headingsList = question.headingsList
+                if (question.summaryText) questionData.summaryText = question.summaryText
+                if (question.subQuestions) questionData.subQuestions = question.subQuestions
+                
+                // Flow chart specific fields
+                if (question.imageUrl) questionData.imageUrl = question.imageUrl
+                if (question.field) questionData.field = question.field
+                if (question.fields) questionData.fields = question.fields
+
+                // Handle correct answer
+                if (question.correctAnswer) {
+                  questionData.correctAnswer = {
+                    create: {
+                      answer: typeof question.correctAnswer === 'string' 
+                        ? question.correctAnswer 
+                        : question.correctAnswer.answer || question.correctAnswer
+                    }
+                  }
+                }
+
+                return questionData
+              }) || []
             }
           }))
         },

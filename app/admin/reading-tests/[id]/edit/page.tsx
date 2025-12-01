@@ -75,12 +75,18 @@ export default function EditReadingTestPage() {
               id: Date.now() + transformedQuestions.length,
               passageId: String(transformedPassages[passageIndex].id),
               questionNumber: question.questionNumber || 0,
+              number: question.questionNumber || 0,
               type: question.type || 'multiple-choice',
+              questionType: question.type || 'multiple-choice',
               questionText: question.questionText || '',
+              text: question.questionText || '',
               options: question.options || [],
               headingsList: question.headingsList || [],
               summaryText: question.summaryText || '',
               subQuestions: question.subQuestions || [],
+              imageUrl: question.imageUrl || '',
+              field: question.field || null,
+              fields: question.fields || (question.field ? [question.field] : []),
               points: question.points || 1,
               correctAnswer: question.correctAnswer?.answer || ''
             })
@@ -226,23 +232,78 @@ export default function EditReadingTestPage() {
           })) || []
         },
         questions: {
-          create: questions
-            .filter((q) => q.passageId === String(passage.id))
-            .map((question) => ({
-              questionNumber: question.questionNumber,
-              type: question.type,
-              questionText: question.questionText,
-              options: question.options,
-              headingsList: question.headingsList,
-              summaryText: question.summaryText,
-              subQuestions: question.subQuestions,
-              points: question.points || 1,
-              correctAnswer: question.correctAnswer ? {
-                create: {
-                  answer: question.correctAnswer
+          create: (() => {
+            const passageQuestions = questions.filter((q) => q.passageId === String(passage.id))
+            const flattenedQuestions: any[] = []
+            
+            passageQuestions.forEach((question) => {
+              const questionType = (question.type || question.questionType || '').toUpperCase()
+              
+              // For FLOW_CHART questions, flatten each field into a separate question
+              if (questionType === 'FLOW_CHART' && question.fields && Array.isArray(question.fields) && question.fields.length > 0) {
+                question.fields.forEach((field: any, fieldIndex: number) => {
+                  const fieldQuestionData: any = {
+                    questionNumber: (question.questionNumber || question.number || 0) + fieldIndex,
+                    type: 'FLOW_CHART',
+                    questionText: question.questionText || question.text || '',
+                    points: question.points || 1,
+                    imageUrl: question.imageUrl || '',
+                    field: field,
+                    fields: question.fields, // Keep all fields for reference
+                  }
+                  
+                  // Use the field's value as the correct answer
+                  if (field?.value) {
+                    fieldQuestionData.correctAnswer = {
+                      create: {
+                        answer: typeof field.value === 'string' ? field.value : String(field.value)
+                      }
+                    }
+                  }
+                  
+                  flattenedQuestions.push(fieldQuestionData)
+                })
+              } else {
+                // For non-flow-chart questions, create as normal
+                const questionData: any = {
+                  questionNumber: question.questionNumber || question.number,
+                  type: question.type || question.questionType,
+                  questionText: question.questionText || question.text || '',
+                  points: question.points || 1,
                 }
-              } : undefined
-            }))
+
+                // Add optional fields
+                if (question.options) questionData.options = question.options
+                if (question.headingsList) questionData.headingsList = question.headingsList
+                if (question.summaryText) questionData.summaryText = question.summaryText
+                if (question.subQuestions) questionData.subQuestions = question.subQuestions
+
+                // Flow chart specific fields (for single field flow charts)
+                if (question.imageUrl) questionData.imageUrl = question.imageUrl
+                if (question.field) questionData.field = question.field
+                if (question.fields) questionData.fields = question.fields
+
+                // Handle correct answer - ensure it's a string, not an object
+                if (question.correctAnswer) {
+                  const answerValue = typeof question.correctAnswer === 'string' 
+                    ? question.correctAnswer 
+                    : (question.correctAnswer?.answer || question.correctAnswer?.create?.answer || '')
+                  
+                  if (answerValue) {
+                    questionData.correctAnswer = {
+                      create: {
+                        answer: answerValue
+                      }
+                    }
+                  }
+                }
+
+                flattenedQuestions.push(questionData)
+              }
+            })
+            
+            return flattenedQuestions
+          })()
         }
       }))
 
@@ -301,12 +362,18 @@ export default function EditReadingTestPage() {
               id: Date.now() + transformedQuestions.length,
               passageId: String(transformedPassages[passageIndex].id),
               questionNumber: question.questionNumber || 0,
+              number: question.questionNumber || 0,
               type: question.type || 'multiple-choice',
+              questionType: question.type || 'multiple-choice',
               questionText: question.questionText || '',
+              text: question.questionText || '',
               options: question.options || [],
               headingsList: question.headingsList || [],
               summaryText: question.summaryText || '',
               subQuestions: question.subQuestions || [],
+              imageUrl: question.imageUrl || '',
+              field: question.field || null,
+              fields: question.fields || (question.field ? [question.field] : []),
               points: question.points || 1,
               correctAnswer: question.correctAnswer?.answer || ''
             })

@@ -154,6 +154,9 @@ model Question {
   headingsList   Json?               @map("headings_list")
   summaryText    String?             @map("summary_text")
   subQuestions   Json?               @map("sub_questions")
+  imageUrl       String?             @map("image_url")
+  field          Json?
+  fields         Json?
   points         Int                 @default(1)
   createdAt      DateTime            @default(now()) @map("created_at")
   updatedAt      DateTime            @updatedAt @map("updated_at")
@@ -396,6 +399,8 @@ enum ReadingQuestionType {
   TRUE_FALSE_NOT_GIVEN
   SUMMARY_COMPLETION
   MULTIPLE_CHOICE
+  // New type for reading flow-chart style questions
+  FLOW_CHART
 }
 
 enum WritingQuestionType {

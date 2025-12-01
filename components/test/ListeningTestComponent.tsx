@@ -1038,10 +1038,10 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
                   
                   return (
                     <div key={groupId} className="question" style={{ marginTop: 20 }}>
-                      {/* <div className="question-prompt">
-                        <p><strong>Complete the table below.</strong></p>
+                      <div className="question-prompt">
+                        <p><strong>Complete the form below.</strong></p>
                         <p>Write <strong>ONE WORD AND/OR A NUMBER</strong> for each answer.</p>
-                      </div> */}
+                      </div>
                       <DynamicTableEditor
                         structure={tableStructure}
                         onStructureChange={() => {}} // Read-only for students
@@ -1183,7 +1183,7 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
                   return (
                     <div key={groupId} className="question" style={{ marginTop: 20 }}>
                       <div className="question-prompt">
-                        <p><strong>Complete the table below.</strong></p>
+                        <p><strong>Complete the form below.</strong></p>
                         <p>Write <strong>ONE WORD AND/OR A NUMBER</strong> for each answer.</p>
                       </div>
                       <DynamicTableEditor
@@ -1326,7 +1326,7 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
                   return (
                     <div key={groupId} className="question" style={{ marginTop: 20 }}>
                       <div className="question-prompt">
-                        <p><strong>Complete the table below.</strong></p>
+                        <p><strong>Complete the form below.</strong></p>
                         <p>Write <strong>ONE WORD AND/OR A NUMBER</strong> for each answer.</p>
                       </div>
                       <DynamicTableEditor
@@ -1499,7 +1499,7 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
                   return (
                     <div key={groupId} className="question" style={{ marginTop: 20 }}>
                       <div className="question-prompt">
-                        <p><strong>Complete the table below.</strong></p>
+                        <p><strong>Complete the form below.</strong></p>
                         <p>Write <strong>ONE WORD ONLY</strong> for each answer.</p>
                       </div>
                       <DynamicTableEditor

@@ -113,10 +113,19 @@ export async function POST(request: NextRequest) {
         },
         questions: {
           create: passageQuestions.map((question: any) => {
+            // Normalize question type to match enum values
+            let questionType = question.type || question.questionType || 'MULTIPLE_CHOICE'
+            // Convert FLOW_CHART to match enum
+            if (questionType === 'FLOW_CHART' || questionType === 'FLOWCHART') {
+              questionType = 'FLOW_CHART'
+            }
+            // Convert other types to uppercase with underscores
+            questionType = questionType.toUpperCase().replace(/-/g, '_')
+            
             const questionData: any = {
-              questionNumber: question.questionNumber,
-              type: question.type,
-              questionText: question.questionText,
+              questionNumber: question.questionNumber || question.number,
+              type: questionType,
+              questionText: question.questionText || question.text || '',
               points: question.points || 1
             }
             
@@ -125,6 +134,11 @@ export async function POST(request: NextRequest) {
             if (question.headingsList) questionData.headingsList = question.headingsList
             if (question.summaryText) questionData.summaryText = question.summaryText
             if (question.subQuestions) questionData.subQuestions = question.subQuestions
+            
+            // Flow chart specific fields
+            if (question.imageUrl) questionData.imageUrl = question.imageUrl
+            if (question.field) questionData.field = question.field
+            if (question.fields) questionData.fields = question.fields
             
             // Handle correct answer
             if (question.correctAnswer) {

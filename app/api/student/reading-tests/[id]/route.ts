@@ -84,7 +84,12 @@ export async function GET(
 
     // Transform questions and answers
     readingTest.passages.forEach(passage => {
-      passage.questions.forEach(question => {
+      // Separate flow chart questions so we can group them by image
+      const flowChartQuestions = passage.questions.filter(q => q.type === 'FLOW_CHART')
+      const otherQuestions = passage.questions.filter(q => q.type !== 'FLOW_CHART')
+
+      // Handle non-flow-chart questions as before
+      otherQuestions.forEach(question => {
         transformedData.questions[question.questionNumber] = {
           passageId: passage.order,
           type: question.type.toLowerCase().replace(/_/g, '-'),
@@ -94,8 +99,65 @@ export async function GET(
           summaryText: question.summaryText || undefined,
           subQuestions: question.subQuestions || undefined
         }
-        transformedData.correctAnswers[question.questionNumber] = question.correctAnswer?.answer || ''
+        transformedData.correctAnswers[question.questionNumber] =
+          question.correctAnswer?.answer || ''
       })
+
+      // Group flow chart questions by image (one flow chart per image per passage)
+      if (flowChartQuestions.length > 0) {
+        type FlowGroupItem = { qNum: number; field: any; questionText: string }
+        const flowGroups = new Map<string, { imageUrl: string; items: FlowGroupItem[] }>()
+
+        flowChartQuestions.forEach(question => {
+          const imageUrl = question.imageUrl || ''
+          const key = `${passage.order}::${imageUrl}`
+
+          if (!flowGroups.has(key)) {
+            flowGroups.set(key, {
+              imageUrl,
+              items: []
+            })
+          }
+
+          const group = flowGroups.get(key)!
+          group.items.push({
+            qNum: question.questionNumber,
+            field: question.field,
+            questionText: question.questionText || ''
+          })
+
+          // Correct answers are still stored per actual question number
+          transformedData.correctAnswers[question.questionNumber] =
+            question.correctAnswer?.answer || ''
+        })
+
+        // Convert each flow chart group into a single entry used for rendering
+        flowGroups.forEach(group => {
+          const sortedItems = group.items.sort((a, b) => a.qNum - b.qNum)
+          const questionNumbers = sortedItems.map(item => item.qNum)
+          const fields = sortedItems
+            .map(item => item.field)
+            .filter((f: any) => !!f)
+
+          if (!group.imageUrl || questionNumbers.length === 0 || fields.length === 0) {
+            return
+          }
+
+          const startQuestion = questionNumbers[0]
+          const groupQuestionKey = startQuestion.toString()
+
+          transformedData.questions[groupQuestionKey] = {
+            passageId: passage.order,
+            type: 'flow-chart',
+            // Use the question text from the first item (all should be the same)
+            questionText: sortedItems[0].questionText,
+            // subQuestions are the real question numbers behind each blank
+            subQuestions: questionNumbers.map(n => n.toString()),
+            imageUrl: group.imageUrl,
+            fields
+          }
+        })
+      }
     })
 
     return NextResponse.json(transformedData)

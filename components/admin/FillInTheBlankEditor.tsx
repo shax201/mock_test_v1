@@ -102,7 +102,7 @@ export default function FillInTheBlankEditor({ data, onChange }: FillInTheBlankE
           className="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
-          placeholder="e.g., Complete the table below. Write ONE WORD AND/OR A NUMBER in each gap."
+          placeholder="e.g., Complete the form below. Write ONE WORD AND/OR A NUMBER in each gap."
         />
       </div>
 
