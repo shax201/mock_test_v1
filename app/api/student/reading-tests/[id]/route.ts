@@ -137,7 +137,13 @@ export async function GET(
           
           // Extract fields and ensure they have questionNumber property set
           // Only include questions that have valid fields
-          const fieldsWithQuestions = sortedItems
+          type FieldWithQuestion = {
+            field: { questionNumber?: number; [key: string]: any }
+            qNum: number
+            questionText: string
+          }
+          
+          const fieldsWithQuestions: FieldWithQuestion[] = sortedItems
             .map(item => {
               const field = item.field
               if (field) {
@@ -154,7 +160,7 @@ export async function GET(
               }
               return null
             })
-            .filter((item: any) => !!item && !!item.field)
+            .filter((item): item is FieldWithQuestion => !!item && !!item.field)
 
           if (!group.imageUrl || fieldsWithQuestions.length === 0) {
             return

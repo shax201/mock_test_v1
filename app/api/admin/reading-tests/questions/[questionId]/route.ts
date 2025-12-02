@@ -56,7 +56,7 @@ export async function DELETE(
 
     // Revalidate the reading test edit page
     revalidatePath(`/admin/reading-tests/${readingTestId}/edit`)
-    revalidateTag('reading-tests')
+    revalidateTag('reading-tests', 'max')
 
     return NextResponse.json({ 
       message: 'Question deleted successfully',
