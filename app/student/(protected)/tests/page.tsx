@@ -443,9 +443,9 @@ export default function StudentTests() {
                             </div>
                           </div>
                           <div className="flex items-center space-x-2">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {/* <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                               Reading Test
-                            </span>
+                            </span> */}
                             {test.status === 'COMPLETED' ? (
                               <Link 
                                 href={`/student/results/${test.writingTestId}`}

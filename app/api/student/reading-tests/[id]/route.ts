@@ -134,24 +134,56 @@ export async function GET(
         // Convert each flow chart group into a single entry used for rendering
         flowGroups.forEach(group => {
           const sortedItems = group.items.sort((a, b) => a.qNum - b.qNum)
-          const questionNumbers = sortedItems.map(item => item.qNum)
-          const fields = sortedItems
-            .map(item => item.field)
-            .filter((f: any) => !!f)
+          
+          // Extract fields and ensure they have questionNumber property set
+          // Only include questions that have valid fields
+          const fieldsWithQuestions = sortedItems
+            .map(item => {
+              const field = item.field
+              if (field) {
+                // Ensure field has questionNumber set (use the question's number if field doesn't have it)
+                const fieldQuestionNumber = field.questionNumber !== undefined ? field.questionNumber : item.qNum
+                return {
+                  field: {
+                    ...field,
+                    questionNumber: fieldQuestionNumber
+                  },
+                  qNum: item.qNum,
+                  questionText: item.questionText
+                }
+              }
+              return null
+            })
+            .filter((item: any) => !!item && !!item.field)
 
-          if (!group.imageUrl || questionNumbers.length === 0 || fields.length === 0) {
+          if (!group.imageUrl || fieldsWithQuestions.length === 0) {
             return
           }
 
+          // Use only the questions that have matching fields
+          // Sort by field.questionNumber to ensure correct order
+          const sortedByFieldQNum = fieldsWithQuestions.sort((a, b) => {
+            const aQNum = a.field.questionNumber ?? a.qNum
+            const bQNum = b.field.questionNumber ?? b.qNum
+            return aQNum - bQNum
+          })
+
+          const questionNumbers = sortedByFieldQNum.map(item => item.qNum)
+          const fields = sortedByFieldQNum.map(item => item.field)
+
           const startQuestion = questionNumbers[0]
           const groupQuestionKey = startQuestion.toString()
+
+          // Log for debugging - remove in production if needed
+          console.log(`[Flow Chart] Passage ${passage.order}: Question numbers: ${questionNumbers.join(', ')}`)
+          console.log(`[Flow Chart] Fields count: ${fields.length}, Field questionNumbers:`, fields.map((f: any) => f.questionNumber))
 
           transformedData.questions[groupQuestionKey] = {
             passageId: passage.order,
             type: 'flow-chart',
             // Use the question text from the first item (all should be the same)
-            questionText: sortedItems[0].questionText,
-            // subQuestions are the real question numbers behind each blank
+            questionText: sortedByFieldQNum[0].questionText,
+            // subQuestions are the real question numbers behind each blank (only for questions with fields)
             subQuestions: questionNumbers.map(n => n.toString()),
             imageUrl: group.imageUrl,
             fields

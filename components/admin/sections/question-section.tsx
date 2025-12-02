@@ -124,33 +124,53 @@ export default function QuestionSection({
       // Get the starting question number (use formData.number as base, or calculate from existing questions)
       const startQuestionNumber = formData.number || (questions.length > 0 ? Math.max(...questions.map((q) => q.number || q.questionNumber || 0)) + 1 : 1)
 
-      // Create a separate question for each field
-      formData.fields.forEach((field: any, index: number) => {
-        const questionNumber = startQuestionNumber + index
-        const questionData = {
+      // For updates, replace the entire flow chart question group with a single entry
+      // The actual flattening into individual questions happens in handleSubmit
+      if (editingId !== null && onUpdate) {
+        const updatedQuestionData = {
           passageId: formData.passageId,
           part: formData.part,
-          number: questionNumber,
-          questionNumber: questionNumber,
+          number: startQuestionNumber,
+          questionNumber: startQuestionNumber,
           questionType: "FLOW_CHART",
           type: "FLOW_CHART",
           text: formData.text || "Complete the flow chart below.",
           questionText: formData.text || "Complete the flow chart below.",
           imageUrl: formData.imageUrl,
-          field: field, // Each question gets its own field
-          fields: formData.fields, // Store all fields for reference
-          correctAnswer: field.value || "", // Answer comes from field value
+          fields: formData.fields, // All fields stored together
+          points: 1,
+        }
+
+        onUpdate(editingId, updatedQuestionData)
+        setEditingId(null)
+      } else {
+        // For new flow chart questions, create a single grouped entry
+        // The flattening will happen when saving to the database
+        const questionData = {
+          passageId: formData.passageId,
+          part: formData.part,
+          number: startQuestionNumber,
+          questionNumber: startQuestionNumber,
+          questionType: "FLOW_CHART",
+          type: "FLOW_CHART",
+          text: formData.text || "Complete the flow chart below.",
+          questionText: formData.text || "Complete the flow chart below.",
+          imageUrl: formData.imageUrl,
+          fields: formData.fields, // All fields stored together
           points: 1,
         }
 
         onAdd(questionData)
-      })
+      }
 
-      // Reset form
+      // Reset form - calculate next starting question number
+      // The next starting number should be after all fields in this flow chart
+      const nextStartingNumber = startQuestionNumber + formData.fields.length
+      
       setFormData({
         passageId: "",
         part: "1",
-        number: questions.length + formData.fields.length + 1,
+        number: nextStartingNumber,
         questionType: "MCQ",
         text: "",
         options: ["", "", "", ""],
@@ -359,19 +379,24 @@ export default function QuestionSection({
                 </Select>
               </div>
 
-              {/* Hide Question Number for FLOW_CHART - each field becomes its own question */}
-              {formData.questionType !== "FLOW_CHART" && (
-                <div className="space-y-2">
-                  <Label htmlFor="question-number">Question Number</Label>
-                  <Input
-                    id="question-number"
-                    type="number"
-                    value={formData.number}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, number: Number.parseInt(e.target.value) }))}
-                    min="1"
-                  />
-                </div>
-              )}
+              {/* Question Number - for FLOW_CHART this is the starting question number */}
+              <div className="space-y-2">
+                <Label htmlFor="question-number">
+                  {formData.questionType === "FLOW_CHART" ? "Starting Question Number" : "Question Number"}
+                </Label>
+                <Input
+                  id="question-number"
+                  type="number"
+                  value={formData.number}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, number: Number.parseInt(e.target.value) }))}
+                  min="1"
+                />
+                {formData.questionType === "FLOW_CHART" && (
+                  <p className="text-xs text-muted-foreground">
+                    This is the first question number. Each input field will be numbered sequentially (e.g., {formData.number}, {formData.number + 1}, {formData.number + 2}...)
+                  </p>
+                )}
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -489,6 +514,7 @@ export default function QuestionSection({
                   defaultFieldHeight={32}
                   initialImageUrl={formData.imageUrl}
                   initialFields={formData.fields}
+                  startingQuestionNumber={formData.number}
                   onImageChange={(newImageUrl) => {
                     setFormData((prev) => ({ ...prev, imageUrl: newImageUrl }))
                   }}
@@ -501,7 +527,7 @@ export default function QuestionSection({
                   }}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Upload an image, then click on it to create input fields. <strong>Each field you create will automatically become a separate question</strong> with its own question number and correct answer (from the field value). Enter the correct answer in each field, then click "Save Fields" to save the positions. When you click "Add Question", each field will be created as an individual question.
+                  Upload an image, then click on it to create input fields. <strong>Each field you create will automatically become a separate question</strong> with its own question number (starting from {formData.number}) and correct answer (from the field value). Enter the correct answer in each field, then click "Save Fields" to save the positions. When you click "Add Question", each field will be created as an individual question.
                 </p>
               </div>
             )}

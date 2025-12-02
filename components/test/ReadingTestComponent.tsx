@@ -10,6 +10,7 @@ type FlowChartField = {
   y: number;
   width?: number;
   height?: number;
+  questionNumber?: number; // Optional question number for each field
 };
 
 interface FlowChartImageProps {
@@ -64,10 +65,24 @@ const FlowChartImage: React.FC<FlowChartImageProps> = ({
 
   // Ensure we have matching lengths
   const safeFields = Array.isArray(fields) ? fields : [];
-  const pairs = questionNumbers.map((qNum, idx) => ({
-    qNum,
-    field: safeFields[idx],
-  }));
+  
+  // Match fields to question numbers:
+  // 1. If field has questionNumber, use it to match
+  // 2. Otherwise, match by index (for backward compatibility)
+  // Display sequential numbers (1, 2, 3, 4...) but use actual question numbers for answer tracking
+  const pairs = questionNumbers.map((qNum, idx) => {
+    // First try to find field by questionNumber
+    const fieldByQuestionNumber = safeFields.find((f: FlowChartField) => f.questionNumber === qNum);
+    
+    // If found, use it; otherwise fall back to index-based matching
+    const field = fieldByQuestionNumber || safeFields[idx];
+    
+    return {
+      qNum, // Actual question number (for answer tracking)
+      displayQNum: idx + 1, // Sequential display number (1, 2, 3, 4...)
+      field,
+    };
+  }).filter(pair => pair.field); // Filter out pairs without valid fields
 
   return (
     <div
@@ -90,40 +105,53 @@ const FlowChartImage: React.FC<FlowChartImageProps> = ({
         onLoad={handleImageLoad}
       />
       {imageLoaded &&
-        pairs.map(({ qNum, field }) => {
+        pairs.map(({ qNum, displayQNum, field }) => {
           if (!field || typeof field.x !== 'number' || typeof field.y !== 'number') return null;
           const width = (field.width ?? 140) * scale.x;
           const height = (field.height ?? 32) * scale.y;
           const left = field.x * scale.x;
           const top = field.y * scale.y;
           const value = userAnswers[qNum.toString()] ?? '';
+          const labelHeight = 20;
+          const showLabelAbove = top >= labelHeight; // Show label above if there's enough space
+          
           return (
-            <input
+            <div
               key={qNum}
-              id={`q${qNum}`}
-              type="text"
-              className={styles.answerInput}
-              placeholder={qNum.toString()}
-              spellCheck={false}
-              autoComplete="off"
               style={{
                 position: 'absolute',
                 left,
                 top,
                 width,
-                height,
-                border: '2px solid #333',
-                borderRadius: 4,
-                padding: '4px 8px',
-                fontSize: 14,
-                backgroundColor: 'rgba(255,255,255,0.95)',
-                boxSizing: 'border-box',
-                textAlign: 'center',
                 zIndex: 10,
               }}
-              value={value}
-              onChange={(e) => onAnswerChange(qNum, e.target.value)}
-            />
+            >
+              {/* Input Field - Question number shown only in placeholder */}
+              <input
+                id={`q${qNum}`}
+                type="text"
+                className={styles.answerInput}
+                placeholder={`${displayQNum}`}
+                spellCheck={false}
+                autoComplete="off"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height,
+                  border: '2px solid #333',
+                  borderRadius: '4px',
+                  padding: '4px 8px',
+                  fontSize: 14,
+                  backgroundColor: 'rgba(255,255,255,0.95)',
+                  boxSizing: 'border-box',
+                  textAlign: 'center',
+                }}
+                value={value}
+                onChange={(e) => onAnswerChange(qNum, e.target.value)}
+              />
+            </div>
           );
         })}
     </div>
@@ -1151,6 +1179,11 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
         const flowQuestionNumbers: number[] = questionData.subQuestions.map((q: string) =>
           parseInt(q, 10)
         );
+        
+        // Ensure we only show question numbers that match the number of fields
+        // This prevents showing "Questions 1-7" when there are only 4 fields
+        const fieldsCount = questionData.fields?.length || 0
+        const displayQuestionNumbers = flowQuestionNumbers.slice(0, fieldsCount)
 
         return (
           <div
@@ -1161,7 +1194,7 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
             <div className={styles.questionPrompt}>
               <p>
                 <strong>
-                  Questions {flowQuestionNumbers[0]}-{flowQuestionNumbers[flowQuestionNumbers.length - 1]}
+                  Questions {displayQuestionNumbers[0]}-{displayQuestionNumbers[displayQuestionNumbers.length - 1]}
                 </strong>
               </p>
               <p>Complete the flow chart below.</p>
@@ -1171,7 +1204,7 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
             </div>
             <FlowChartImage
               imageUrl={questionData.imageUrl}
-              questionNumbers={flowQuestionNumbers}
+              questionNumbers={displayQuestionNumbers}
               fields={questionData.fields || []}
               userAnswers={userAnswers}
               onAnswerChange={handleAnswerChange}
@@ -1385,7 +1418,7 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
           </header>
 
           {/* Part Headers */}
-          {testData.passages.map((passage, index) => (
+          {/* {testData.passages.map((passage, index) => (
             <div
               key={passage.id}
               id={`part-header-${passage.id}`}
@@ -1394,7 +1427,7 @@ const ReadingTestComponent: React.FC<ReadingTestComponentProps> = ({ testData, o
               <p><strong>Part {passage.id}</strong></p>
               <p>{passage.title}</p>
           </div>
-          ))}
+          ))} */}
 
           {/* Main Container */}
           <div className={styles.mainContainer}>

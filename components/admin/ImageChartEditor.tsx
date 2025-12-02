@@ -12,6 +12,7 @@ export interface ChartField {
   width: number
   height: number
   value: string
+  questionNumber?: number // Optional question number for each field
 }
 
 /**
@@ -30,6 +31,8 @@ interface ImageChartEditorProps {
   initialFields?: ChartField[]
   /** Initial image URL (for edit mode) */
   initialImageUrl?: string
+  /** Starting question number for displaying question numbers on fields */
+  startingQuestionNumber?: number
 }
 
 /**
@@ -53,7 +56,8 @@ export default function ImageChartEditor({
   onSave,
   onImageChange,
   initialFields = [],
-  initialImageUrl = ''
+  initialImageUrl = '',
+  startingQuestionNumber
 }: ImageChartEditorProps) {
   // State for image
   const [imageUrl, setImageUrl] = useState<string>(initialImageUrl)
@@ -228,6 +232,17 @@ export default function ImageChartEditor({
     setFields(prev =>
       prev.map(field =>
         field.id === fieldId ? { ...field, value } : field
+      )
+    )
+  }, [])
+
+  /**
+   * Handle question number change for a field
+   */
+  const handleQuestionNumberChange = useCallback((fieldId: string, questionNumber: number | undefined) => {
+    setFields(prev =>
+      prev.map(field =>
+        field.id === fieldId ? { ...field, questionNumber: questionNumber || undefined } : field
       )
     )
   }, [])
@@ -515,7 +530,13 @@ export default function ImageChartEditor({
             {/* Render all fields over the image - only show fields with valid positions */}
             {fields
               .filter(field => field.x >= 0 && field.y >= 0 && field.width > 0 && field.height > 0)
-              .map((field) => (
+              .map((field, index) => {
+                // Use field's questionNumber if set, otherwise calculate from startingQuestionNumber + index
+                const questionNumber = field.questionNumber !== undefined 
+                  ? field.questionNumber 
+                  : (startingQuestionNumber !== undefined ? startingQuestionNumber + index : null);
+                
+                return (
               <div
                 key={field.id}
                 className={`absolute ${
@@ -530,6 +551,16 @@ export default function ImageChartEditor({
                   height: `${field.height}px`
                 }}
               >
+                {/* Question Number Label */}
+                {questionNumber !== null && (
+                  <div
+                    className="absolute -top-6 left-0 bg-blue-600 text-white text-xs font-semibold px-1.5 py-0.5 rounded-t z-20"
+                    style={{ minWidth: '24px', textAlign: 'center' }}
+                  >
+                    Q{questionNumber}
+                  </div>
+                )}
+                
                 {/* Input Field */}
                 <input
                   type="text"
@@ -555,7 +586,7 @@ export default function ImageChartEditor({
                       ? 'border-dashed border-blue-500 bg-blue-50'
                       : 'border-dashed border-gray-400 bg-white'
                   } rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1`}
-                  placeholder="Enter answer..."
+                  placeholder={questionNumber !== null ? `Q${questionNumber} - Enter answer...` : "Enter answer..."}
                   onClick={(e) => e.stopPropagation()}
                   style={{ height: '100%' }}
                 />
@@ -681,6 +712,32 @@ export default function ImageChartEditor({
                       </button>
                     </div>
 
+                    {/* Question Number Control */}
+                    <div className="flex items-center space-x-1 px-1 border-r border-gray-300 pr-1">
+                      <span className="text-xs text-gray-500">Q#:</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={field.questionNumber !== undefined ? field.questionNumber : (startingQuestionNumber !== undefined ? startingQuestionNumber + index : '')}
+                        onChange={(e) => {
+                          const value = e.target.value === '' ? undefined : parseInt(e.target.value, 10)
+                          handleQuestionNumberChange(field.id, value)
+                        }}
+                        onMouseDown={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          e.currentTarget.select()
+                        }}
+                        className="w-12 px-1 py-0.5 text-xs border border-gray-300 rounded text-center focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        placeholder="Auto"
+                        title="Question number for this field"
+                      />
+                    </div>
+
                     {/* Drag Handle */}
                     <div
                       onMouseDown={(e) => handleFieldDragStart(field.id, e)}
@@ -694,7 +751,7 @@ export default function ImageChartEditor({
                   </div>
                 )}
               </div>
-            ))}
+            )})}
 
             {/* Click Hint */}
             {fields.length === 0 && (

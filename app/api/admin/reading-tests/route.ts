@@ -85,47 +85,121 @@ export async function POST(request: NextRequest) {
               })) || []
             },
             questions: {
-              create: passage.questions?.create?.map((question: any, questionIndex: number) => {
-                // Normalize question type to match enum values
-                let questionType = question.type || question.questionType || 'MULTIPLE_CHOICE'
-                // Convert FLOW_CHART to match enum
-                if (questionType === 'FLOW_CHART' || questionType === 'FLOWCHART') {
-                  questionType = 'FLOW_CHART'
-                }
-                // Convert other types to uppercase with underscores
-                questionType = questionType.toUpperCase().replace(/-/g, '_')
+              create: (() => {
+                const questionsToCreate: any[] = []
                 
-                const questionData: any = {
-                  questionNumber: question.questionNumber || question.number,
-                  type: questionType,
-                  questionText: question.questionText || question.text || '',
-                  points: question.points || 1,
-                }
-
-                // Add optional fields
-                if (question.options) questionData.options = question.options
-                if (question.headingsList) questionData.headingsList = question.headingsList
-                if (question.summaryText) questionData.summaryText = question.summaryText
-                if (question.subQuestions) questionData.subQuestions = question.subQuestions
-                
-                // Flow chart specific fields
-                if (question.imageUrl) questionData.imageUrl = question.imageUrl
-                if (question.field) questionData.field = question.field
-                if (question.fields) questionData.fields = question.fields
-
-                // Handle correct answer
-                if (question.correctAnswer) {
-                  questionData.correctAnswer = {
-                    create: {
-                      answer: typeof question.correctAnswer === 'string' 
-                        ? question.correctAnswer 
-                        : question.correctAnswer.answer || question.correctAnswer
-                    }
+                ;(passage.questions?.create || []).forEach((question: any) => {
+                  // Normalize question type to match enum values
+                  let questionType = question.type || question.questionType || 'MULTIPLE_CHOICE'
+                  // Convert FLOW_CHART to match enum
+                  if (questionType === 'FLOW_CHART' || questionType === 'FLOWCHART') {
+                    questionType = 'FLOW_CHART'
                   }
-                }
+                  // Convert other types to uppercase with underscores
+                  questionType = questionType.toUpperCase().replace(/-/g, '_')
+                  
+                  // For FLOW_CHART questions: if already separate (has field but not fields array), use as-is
+                  // If grouped (has fields array but no field), flatten into separate questions
+                  if (questionType === 'FLOW_CHART') {
+                    // Check if this is already a single-field question (has field property)
+                    if (question.field && (!question.fields || question.fields.length === 0)) {
+                      // Already a separate question, use as-is
+                      const questionData: any = {
+                        questionNumber: question.questionNumber || question.number,
+                        type: 'FLOW_CHART',
+                        questionText: question.questionText || question.text || '',
+                        points: question.points || 1,
+                        imageUrl: question.imageUrl || '',
+                        field: question.field,
+                        fields: question.fields || [question.field], // Store for reference
+                      }
+                      
+                      if (question.correctAnswer) {
+                        questionData.correctAnswer = {
+                          create: {
+                            answer: typeof question.correctAnswer === 'string' 
+                              ? question.correctAnswer 
+                              : question.correctAnswer.answer || question.correctAnswer
+                          }
+                        }
+                      }
+                      
+                      questionsToCreate.push(questionData)
+                    } else if (question.fields && Array.isArray(question.fields) && question.fields.length > 0) {
+                      // Grouped question with multiple fields - flatten into separate questions
+                      question.fields.forEach((field: any, fieldIndex: number) => {
+                        // Use field's questionNumber if set, otherwise calculate from starting question number + index
+                        const fieldQuestionNumber = field.questionNumber !== undefined 
+                          ? field.questionNumber 
+                          : (question.questionNumber || question.number || 0) + fieldIndex
+                        
+                        const fieldQuestionData: any = {
+                          questionNumber: fieldQuestionNumber,
+                          type: 'FLOW_CHART',
+                          questionText: question.questionText || question.text || '',
+                          points: question.points || 1,
+                          imageUrl: question.imageUrl || '',
+                          field: field,
+                          fields: question.fields, // Keep all fields for reference
+                        }
+                        
+                        // Use the field's value as the correct answer
+                        if (field?.value) {
+                          fieldQuestionData.correctAnswer = {
+                            create: {
+                              answer: typeof field.value === 'string' ? field.value : String(field.value)
+                            }
+                          }
+                        } else if (question.correctAnswer) {
+                          fieldQuestionData.correctAnswer = {
+                            create: {
+                              answer: typeof question.correctAnswer === 'string' 
+                                ? question.correctAnswer 
+                                : question.correctAnswer.answer || question.correctAnswer
+                            }
+                          }
+                        }
+                        
+                        questionsToCreate.push(fieldQuestionData)
+                      })
+                    }
+                  } else {
+                    // Non-flow-chart question, create as normal
+                    const questionData: any = {
+                      questionNumber: question.questionNumber || question.number,
+                      type: questionType,
+                      questionText: question.questionText || question.text || '',
+                      points: question.points || 1,
+                    }
 
-                return questionData
-              }) || []
+                    // Add optional fields
+                    if (question.options) questionData.options = question.options
+                    if (question.headingsList) questionData.headingsList = question.headingsList
+                    if (question.summaryText) questionData.summaryText = question.summaryText
+                    if (question.subQuestions) questionData.subQuestions = question.subQuestions
+                    
+                    // Flow chart specific fields (for single field flow charts)
+                    if (question.imageUrl) questionData.imageUrl = question.imageUrl
+                    if (question.field) questionData.field = question.field
+                    if (question.fields) questionData.fields = question.fields
+
+                    // Handle correct answer
+                    if (question.correctAnswer) {
+                      questionData.correctAnswer = {
+                        create: {
+                          answer: typeof question.correctAnswer === 'string' 
+                            ? question.correctAnswer 
+                            : question.correctAnswer.answer || question.correctAnswer
+                        }
+                      }
+                    }
+
+                    questionsToCreate.push(questionData)
+                  }
+                })
+                
+                return questionsToCreate
+              })()
             }
           }))
         },

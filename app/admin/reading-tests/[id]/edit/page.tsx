@@ -67,12 +67,18 @@ export default function EditReadingTestPage() {
         }))
         setPassages(transformedPassages)
 
-        // Transform questions
+        // Transform questions - group flow chart questions by image
         const transformedQuestions: any[] = []
         test.passages.forEach((passage: any, passageIndex: number) => {
-          (passage.questions || []).forEach((question: any) => {
+          // Separate flow chart questions from other questions
+          const flowChartQuestions = (passage.questions || []).filter((q: any) => q.type === 'FLOW_CHART')
+          const otherQuestions = (passage.questions || []).filter((q: any) => q.type !== 'FLOW_CHART')
+          
+          // Handle non-flow-chart questions
+          otherQuestions.forEach((question: any) => {
             transformedQuestions.push({
               id: Date.now() + transformedQuestions.length,
+              dbId: question.id, // Store database ID for deletion
               passageId: String(transformedPassages[passageIndex].id),
               questionNumber: question.questionNumber || 0,
               number: question.questionNumber || 0,
@@ -91,6 +97,69 @@ export default function EditReadingTestPage() {
               correctAnswer: question.correctAnswer?.answer || ''
             })
           })
+          
+          // Group flow chart questions by image
+          if (flowChartQuestions.length > 0) {
+            const flowGroups = new Map<string, any[]>()
+            
+            flowChartQuestions.forEach((question: any) => {
+              const imageUrl = question.imageUrl || ''
+              const key = `${passage.order}::${imageUrl}`
+              
+              if (!flowGroups.has(key)) {
+                flowGroups.set(key, [])
+              }
+              
+              flowGroups.get(key)!.push(question)
+            })
+            
+            // Convert each group into a single question entry for editing
+            flowGroups.forEach((groupQuestions) => {
+              const sortedQuestions = groupQuestions.sort((a, b) => 
+                (a.questionNumber || 0) - (b.questionNumber || 0)
+              )
+              
+              const firstQuestion = sortedQuestions[0]
+              const questionNumbers = sortedQuestions.map(q => q.questionNumber || 0)
+              
+              // Extract unique fields - use field from each question, deduplicate by field id
+              // Each question has its own field, and also fields array with all fields
+              // We only want the unique fields (one per question)
+              const fieldMap = new Map<string, any>()
+              sortedQuestions.forEach(q => {
+                if (q.field) {
+                  // Use field id as key to avoid duplicates, fallback to position if no id
+                  const fieldId = q.field.id || `${q.field.x}-${q.field.y}-${q.field.width}-${q.field.height}`
+                  if (!fieldMap.has(fieldId)) {
+                    fieldMap.set(fieldId, q.field)
+                  }
+                }
+              })
+              const fields = Array.from(fieldMap.values())
+              
+              // Create a single grouped question entry
+              transformedQuestions.push({
+                id: Date.now() + transformedQuestions.length,
+                dbIds: sortedQuestions.map(q => q.id), // Store all database IDs for deletion
+                passageId: String(transformedPassages[passageIndex].id),
+                questionNumber: questionNumbers[0], // Use first question number as the key
+                number: questionNumbers[0],
+                type: 'FLOW_CHART',
+                questionType: 'FLOW_CHART',
+                questionText: firstQuestion.questionText || 'Complete the flow chart below.',
+                text: firstQuestion.questionText || 'Complete the flow chart below.',
+                options: [],
+                headingsList: [],
+                summaryText: '',
+                subQuestions: questionNumbers.map(n => n.toString()), // Store all question numbers
+                imageUrl: firstQuestion.imageUrl || '',
+                field: null,
+                fields: fields, // Unique fields from all questions in the group
+                points: firstQuestion.points || 1,
+                correctAnswer: '' // Will be extracted from fields when saving
+              })
+            })
+          }
         })
         setQuestions(transformedQuestions)
 
@@ -183,12 +252,114 @@ export default function EditReadingTestPage() {
     setQuestions([...questions, { ...question, id: Date.now() }])
   }
 
-  const handleRemoveQuestion = (id: number) => {
-    setQuestions(questions.filter((q) => q.id !== id))
+  const handleRemoveQuestion = async (id: number) => {
+    const questionToDelete = questions.find(q => q.id === id)
+    if (!questionToDelete) {
+      console.warn(`⚠️ Question with id ${id} not found in state`)
+      return
+    }
+    
+    const questionNumber = questionToDelete.questionNumber || questionToDelete.number || '?'
+    const questionType = questionToDelete.type || questionToDelete.questionType || 'Unknown'
+    
+    if (!confirm(`Are you sure you want to delete Question ${questionNumber} (${questionType})?`)) {
+      return
+    }
+
+    try {
+      // For flow chart questions, delete all related questions
+      const dbIds = questionToDelete.dbIds || (questionToDelete.dbId ? [questionToDelete.dbId] : [])
+      
+      if (dbIds.length === 0) {
+        // New question not yet saved to database, just remove from state
+        const updatedQuestions = questions.filter((q) => q.id !== id)
+        setQuestions(updatedQuestions)
+        console.log(`🗑️ Removed unsaved question ${questionNumber} from state`)
+        return
+      }
+
+      // Delete from database - delete all questions in the group (for flow charts) or single question
+      const deletePromises = dbIds.map((dbId: string) =>
+        fetch(`/api/admin/reading-tests/questions/${dbId}`, {
+          method: 'DELETE',
+        })
+      )
+
+      const results = await Promise.all(deletePromises)
+      const failed = results.filter(r => !r.ok)
+      
+      if (failed.length > 0) {
+        const errors = await Promise.all(failed.map(r => r.json()))
+        console.error('❌ Error deleting questions:', errors)
+        alert(`Failed to delete question(s). Please try again.`)
+        return
+      }
+
+      // Remove from state after successful deletion
+      const updatedQuestions = questions.filter((q) => q.id !== id)
+      console.log(`🗑️ Deleted question ${questionNumber} (${questionType}) from database and state`)
+      console.log(`📊 Questions before deletion: ${questions.length}, after: ${updatedQuestions.length}`)
+      setQuestions(updatedQuestions)
+      console.log(`✅ Question deleted. Current questions in state: ${updatedQuestions.map(q => `Q${q.questionNumber || q.number || '?'}`).join(', ')}`)
+    } catch (error) {
+      console.error('❌ Error deleting question:', error)
+      alert('Failed to delete question. Please try again.')
+    }
   }
 
-  const handleUpdateQuestion = (id: number, updatedQuestion: any) => {
+  const handleUpdateQuestion = async (id: number, updatedQuestion: any) => {
+    const questionToUpdate = questions.find(q => q.id === id)
+    if (!questionToUpdate) {
+      console.warn(`⚠️ Question with id ${id} not found in state`)
+      return
+    }
+
+    const questionType = (updatedQuestion.type || updatedQuestion.questionType || questionToUpdate.type || '').toUpperCase()
+    
+    // For flow chart questions, delete old questions from database first
+    if (questionType === 'FLOW_CHART') {
+      const dbIds = questionToUpdate.dbIds || (questionToUpdate.dbId ? [questionToUpdate.dbId] : [])
+      
+      if (dbIds.length > 0) {
+        try {
+          // Delete old questions from database
+          const deletePromises = dbIds.map((dbId: string) =>
+            fetch(`/api/admin/reading-tests/questions/${dbId}`, {
+              method: 'DELETE',
+            })
+          )
+
+          const results = await Promise.all(deletePromises)
+          const failed = results.filter(r => !r.ok)
+          
+          if (failed.length > 0) {
+            const errors = await Promise.all(failed.map(r => r.json()))
+            console.error('❌ Error deleting old flow chart questions:', errors)
+            alert(`Failed to update flow chart question. Could not delete old questions.`)
+            return
+          }
+
+          console.log(`🗑️ Deleted ${dbIds.length} old flow chart questions before update`)
+        } catch (error) {
+          console.error('❌ Error deleting old flow chart questions:', error)
+          alert('Failed to update flow chart question. Please try again.')
+          return
+        }
+      }
+
+      // Clear dbIds since we're creating new questions
+      updatedQuestion.dbIds = undefined
+      updatedQuestion.dbId = undefined
+    } else {
+      // For non-flow-chart questions, preserve dbId if it exists
+      if (questionToUpdate.dbId) {
+        updatedQuestion.dbId = questionToUpdate.dbId
+      }
+    }
+
+    // Update state
     setQuestions(questions.map((q) => (q.id === id ? { ...updatedQuestion, id } : q)))
+    console.log(`✅ Updated question ${id} in state`)
   }
 
   const handleSubmit = async () => {
@@ -221,6 +392,9 @@ export default function EditReadingTestPage() {
       }
 
       // Transform data for API
+      console.log(`📤 Preparing to update reading test. Current questions in state: ${questions.length}`)
+      console.log(`📤 Question IDs in state: ${questions.map(q => `Q${q.questionNumber || q.number || '?'} (id: ${q.id})`).join(', ')}`)
+      
       const transformedPassages = passages.map((passage) => ({
         title: passage.title,
         order: passage.order,
@@ -234,6 +408,8 @@ export default function EditReadingTestPage() {
         questions: {
           create: (() => {
             const passageQuestions = questions.filter((q) => q.passageId === String(passage.id))
+            console.log(`📤 Passage "${passage.title}": ${passageQuestions.length} questions to send`)
+            console.log(`📤 Passage "${passage.title}" question numbers: ${passageQuestions.map(q => `Q${q.questionNumber || q.number || '?'}`).join(', ')}`)
             const flattenedQuestions: any[] = []
             
             passageQuestions.forEach((question) => {
@@ -242,8 +418,13 @@ export default function EditReadingTestPage() {
               // For FLOW_CHART questions, flatten each field into a separate question
               if (questionType === 'FLOW_CHART' && question.fields && Array.isArray(question.fields) && question.fields.length > 0) {
                 question.fields.forEach((field: any, fieldIndex: number) => {
+                  // Use field's questionNumber if set, otherwise calculate from starting question number + index
+                  const fieldQuestionNumber = field.questionNumber !== undefined 
+                    ? field.questionNumber 
+                    : (question.questionNumber || question.number || 0) + fieldIndex
+                  
                   const fieldQuestionData: any = {
-                    questionNumber: (question.questionNumber || question.number || 0) + fieldIndex,
+                    questionNumber: fieldQuestionNumber,
                     type: 'FLOW_CHART',
                     questionText: question.questionText || question.text || '',
                     points: question.points || 1,
@@ -302,10 +483,14 @@ export default function EditReadingTestPage() {
               }
             })
             
+            console.log(`📤 Passage "${passage.title}": ${flattenedQuestions.length} flattened questions after processing`)
             return flattenedQuestions
           })()
         }
       }))
+      
+      const totalQuestionsToCreate = transformedPassages.reduce((sum, p) => sum + (p.questions.create?.length || 0), 0)
+      console.log(`📤 Total questions to create: ${totalQuestionsToCreate}`)
 
       const payload = {
         title: testData.title,
@@ -329,9 +514,13 @@ export default function EditReadingTestPage() {
 
       const result = await response.json()
       
+      console.log(`✅ Update successful! Response received.`)
+      console.log(`📊 Questions in response: ${result.readingTest?.passages?.reduce((sum: number, p: any) => sum + (p.questions?.length || 0), 0) || 0}`)
+      
       // Refresh data from response
       if (result.readingTest) {
         const test = result.readingTest
+        console.log(`📊 Updating state with ${test.passages?.length || 0} passages`)
         
         // Update state with fresh data
         setTestData({
@@ -354,12 +543,18 @@ export default function EditReadingTestPage() {
         }))
         setPassages(transformedPassages)
 
-        // Transform and update questions
+        // Transform and update questions - group flow chart questions by image
         const transformedQuestions: any[] = []
         test.passages.forEach((passage: any, passageIndex: number) => {
-          (passage.questions || []).forEach((question: any) => {
+          // Separate flow chart questions from other questions
+          const flowChartQuestions = (passage.questions || []).filter((q: any) => q.type === 'FLOW_CHART')
+          const otherQuestions = (passage.questions || []).filter((q: any) => q.type !== 'FLOW_CHART')
+          
+          // Handle non-flow-chart questions
+          otherQuestions.forEach((question: any) => {
             transformedQuestions.push({
               id: Date.now() + transformedQuestions.length,
+              dbId: question.id, // Store database ID for deletion
               passageId: String(transformedPassages[passageIndex].id),
               questionNumber: question.questionNumber || 0,
               number: question.questionNumber || 0,
@@ -378,7 +573,71 @@ export default function EditReadingTestPage() {
               correctAnswer: question.correctAnswer?.answer || ''
             })
           })
+          
+          // Group flow chart questions by image
+          if (flowChartQuestions.length > 0) {
+            const flowGroups = new Map<string, any[]>()
+            
+            flowChartQuestions.forEach((question: any) => {
+              const imageUrl = question.imageUrl || ''
+              const key = `${passage.order}::${imageUrl}`
+              
+              if (!flowGroups.has(key)) {
+                flowGroups.set(key, [])
+              }
+              
+              flowGroups.get(key)!.push(question)
+            })
+            
+            // Convert each group into a single question entry for editing
+            flowGroups.forEach((groupQuestions) => {
+              const sortedQuestions = groupQuestions.sort((a, b) => 
+                (a.questionNumber || 0) - (b.questionNumber || 0)
+              )
+              
+              const firstQuestion = sortedQuestions[0]
+              const questionNumbers = sortedQuestions.map(q => q.questionNumber || 0)
+              
+              // Extract unique fields - use field from each question, deduplicate by field id
+              // Each question has its own field, and also fields array with all fields
+              // We only want the unique fields (one per question)
+              const fieldMap = new Map<string, any>()
+              sortedQuestions.forEach(q => {
+                if (q.field) {
+                  // Use field id as key to avoid duplicates, fallback to position if no id
+                  const fieldId = q.field.id || `${q.field.x}-${q.field.y}-${q.field.width}-${q.field.height}`
+                  if (!fieldMap.has(fieldId)) {
+                    fieldMap.set(fieldId, q.field)
+                  }
+                }
+              })
+              const fields = Array.from(fieldMap.values())
+              
+              // Create a single grouped question entry
+              transformedQuestions.push({
+                id: Date.now() + transformedQuestions.length,
+                dbIds: sortedQuestions.map(q => q.id), // Store all database IDs for deletion
+                passageId: String(transformedPassages[passageIndex].id),
+                questionNumber: questionNumbers[0], // Use first question number as the key
+                number: questionNumbers[0],
+                type: 'FLOW_CHART',
+                questionType: 'FLOW_CHART',
+                questionText: firstQuestion.questionText || 'Complete the flow chart below.',
+                text: firstQuestion.questionText || 'Complete the flow chart below.',
+                options: [],
+                headingsList: [],
+                summaryText: '',
+                subQuestions: questionNumbers.map(n => n.toString()), // Store all question numbers
+                imageUrl: firstQuestion.imageUrl || '',
+                field: null,
+                fields: fields, // Unique fields from all questions in the group
+                points: firstQuestion.points || 1,
+                correctAnswer: '' // Will be extracted from fields when saving
+              })
+            })
+          }
         })
+        console.log(`📊 Setting ${transformedQuestions.length} questions in state after update`)
         setQuestions(transformedQuestions)
 
         // Transform and update band scores
@@ -418,10 +677,13 @@ export default function EditReadingTestPage() {
       }
 
       // Show success message
-      alert('Reading test updated successfully!')
+      console.log(`✅ Update complete! Reloading page to show fresh data...`)
+      alert('Reading test updated successfully! All deleted questions have been removed from the database. Reloading page...')
       
-      // Optionally redirect after a short delay, or let user stay on page
-      // router.push('/admin/reading-tests')
+      // Reload the page to show updated data - use a small delay to ensure state updates
+      setTimeout(() => {
+        window.location.reload()
+      }, 500)
     } catch (error) {
       setError('Error updating test: ' + (error as Error).message)
       console.error('Update error:', error)

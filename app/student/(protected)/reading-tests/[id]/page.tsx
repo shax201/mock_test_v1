@@ -356,6 +356,10 @@ export default function StudentReadingTestPage() {
                   <span style={{ position: 'absolute', left: 0 }}>•</span>
                   <strong>Matching Information:</strong> Match information or features to paragraphs.
                 </li>
+                <li style={{ marginBottom: '10px', paddingLeft: '24px', position: 'relative', color: '#4b5563', lineHeight: '1.6' }}>
+                  <span style={{ position: 'absolute', left: 0 }}>•</span>
+                  <strong>Flow Chart Completion:</strong> Complete a flow chart by filling in the blanks with words from the passage. Write ONE WORD AND/OR A NUMBER for each answer.
+                </li>
               </ul>
             </div>
 
