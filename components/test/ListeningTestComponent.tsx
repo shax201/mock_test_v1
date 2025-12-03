@@ -904,12 +904,12 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
                   <h3 className="centered-title">{data.parts[0].sectionTitle}</h3>
                 )}
 
-                {/* {(data.parts[0].courseRequired ||
+                {(data.parts[0].courseRequired ||
                   (Array.isArray(data.parts[0].fillRows) && data.parts[0].fillRows.length > 0)) && (
                   <div style={{ border: '1px solid #ddd', padding: 25, borderRadius: 5 }}>
                     {data.parts[0].courseRequired && (
                       <p>
-                        <strong>Course required:</strong> {data.parts[0].courseRequired}
+                        <strong>{data.parts[0].courseRequired}</strong>
                       </p>
                     )}
 
@@ -938,7 +938,7 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
                       </div>
                     )}
                   </div>
-                )} */}
+                )}
               </div>
               
               {/* Flow Chart Completion Questions */}
