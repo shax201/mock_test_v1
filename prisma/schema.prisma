@@ -9,36 +9,39 @@ datasource db {
 }
 
 model ListeningTest {
-  id            String          @id @default(cuid())
-  title         String          @default("IELTS Listening Test")
-  audioSource   String          @map("audio_source")
-  instructions  Json
-  totalTimeMinutes Int          @default(30) @map("total_time_minutes")
-  isActive      Boolean         @default(true)
-  createdAt     DateTime        @default(now()) @map("created_at")
-  updatedAt     DateTime        @updatedAt @map("updated_at")
-  readingTestId String?         @map("reading_test_id")
-  parts         ListeningPart[]
-  readingTest   ReadingTest?    @relation(fields: [readingTestId], references: [id])
+  id               String          @id @default(cuid())
+  title            String          @default("IELTS Listening Test")
+  audioSource      String          @map("audio_source")
+  instructions     Json
+  totalTimeMinutes Int             @default(30) @map("total_time_minutes")
+  isActive         Boolean         @default(true)
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+  readingTestId    String?         @map("reading_test_id")
+  parts            ListeningPart[]
+  readingTest      ReadingTest?    @relation(fields: [readingTestId], references: [id])
 
   @@map("listening_tests")
 }
 
 model ListeningPart {
-  id              String              @id @default(cuid())
-  listeningTestId String              @map("listening_test_id")
-  index           Int
-  title           String
-  prompt          Json
-  sectionTitle    String?
-  courseRequired  String?
-  matchingHeading String?
-  matchingOptions Json?
-  notesSections   Json?
-  createdAt       DateTime            @default(now()) @map("created_at")
-  updatedAt       DateTime            @updatedAt @map("updated_at")
-  listeningTest   ListeningTest       @relation(fields: [listeningTestId], references: [id], onDelete: Cascade)
-  questions       ListeningQuestion[]
+  id                          String              @id @default(cuid())
+  listeningTestId             String              @map("listening_test_id")
+  index                       Int
+  title                       String
+  prompt                      Json
+  sectionTitle                String?
+  courseRequired              String?
+  matchingHeading             String?
+  matchingOptions             Json?
+  matchingInformationOptions  Json?               @map("matching_information_options")
+  matchingInformationStimulus String?             @map("matching_information_stimulus")
+  singleChoiceTitle           String?             @map("single_choice_title")
+  notesSections               Json?
+  createdAt                   DateTime            @default(now()) @map("created_at")
+  updatedAt                   DateTime            @updatedAt @map("updated_at")
+  listeningTest               ListeningTest       @relation(fields: [listeningTestId], references: [id], onDelete: Cascade)
+  questions                   ListeningQuestion[]
 
   @@unique([listeningTestId, index])
   @@map("listening_parts")
@@ -205,22 +208,22 @@ model PassageConfig {
 }
 
 model TestSession {
-  id          String    @id @default(cuid())
-  testId      String    @map("test_id")
-  studentId   String    @map("student_id")
-  testType    String    @map("test_type")
-  itemWiseTestId String?  @map("item_wise_test_id")
+  id             String        @id @default(cuid())
+  testId         String        @map("test_id")
+  studentId      String        @map("student_id")
+  testType       String        @map("test_type")
+  itemWiseTestId String?       @map("item_wise_test_id")
   itemWiseTest   ItemWiseTest? @relation(fields: [itemWiseTestId], references: [id], onDelete: SetNull)
-  startedAt   DateTime? @map("started_at")
-  answers     Json?
-  isCompleted Boolean   @default(false) @map("is_completed")
-  completedAt DateTime? @map("completed_at")
-  score       Int?
-  band        Float?
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  overallBand Float?    @map("overall_band")
-  student     User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  startedAt      DateTime?     @map("started_at")
+  answers        Json?
+  isCompleted    Boolean       @default(false) @map("is_completed")
+  completedAt    DateTime?     @map("completed_at")
+  score          Int?
+  band           Float?
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  overallBand    Float?        @map("overall_band")
+  student        User          @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@map("test_sessions")
 }
@@ -331,13 +334,13 @@ model ItemWiseTest {
 }
 
 model SiteSettings {
-  id            String   @id @default(cuid())
-  logoUrl       String?  @map("logo_url")
-  faviconUrl    String?  @map("favicon_url")
-  logoPublicId  String?  @map("logo_public_id")
-  faviconPublicId String? @map("favicon_public_id")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id              String   @id @default(cuid())
+  logoUrl         String?  @map("logo_url")
+  faviconUrl      String?  @map("favicon_url")
+  logoPublicId    String?  @map("logo_public_id")
+  faviconPublicId String?  @map("favicon_public_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@map("site_settings")
 }
@@ -384,6 +387,7 @@ enum ListeningQuestionType {
   SELECT
   FLOW_CHART
   TABLE_COMPLETION
+  MATCHING_INFORMATION
 }
 
 enum AssignmentStatus {

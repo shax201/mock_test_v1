@@ -95,6 +95,9 @@ export async function POST(request: NextRequest) {
             courseRequired: part.courseRequired || null,
             matchingHeading: part.matchingHeading || part.matching?.heading || null,
             matchingOptions: part.matchingOptions || part.matching?.options || null,
+            matchingInformationOptions: part.matchingInformationOptions || null,
+            matchingInformationStimulus: part.matchingInformationStimulus || null,
+            singleChoiceTitle: part.singleChoiceTitle || null,
             notesSections: part.notesSections || part.notes || null,
             questions: {
               create: part.questions?.map((question: any) => ({

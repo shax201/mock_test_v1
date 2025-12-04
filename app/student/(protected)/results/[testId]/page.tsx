@@ -431,6 +431,10 @@ const getCachedResultDetail = unstable_cache(
         const listeningQuestions: any[] = []
         listeningTest.parts.forEach((part, partIndex) => {
           part.questions.forEach((question) => {
+            // Skip informational text questions (questions with null numbers)
+            if (question.number === null || question.number === undefined) {
+              return
+            }
             const questionKey = question.number.toString()
             const studentAnswer = (session.answers as any)?.[questionKey] || 'Unattempted'
             let correctAnswer = ''
@@ -465,16 +469,16 @@ const getCachedResultDetail = unstable_cache(
                   const questionsInGroup = part.questions
                     .filter(
                       (q: any) =>
-                        q.type === 'TABLE_COMPLETION' && (q.groupId || q.id) === groupKey
+                        q.type === 'TABLE_COMPLETION' && (q.groupId || q.id) === groupKey && q.number !== null && q.number !== undefined
                     )
-                    .sort((a: any, b: any) => a.number - b.number)
+                    .sort((a: any, b: any) => (a.number ?? 0) - (b.number ?? 0))
 
                   const questionIdToBlankId: Record<string, number> = {}
                   const blankIdToQuestionNumber: Record<number, number> = {}
 
                   questionsInGroup.forEach((qItem: any, idx: number) => {
                     const blankId = blankIds[idx]
-                    if (blankId !== undefined) {
+                    if (blankId !== undefined && qItem.number !== null && qItem.number !== undefined) {
                       questionIdToBlankId[qItem.id] = blankId
                       blankIdToQuestionNumber[blankId] = qItem.number
                     }
@@ -535,17 +539,19 @@ const getCachedResultDetail = unstable_cache(
                 const questionsInGroup = part.questions
                   .filter(
                     (q: any) =>
-                      q.type === 'FLOW_CHART' && (q.groupId || q.id) === groupKey
+                      q.type === 'FLOW_CHART' && (q.groupId || q.id) === groupKey && q.number !== null && q.number !== undefined
                   )
-                  .sort((a: any, b: any) => a.number - b.number)
+                  .sort((a: any, b: any) => (a.number ?? 0) - (b.number ?? 0))
 
                 groupData = {
                   imageUrl: questionsInGroup[0]?.imageUrl || question.imageUrl || null,
-                  nodes: questionsInGroup.map((qItem: any) => ({
-                    questionId: qItem.id,
-                    questionNumber: qItem.number,
-                    field: qItem.field || null
-                  }))
+                  nodes: questionsInGroup
+                    .filter((qItem: any) => qItem.number !== null && qItem.number !== undefined)
+                    .map((qItem: any) => ({
+                      questionId: qItem.id,
+                      questionNumber: qItem.number!,
+                      field: qItem.field || null
+                    }))
                 }
 
                 flowChartGroupCache.set(groupKey, groupData)
@@ -553,12 +559,14 @@ const getCachedResultDetail = unstable_cache(
 
               flowChartDiagram = {
                 imageUrl: groupData.imageUrl,
-                nodes: groupData.nodes.map((node) => ({
-                  questionNumber: node.questionNumber,
-                  field: node.field,
-                  studentAnswer:
-                    (session.answers as any)?.[node.questionNumber.toString()] || 'Unattempted'
-                }))
+                nodes: groupData.nodes
+                  .filter((node) => node.questionNumber !== null && node.questionNumber !== undefined)
+                  .map((node) => ({
+                    questionNumber: node.questionNumber!,
+                    field: node.field,
+                    studentAnswer:
+                      (session.answers as any)?.[node.questionNumber!.toString()] || 'Unattempted'
+                  }))
               }
             }
 

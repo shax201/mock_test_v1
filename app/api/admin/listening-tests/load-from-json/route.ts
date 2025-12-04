@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
         courseRequired: part.courseRequired,
         matchingHeading: part.matching?.heading,
         matchingOptions: part.matching?.options,
-        notesSections: part.notes,
+        notesSections: part.notes || null, // Preserve full notes structure including informational text
         questions: questions.sort((a, b) => a.number - b.number)
       }
     })

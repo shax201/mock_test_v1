@@ -104,28 +104,47 @@ export async function PUT(
               courseRequired: part.courseRequired || null,
               matchingHeading: part.matchingHeading || part.matching?.heading || null,
               matchingOptions: part.matchingOptions || part.matching?.options || null,
+              matchingInformationOptions: part.matchingInformationOptions || null,
+              matchingInformationStimulus: part.matchingInformationStimulus || null,
+              singleChoiceTitle: part.singleChoiceTitle || null,
               notesSections: part.notesSections || part.notes || null,
               questions: {
-                create: part.questions?.map((question: any) => ({
-                  number: question.number,
-                  type: question.type as ListeningQuestionType,
-                  labelPrefix: question.labelPrefix || null,
-                  textPrefix: question.textPrefix || null,
-                  textSuffix: question.textSuffix || null,
-                  questionText: question.questionText || null,
-                  options: question.options || null,
-                  matchingLabel: question.matchingLabel || null,
-                  imageUrl: question.imageUrl || null,
-                  field: question.field || null,
-                  groupId: question.groupId || null,
-                  answers: question.answers || null, // For TABLE_COMPLETION
-                  tableStructure: question.tableStructure || null, // For TABLE_COMPLETION
-                  correctAnswer: question.correctAnswer ? {
-                    create: {
-                      answer: question.correctAnswer
-                    }
-                  } : undefined
-                })) || []
+                create: part.questions?.map((question: any) => {
+                  // Validate and ensure type is a valid ListeningQuestionType
+                  const validTypes: ListeningQuestionType[] = [
+                    'TEXT',
+                    'RADIO',
+                    'SELECT',
+                    'FLOW_CHART',
+                    'TABLE_COMPLETION',
+                    'MATCHING_INFORMATION'
+                  ]
+                  
+                  if (!validTypes.includes(question.type)) {
+                    throw new Error(`Invalid question type: ${question.type}. Must be one of: ${validTypes.join(', ')}`)
+                  }
+                  
+                  return {
+                    number: question.number,
+                    type: question.type as ListeningQuestionType,
+                    labelPrefix: question.labelPrefix || null,
+                    textPrefix: question.textPrefix || null,
+                    textSuffix: question.textSuffix || null,
+                    questionText: question.questionText || null,
+                    options: question.options || null,
+                    matchingLabel: question.matchingLabel || null,
+                    imageUrl: question.imageUrl || null,
+                    field: question.field || null,
+                    groupId: question.groupId || null,
+                    answers: question.answers || null, // For TABLE_COMPLETION
+                    tableStructure: question.tableStructure || null, // For TABLE_COMPLETION
+                    correctAnswer: question.correctAnswer ? {
+                      create: {
+                        answer: question.correctAnswer
+                      }
+                    } : undefined
+                  }
+                }) || []
               }
             }))
           }
@@ -197,10 +216,32 @@ export async function PUT(
 
       return NextResponse.json({ listeningTest })
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating listening test:', error)
+    
+    // Provide more detailed error messages
+    if (error?.message?.includes('Invalid question type')) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 400 }
+      )
+    }
+    
+    if (error?.message?.includes('Invalid value for argument `type`')) {
+      return NextResponse.json(
+        { 
+          error: 'Invalid question type. Valid types are: TEXT, RADIO, SELECT, FLOW_CHART, TABLE_COMPLETION, MATCHING_INFORMATION',
+          details: error.message
+        },
+        { status: 400 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Internal server error',
+        details: error?.message || 'Unknown error'
+      },
       { status: 500 }
     )
   }

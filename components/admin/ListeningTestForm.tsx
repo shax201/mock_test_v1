@@ -8,6 +8,7 @@ import ImageChartEditor, { ChartField } from './ImageChartEditor'
 import RainwaterTable from './RainwaterTable'
 import DynamicTableEditor, { TableStructure } from './DynamicTableEditor'
 import TableStructureEditor from './TableStructureEditor'
+import { Editor } from '@tinymce/tinymce-react'
 
 // Component to preview flow chart with input field positions (read-only view)
 function FlowChartPreview({ imageUrl, questions }: { imageUrl: string; questions: any[] }) {
@@ -165,6 +166,14 @@ interface MatchingQuestion {
   correctAnswer: string
 }
 
+interface MatchingInformationQuestion {
+  id: string
+  questionNumber: number
+  questionText: string
+  correctAnswer: string
+  groupId?: string // Group ID to link questions from the same matching information set
+}
+
 interface FlowChartQuestion {
   id: string
   questionNumber: number
@@ -189,10 +198,14 @@ interface PartData {
   courseRequired?: string
   matchingHeading?: string
   matchingOptions?: string[]
+  matchingInformationOptions?: string[] // Options for matching information (e.g., A, B, C, D, E, F, G, H)
+  matchingInformationStimulus?: string // Stimulus/context text for matching information questions
+  singleChoiceTitle?: string // Title/prompt for single choice questions (e.g., "Questions 11-15 — Choose the correct letter, A, B or C.")
   notesSections?: any
   fillRows?: FillInBlankRow[]
   singleChoice?: SingleChoiceQuestion[]
   matchingItems?: MatchingQuestion[]
+  matchingInformationQuestions?: MatchingInformationQuestion[]
   flowChartQuestions?: FlowChartQuestion[]
   tableCompletionQuestions?: TableCompletionQuestion[]
 }
@@ -252,8 +265,11 @@ export default function ListeningTestForm({
       prompt: ['Questions 11-15 — Choose the correct letter, A, B or C.'],
       matchingHeading: '',
       matchingOptions: [],
+      matchingInformationOptions: [],
+      matchingInformationStimulus: '',
       singleChoice: [],
       matchingItems: [],
+      matchingInformationQuestions: [],
       flowChartQuestions: [],
       tableCompletionQuestions: []
     },
@@ -263,8 +279,11 @@ export default function ListeningTestForm({
       prompt: ['Questions 21-26 — Choose the correct letter, A, B or C.'],
       matchingHeading: '',
       matchingOptions: [],
+      matchingInformationOptions: [],
+      matchingInformationStimulus: '',
       singleChoice: [],
       matchingItems: [],
+      matchingInformationQuestions: [],
       flowChartQuestions: [],
       tableCompletionQuestions: []
     },
@@ -302,10 +321,14 @@ export default function ListeningTestForm({
             courseRequired: part.courseRequired || '',
             matchingHeading: part.matchingHeading || '',
             matchingOptions: Array.isArray(part.matchingOptions) ? part.matchingOptions : [],
+            matchingInformationOptions: Array.isArray(part.matchingInformationOptions) ? part.matchingInformationOptions : [],
+            matchingInformationStimulus: part.matchingInformationStimulus || '',
+            singleChoiceTitle: part.singleChoiceTitle || '',
             notesSections: part.notesSections || null,
             fillRows: [],
             singleChoice: [],
             matchingItems: [],
+            matchingInformationQuestions: [],
             flowChartQuestions: [],
             tableCompletionQuestions: []
           }
@@ -339,6 +362,18 @@ export default function ListeningTestForm({
                   matchingLabel: q.matchingLabel || '',
                   correctAnswer: String(correctAnswer)
                 })
+              } else if (q.type === 'MATCHING_INFORMATION') {
+                partData.matchingInformationQuestions!.push({
+                  id: q.id || `matching-info-${q.number}`,
+                  questionNumber: q.number,
+                  questionText: q.questionText || '',
+                  correctAnswer: String(correctAnswer),
+                  groupId: q.groupId || q.id
+                })
+                // Load matching information options from part if available
+                if (part.matchingInformationOptions && Array.isArray(part.matchingInformationOptions)) {
+                  partData.matchingInformationOptions = part.matchingInformationOptions
+                }
               } else if (q.type === 'FLOW_CHART') {
                 // Each FLOW_CHART question represents one field
                 // Group them by groupId if available, otherwise by imageUrl
@@ -542,6 +577,96 @@ export default function ListeningTestForm({
     })
   }
 
+  // Matching Information helpers
+  const addMatchingInformationOption = (partIndex: number) => {
+    const part = parts[partIndex]
+    const options = part.matchingInformationOptions || []
+    const nextLetter = String.fromCharCode(65 + options.length) // A, B, C, etc.
+    updatePart(partIndex, {
+      matchingInformationOptions: [...options, nextLetter]
+    })
+  }
+
+  const updateMatchingInformationOption = (partIndex: number, index: number, value: string) => {
+    const part = parts[partIndex]
+    const options = [...(part.matchingInformationOptions || [])]
+    options[index] = value
+    updatePart(partIndex, { matchingInformationOptions: options })
+  }
+
+  const removeMatchingInformationOption = (partIndex: number, index: number) => {
+    const part = parts[partIndex]
+    const options = part.matchingInformationOptions || []
+    updatePart(partIndex, {
+      matchingInformationOptions: options.filter((_, i) => i !== index)
+    })
+  }
+
+  const addMatchingInformationQuestion = (partIndex: number, existingGroupId?: string) => {
+    const part = parts[partIndex]
+    const startNumber = partIndex === 1 ? 11 : partIndex === 2 ? 21 : 31
+    const existingQuestions = [
+      ...(part.fillRows || []),
+      ...(part.singleChoice || []),
+      ...(part.matchingItems || []),
+      ...(part.matchingInformationQuestions || []),
+      ...(part.flowChartQuestions || []),
+      ...(part.tableCompletionQuestions || [])
+    ]
+    const maxQuestionNumber = existingQuestions.length > 0
+      ? Math.max(...existingQuestions.map(q => q.questionNumber))
+      : startNumber - 1
+    const nextQuestionNumber = maxQuestionNumber + 1
+    
+    // Use existing groupId if provided, otherwise generate a new one
+    const groupId = existingGroupId || `matching-info-group-${Date.now()}`
+    
+    const newQuestion: MatchingInformationQuestion = {
+      id: `matching-info-${Date.now()}`,
+      questionNumber: nextQuestionNumber,
+      questionText: '',
+      correctAnswer: '',
+      groupId: groupId
+    }
+    updatePart(partIndex, {
+      matchingInformationQuestions: [...(part.matchingInformationQuestions || []), newQuestion]
+    })
+  }
+
+  const updateMatchingInformationQuestion = (partIndex: number, questionId: string, updates: Partial<MatchingInformationQuestion>) => {
+    const part = parts[partIndex]
+    updatePart(partIndex, {
+      matchingInformationQuestions: part.matchingInformationQuestions?.map(q => q.id === questionId ? { ...q, ...updates } : q)
+    })
+  }
+
+  const removeMatchingInformationQuestion = (partIndex: number, questionId: string) => {
+    const part = parts[partIndex]
+    const question = part.matchingInformationQuestions?.find(q => q.id === questionId)
+    
+    if (question?.groupId) {
+      // Check if there are other questions in the same group
+      const otherQuestionsInGroup = part.matchingInformationQuestions?.filter(q => q.groupId === question.groupId && q.id !== questionId) || []
+      
+      if (otherQuestionsInGroup.length > 0) {
+        // Remove only this question
+        updatePart(partIndex, {
+          matchingInformationQuestions: part.matchingInformationQuestions?.filter(q => q.id !== questionId)
+        })
+      } else {
+        // Remove all questions in the group (last one)
+        updatePart(partIndex, {
+          matchingInformationQuestions: part.matchingInformationQuestions?.filter(q => q.groupId !== question.groupId)
+        })
+      }
+    } else {
+      // Remove single question
+      updatePart(partIndex, {
+        matchingInformationQuestions: part.matchingInformationQuestions?.filter(q => q.id !== questionId)
+      })
+    }
+  }
+
   // Flow Chart Completion helpers
   // Flow chart groups contain an image and multiple questions (one per field)
   interface FlowChartGroup {
@@ -699,9 +824,10 @@ export default function ListeningTestForm({
         const hasFillRows = part.fillRows && part.fillRows.length > 0
         const hasSingleChoice = part.singleChoice && part.singleChoice.length > 0
         const hasMatching = part.matchingItems && part.matchingItems.length > 0
+        const hasMatchingInformation = part.matchingInformationQuestions && part.matchingInformationQuestions.length > 0
         const hasFlowChart = part.flowChartQuestions && part.flowChartQuestions.length > 0
         const hasTableCompletion = part.tableCompletionQuestions && part.tableCompletionQuestions.length > 0
-        const hasQuestions = hasFillRows || hasSingleChoice || hasMatching || hasFlowChart || hasTableCompletion
+        const hasQuestions = hasFillRows || hasSingleChoice || hasMatching || hasMatchingInformation || hasFlowChart || hasTableCompletion
         
         // Skip validation for empty parts
         if (!hasQuestions) {
@@ -776,6 +902,20 @@ export default function ListeningTestForm({
               }
             }
           }
+
+          if (part.matchingInformationQuestions && part.matchingInformationQuestions.length > 0) {
+            if (!part.matchingInformationOptions || part.matchingInformationOptions.length === 0) {
+              throw new Error(`Part ${i + 1}: Matching information options are required when there are matching information questions`)
+            }
+            for (const miq of part.matchingInformationQuestions) {
+              if (!miq.questionText.trim()) {
+                throw new Error(`Part ${i + 1}, Question ${miq.questionNumber}: Question text is required`)
+              }
+              if (!miq.correctAnswer.trim()) {
+                throw new Error(`Part ${i + 1}, Question ${miq.questionNumber}: Correct answer is required`)
+              }
+            }
+          }
         }
       }
 
@@ -847,8 +987,8 @@ export default function ListeningTestForm({
             })
           })
 
-        if (partIndex === 0 || partIndex === 3) {
-          // Part 1 & 4: Fill-in-the-blank (TEXT type)
+        if (partIndex === 0) {
+          // Part 1: Fill-in-the-blank (TEXT type)
           part.fillRows?.forEach(row => {
             questions.push({
               number: row.questionNumber,
@@ -859,6 +999,50 @@ export default function ListeningTestForm({
               correctAnswer: Array.isArray(row.correctAnswer) ? row.correctAnswer : [row.correctAnswer]
             })
           })
+        } else if (partIndex === 3) {
+          // Part 4: Notes completion - extract questions from notesSections
+          // Questions are extracted from notesSections structure, correct answers come from correctAnswers map
+          // The notesSections structure itself is preserved and stored separately
+          if (part.notesSections && Array.isArray(part.notesSections)) {
+            const extractQuestionsFromNotes = (notes: any[]): void => {
+              notes.forEach((section: any) => {
+                if (section.items) {
+                  section.items.forEach((item: any) => {
+                    if (item.q !== null && item.q !== undefined) {
+                      questions.push({
+                        number: item.q,
+                        type: 'TEXT',
+                        textPrefix: item.prefix || '',
+                        textSuffix: item.suffix || '',
+                        correctAnswer: '' // Will be filled from correctAnswers map in API
+                      })
+                    }
+                    if (item.children) {
+                      extractQuestionsFromNotes([{ items: item.children }])
+                    }
+                  })
+                }
+                if (section.subsections) {
+                  section.subsections.forEach((sub: any) => {
+                    if (sub.items) {
+                      sub.items.forEach((item: any) => {
+                        if (item.q !== null && item.q !== undefined) {
+                          questions.push({
+                            number: item.q,
+                            type: 'TEXT',
+                            textPrefix: item.prefix || '',
+                            textSuffix: item.suffix || '',
+                            correctAnswer: '' // Will be filled from correctAnswers map in API
+                          })
+                        }
+                      })
+                    }
+                  })
+                }
+              })
+            }
+            extractQuestionsFromNotes(part.notesSections)
+          }
         } else {
           // Part 2 & 3: Single choice (RADIO) and Matching (SELECT)
           part.singleChoice?.forEach(q => {
@@ -879,6 +1063,16 @@ export default function ListeningTestForm({
               correctAnswer: m.correctAnswer
             })
           })
+
+          part.matchingInformationQuestions?.forEach(miq => {
+            questions.push({
+              number: miq.questionNumber,
+              type: 'MATCHING_INFORMATION',
+              questionText: miq.questionText,
+              correctAnswer: miq.correctAnswer,
+              groupId: miq.groupId
+            })
+          })
         }
 
           // Sort questions by number
@@ -893,8 +1087,11 @@ export default function ListeningTestForm({
           prompt: part.prompt,
           sectionTitle: part.sectionTitle || null,
           courseRequired: part.courseRequired || null,
-          matchingHeading: part.matchingHeading || null,
-          matchingOptions: part.matchingOptions || null,
+      matchingHeading: part.matchingHeading || null,
+      matchingOptions: part.matchingOptions || null,
+      matchingInformationStimulus: part.matchingInformationStimulus || null,
+          matchingInformationOptions: part.matchingInformationOptions || null,
+          singleChoiceTitle: part.singleChoiceTitle || null,
           notesSections: part.notesSections || null,
             questions,
             hasQuestions
@@ -1133,9 +1330,11 @@ export default function ListeningTestForm({
         const hasFillRows = part.fillRows && part.fillRows.length > 0
         const hasSingleChoice = part.singleChoice && part.singleChoice.length > 0
         const hasMatching = part.matchingItems && part.matchingItems.length > 0
+        const hasMatchingInformation = part.matchingInformationQuestions && part.matchingInformationQuestions.length > 0
         const hasFlowChart = part.flowChartQuestions && part.flowChartQuestions.length > 0
         const hasTableCompletion = part.tableCompletionQuestions && part.tableCompletionQuestions.length > 0
-        const hasQuestions = hasFillRows || hasSingleChoice || hasMatching || hasFlowChart || hasTableCompletion
+        const hasNotesSections = part.notesSections && Array.isArray(part.notesSections) && part.notesSections.length > 0
+        const hasQuestions = hasFillRows || hasSingleChoice || hasMatching || hasMatchingInformation || hasFlowChart || hasTableCompletion || hasNotesSections
         
         return (
         <div key={partIndex} className="bg-white shadow rounded-lg p-6">
@@ -1299,9 +1498,451 @@ export default function ListeningTestForm({
               </>
             )}
 
+            {partIndex === 3 && (
+              <>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Notes Completion Structure
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const currentNotes = part.notesSections || []
+                        const newSection = {
+                          heading: '',
+                          items: []
+                        }
+                        updatePart(partIndex, { notesSections: [...currentNotes, newSection] })
+                      }}
+                      className="text-sm text-blue-600 hover:text-blue-800"
+                    >
+                      + Add Section
+                    </button>
+                  </div>
+                  <div className="space-y-4">
+                    {Array.isArray(part.notesSections) && part.notesSections.map((section: any, sectionIndex: number) => (
+                      <div key={sectionIndex} className="border border-gray-200 rounded-lg p-4">
+                        <div className="mb-3">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Section Heading
+                          </label>
+                          <input
+                            type="text"
+                            value={section.heading || ''}
+                            onChange={(e) => {
+                              const updatedNotes = [...(part.notesSections || [])]
+                              updatedNotes[sectionIndex] = { ...section, heading: e.target.value }
+                              updatePart(partIndex, { notesSections: updatedNotes })
+                            }}
+                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                            placeholder="e.g., Why do we need theory?"
+                          />
+                        </div>
+
+                        {/* Subsections */}
+                        {section.subsections && Array.isArray(section.subsections) && section.subsections.length > 0 && (
+                          <div className="mb-3 space-y-3">
+                            {section.subsections.map((subsection: any, subIndex: number) => (
+                              <div key={subIndex} className="border border-gray-100 rounded p-3 bg-gray-50">
+                                <div className="mb-2">
+                                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                                    Subsection Title
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={subsection.title || ''}
+                                    onChange={(e) => {
+                                      const updatedNotes = [...(part.notesSections || [])]
+                                      const updatedSubsections = [...(section.subsections)]
+                                      updatedSubsections[subIndex] = { ...subsection, title: e.target.value }
+                                      updatedNotes[sectionIndex] = { ...section, subsections: updatedSubsections }
+                                      updatePart(partIndex, { notesSections: updatedNotes })
+                                    }}
+                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  {subsection.items && Array.isArray(subsection.items) && subsection.items.map((item: any, itemIndex: number) => (
+                                    <div key={itemIndex} className="flex gap-2 items-start">
+                                      <div className="flex-1 grid grid-cols-3 gap-2">
+                                        <input
+                                          type="number"
+                                          placeholder="Q number (or leave empty)"
+                                          value={item.q ?? ''}
+                                          onChange={(e) => {
+                                            const updatedNotes = [...(part.notesSections || [])]
+                                            const updatedSubsections = [...(section.subsections)]
+                                            const updatedItems = [...subsection.items]
+                                            updatedItems[itemIndex] = { ...item, q: e.target.value ? parseInt(e.target.value) : null }
+                                            updatedSubsections[subIndex] = { ...subsection, items: updatedItems }
+                                            updatedNotes[sectionIndex] = { ...section, subsections: updatedSubsections }
+                                            updatePart(partIndex, { notesSections: updatedNotes })
+                                          }}
+                                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                        />
+                                        <input
+                                          type="text"
+                                          placeholder="Prefix text"
+                                          value={item.prefix || ''}
+                                          onChange={(e) => {
+                                            const updatedNotes = [...(part.notesSections || [])]
+                                            const updatedSubsections = [...(section.subsections)]
+                                            const updatedItems = [...subsection.items]
+                                            updatedItems[itemIndex] = { ...item, prefix: e.target.value }
+                                            updatedSubsections[subIndex] = { ...subsection, items: updatedItems }
+                                            updatedNotes[sectionIndex] = { ...section, subsections: updatedSubsections }
+                                            updatePart(partIndex, { notesSections: updatedNotes })
+                                          }}
+                                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                        />
+                                        <input
+                                          type="text"
+                                          placeholder="Suffix text"
+                                          value={item.suffix || ''}
+                                          onChange={(e) => {
+                                            const updatedNotes = [...(part.notesSections || [])]
+                                            const updatedSubsections = [...(section.subsections)]
+                                            const updatedItems = [...subsection.items]
+                                            updatedItems[itemIndex] = { ...item, suffix: e.target.value }
+                                            updatedSubsections[subIndex] = { ...subsection, items: updatedItems }
+                                            updatedNotes[sectionIndex] = { ...section, subsections: updatedSubsections }
+                                            updatePart(partIndex, { notesSections: updatedNotes })
+                                          }}
+                                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                        />
+                                      </div>
+                                      <input
+                                        type="text"
+                                        placeholder="Informational text (if no Q number)"
+                                        value={item.text || ''}
+                                        onChange={(e) => {
+                                          const updatedNotes = [...(part.notesSections || [])]
+                                          const updatedSubsections = [...(section.subsections)]
+                                          const updatedItems = [...subsection.items]
+                                          updatedItems[itemIndex] = { ...item, text: e.target.value }
+                                          updatedSubsections[subIndex] = { ...subsection, items: updatedItems }
+                                          updatedNotes[sectionIndex] = { ...section, subsections: updatedSubsections }
+                                          updatePart(partIndex, { notesSections: updatedNotes })
+                                        }}
+                                        className="flex-1 block rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const updatedNotes = [...(part.notesSections || [])]
+                                          const updatedSubsections = [...(section.subsections)]
+                                          const updatedItems = subsection.items.filter((_: any, i: number) => i !== itemIndex)
+                                          updatedSubsections[subIndex] = { ...subsection, items: updatedItems }
+                                          updatedNotes[sectionIndex] = { ...section, subsections: updatedSubsections }
+                                          updatePart(partIndex, { notesSections: updatedNotes })
+                                        }}
+                                        className="text-red-600 hover:text-red-800"
+                                      >
+                                        Remove
+                                      </button>
+                                    </div>
+                                  ))}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const updatedNotes = [...(part.notesSections || [])]
+                                      const updatedSubsections = [...(section.subsections)]
+                                      const updatedItems = [...(subsection.items || []), { q: null, prefix: '', suffix: '', text: '' }]
+                                      updatedSubsections[subIndex] = { ...subsection, items: updatedItems }
+                                      updatedNotes[sectionIndex] = { ...section, subsections: updatedSubsections }
+                                      updatePart(partIndex, { notesSections: updatedNotes })
+                                    }}
+                                    className="text-xs text-blue-600 hover:text-blue-800"
+                                  >
+                                    + Add Item
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updatedNotes = [...(part.notesSections || [])]
+                                const updatedSubsections = [...(section.subsections || []), { title: '', items: [] }]
+                                updatedNotes[sectionIndex] = { ...section, subsections: updatedSubsections }
+                                updatePart(partIndex, { notesSections: updatedNotes })
+                              }}
+                              className="text-xs text-blue-600 hover:text-blue-800"
+                            >
+                              + Add Subsection
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Items */}
+                        {section.items && Array.isArray(section.items) && section.items.length > 0 && (
+                          <div className="mb-3 space-y-2">
+                            {section.items.map((item: any, itemIndex: number) => (
+                              <div key={itemIndex} className="space-y-2">
+                                <div className="flex gap-2 items-start">
+                                  <div className="flex-1 grid grid-cols-3 gap-2">
+                                    <input
+                                      type="number"
+                                      placeholder="Q number (or leave empty)"
+                                      value={item.q ?? ''}
+                                      onChange={(e) => {
+                                        const updatedNotes = [...(part.notesSections || [])]
+                                        const updatedItems = [...section.items]
+                                        updatedItems[itemIndex] = { ...item, q: e.target.value ? parseInt(e.target.value) : null }
+                                        updatedNotes[sectionIndex] = { ...section, items: updatedItems }
+                                        updatePart(partIndex, { notesSections: updatedNotes })
+                                      }}
+                                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                    />
+                                    <input
+                                      type="text"
+                                      placeholder="Prefix text"
+                                      value={item.prefix || ''}
+                                      onChange={(e) => {
+                                        const updatedNotes = [...(part.notesSections || [])]
+                                        const updatedItems = [...section.items]
+                                        updatedItems[itemIndex] = { ...item, prefix: e.target.value }
+                                        updatedNotes[sectionIndex] = { ...section, items: updatedItems }
+                                        updatePart(partIndex, { notesSections: updatedNotes })
+                                      }}
+                                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                    />
+                                    <input
+                                      type="text"
+                                      placeholder="Suffix text"
+                                      value={item.suffix || ''}
+                                      onChange={(e) => {
+                                        const updatedNotes = [...(part.notesSections || [])]
+                                        const updatedItems = [...section.items]
+                                        updatedItems[itemIndex] = { ...item, suffix: e.target.value }
+                                        updatedNotes[sectionIndex] = { ...section, items: updatedItems }
+                                        updatePart(partIndex, { notesSections: updatedNotes })
+                                      }}
+                                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                    />
+                                  </div>
+                                  <input
+                                    type="text"
+                                    placeholder="Informational text (if no Q number)"
+                                    value={item.text || ''}
+                                    onChange={(e) => {
+                                      const updatedNotes = [...(part.notesSections || [])]
+                                      const updatedItems = [...section.items]
+                                      updatedItems[itemIndex] = { ...item, text: e.target.value }
+                                      updatedNotes[sectionIndex] = { ...section, items: updatedItems }
+                                      updatePart(partIndex, { notesSections: updatedNotes })
+                                    }}
+                                    className="flex-1 block rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const updatedNotes = [...(part.notesSections || [])]
+                                      const updatedItems = section.items.filter((_: any, i: number) => i !== itemIndex)
+                                      updatedNotes[sectionIndex] = { ...section, items: updatedItems }
+                                      updatePart(partIndex, { notesSections: updatedNotes })
+                                    }}
+                                    className="text-red-600 hover:text-red-800"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                                {/* Children items */}
+                                {item.children && Array.isArray(item.children) && item.children.length > 0 && (
+                                  <div className="ml-4 border-l-2 border-gray-200 pl-3 space-y-2">
+                                    {item.children.map((child: any, childIndex: number) => (
+                                      <div key={childIndex} className="flex gap-2 items-start">
+                                        <div className="flex-1 grid grid-cols-3 gap-2">
+                                          <input
+                                            type="number"
+                                            placeholder="Q number (or leave empty)"
+                                            value={child.q ?? ''}
+                                            onChange={(e) => {
+                                              const updatedNotes = [...(part.notesSections || [])]
+                                              const updatedItems = [...section.items]
+                                              const updatedChildren = [...item.children]
+                                              updatedChildren[childIndex] = { ...child, q: e.target.value ? parseInt(e.target.value) : null }
+                                              updatedItems[itemIndex] = { ...item, children: updatedChildren }
+                                              updatedNotes[sectionIndex] = { ...section, items: updatedItems }
+                                              updatePart(partIndex, { notesSections: updatedNotes })
+                                            }}
+                                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                          />
+                                          <input
+                                            type="text"
+                                            placeholder="Prefix text"
+                                            value={child.prefix || ''}
+                                            onChange={(e) => {
+                                              const updatedNotes = [...(part.notesSections || [])]
+                                              const updatedItems = [...section.items]
+                                              const updatedChildren = [...item.children]
+                                              updatedChildren[childIndex] = { ...child, prefix: e.target.value }
+                                              updatedItems[itemIndex] = { ...item, children: updatedChildren }
+                                              updatedNotes[sectionIndex] = { ...section, items: updatedItems }
+                                              updatePart(partIndex, { notesSections: updatedNotes })
+                                            }}
+                                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                          />
+                                          <input
+                                            type="text"
+                                            placeholder="Suffix text"
+                                            value={child.suffix || ''}
+                                            onChange={(e) => {
+                                              const updatedNotes = [...(part.notesSections || [])]
+                                              const updatedItems = [...section.items]
+                                              const updatedChildren = [...item.children]
+                                              updatedChildren[childIndex] = { ...child, suffix: e.target.value }
+                                              updatedItems[itemIndex] = { ...item, children: updatedChildren }
+                                              updatedNotes[sectionIndex] = { ...section, items: updatedItems }
+                                              updatePart(partIndex, { notesSections: updatedNotes })
+                                            }}
+                                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                          />
+                                        </div>
+                                        <input
+                                          type="text"
+                                          placeholder="Informational text (if no Q number)"
+                                          value={child.text || ''}
+                                          onChange={(e) => {
+                                            const updatedNotes = [...(part.notesSections || [])]
+                                            const updatedItems = [...section.items]
+                                            const updatedChildren = [...item.children]
+                                            updatedChildren[childIndex] = { ...child, text: e.target.value }
+                                            updatedItems[itemIndex] = { ...item, children: updatedChildren }
+                                            updatedNotes[sectionIndex] = { ...section, items: updatedItems }
+                                            updatePart(partIndex, { notesSections: updatedNotes })
+                                          }}
+                                          className="flex-1 block rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const updatedNotes = [...(part.notesSections || [])]
+                                            const updatedItems = [...section.items]
+                                            const updatedChildren = item.children.filter((_: any, i: number) => i !== childIndex)
+                                            updatedItems[itemIndex] = { ...item, children: updatedChildren }
+                                            updatedNotes[sectionIndex] = { ...section, items: updatedItems }
+                                            updatePart(partIndex, { notesSections: updatedNotes })
+                                          }}
+                                          className="text-red-600 hover:text-red-800"
+                                        >
+                                          Remove
+                                        </button>
+                                      </div>
+                                    ))}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const updatedNotes = [...(part.notesSections || [])]
+                                        const updatedItems = [...section.items]
+                                        const updatedChildren = [...(item.children || []), { q: null, prefix: '', suffix: '', text: '' }]
+                                        updatedItems[itemIndex] = { ...item, children: updatedChildren }
+                                        updatedNotes[sectionIndex] = { ...section, items: updatedItems }
+                                        updatePart(partIndex, { notesSections: updatedNotes })
+                                      }}
+                                      className="text-xs text-blue-600 hover:text-blue-800"
+                                    >
+                                      + Add Child Item
+                                    </button>
+                                  </div>
+                                )}
+                                {!item.children && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const updatedNotes = [...(part.notesSections || [])]
+                                      const updatedItems = [...section.items]
+                                      updatedItems[itemIndex] = { ...item, children: [] }
+                                      updatedNotes[sectionIndex] = { ...section, items: updatedItems }
+                                      updatePart(partIndex, { notesSections: updatedNotes })
+                                    }}
+                                    className="text-xs text-blue-600 hover:text-blue-800 ml-4"
+                                  >
+                                    + Add Children
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updatedNotes = [...(part.notesSections || [])]
+                                const updatedItems = [...(section.items || []), { q: null, prefix: '', suffix: '', text: '' }]
+                                updatedNotes[sectionIndex] = { ...section, items: updatedItems }
+                                updatePart(partIndex, { notesSections: updatedNotes })
+                              }}
+                              className="text-xs text-blue-600 hover:text-blue-800"
+                            >
+                              + Add Item
+                            </button>
+                          </div>
+                        )}
+
+                        {(!section.items || section.items.length === 0) && (!section.subsections || section.subsections.length === 0) && (
+                          <div className="mb-3">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updatedNotes = [...(part.notesSections || [])]
+                                const updatedItems = [{ q: null, prefix: '', suffix: '', text: '' }]
+                                updatedNotes[sectionIndex] = { ...section, items: updatedItems }
+                                updatePart(partIndex, { notesSections: updatedNotes })
+                              }}
+                              className="text-xs text-blue-600 hover:text-blue-800"
+                            >
+                              + Add Items to this Section
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updatedNotes = [...(part.notesSections || [])]
+                                const updatedSubsections = [{ title: '', items: [] }]
+                                updatedNotes[sectionIndex] = { ...section, subsections: updatedSubsections }
+                                updatePart(partIndex, { notesSections: updatedNotes })
+                              }}
+                              className="text-xs text-blue-600 hover:text-blue-800 ml-4"
+                            >
+                              + Add Subsections
+                            </button>
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updatedNotes = (part.notesSections || []).filter((_: any, i: number) => i !== sectionIndex)
+                            updatePart(partIndex, { notesSections: updatedNotes })
+                          }}
+                          className="text-sm text-red-600 hover:text-red-800"
+                        >
+                          Remove Section
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
             {(partIndex === 1 || partIndex === 2) && (
               <>
                 <div>
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Single Choice Questions Title
+                    </label>
+                    <input
+                      type="text"
+                      value={part.singleChoiceTitle || ''}
+                      onChange={(e) => updatePart(partIndex, { singleChoiceTitle: e.target.value })}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                      placeholder="e.g., Questions 11-15 — Choose the correct letter, A, B or C."
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      This title will be displayed above all single choice questions in this part.
+                    </p>
+                  </div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-sm font-medium text-gray-700">
                       Single Choice Questions
@@ -1522,6 +2163,231 @@ export default function ListeningTestForm({
                         </button>
                       </div>
                     ))}
+                  </div>
+                </div>
+
+                {/* Matching Information Questions */}
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Matching Information Questions
+                      </label>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Questions where students match information to options (e.g., paragraphs A-H).
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => addMatchingInformationQuestion(partIndex)}
+                      className="text-sm text-blue-600 hover:text-blue-800"
+                    >
+                      + Add Question
+                    </button>
+                  </div>
+
+                  {/* Matching Information Options */}
+                  {part.matchingInformationQuestions && part.matchingInformationQuestions.length > 0 && (
+                    <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Matching Information Options (e.g., A, B, C, D, E, F, G, H)
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => addMatchingInformationOption(partIndex)}
+                          className="text-sm text-blue-600 hover:text-blue-800"
+                        >
+                          + Add Option
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        {part.matchingInformationOptions?.map((option, optIndex) => (
+                          <div key={optIndex} className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-gray-700 min-w-[30px]">
+                              {option}.
+                            </span>
+                            <input
+                              type="text"
+                              value={option}
+                              onChange={(e) => updateMatchingInformationOption(partIndex, optIndex, e.target.value)}
+                              className="flex-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                              placeholder="Enter option letter (A, B, C, etc.)"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeMatchingInformationOption(partIndex, optIndex)}
+                              className="text-red-600 hover:text-red-800 text-sm"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      {(!part.matchingInformationOptions || part.matchingInformationOptions.length === 0) && (
+                        <p className="text-xs text-gray-500 mt-2">
+                          Add at least one option (e.g., A, B, C, D) for students to choose from.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Matching Information Stimulus */}
+                  {part.matchingInformationQuestions && part.matchingInformationQuestions.length > 0 && (
+                    <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Stimulus (Context/Instructions for Matching Information Questions)
+                      </label>
+                      <div className="border border-gray-300 rounded-md">
+                        <Editor
+                          apiKey={process.env.NEXT_PUBLIC_TINYMCE_API_KEY}
+                          value={part.matchingInformationStimulus || ''}
+                          onEditorChange={(content: string) => updatePart(partIndex, { matchingInformationStimulus: content })}
+                          init={{
+                            height: 300,
+                            menubar: false,
+                            plugins: [
+                              'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                              'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                              'insertdatetime', 'media', 'table', 'code', 'help', 'wordcount'
+                            ],
+                            toolbar: 'undo redo | blocks | ' +
+                              'bold italic forecolor | alignleft aligncenter ' +
+                              'alignright alignjustify | bullist numlist outdent indent | ' +
+                              'removeformat | help | image',
+                            content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                            images_upload_handler: async (blobInfo: any, progress: any) => {
+                              return new Promise((resolve, reject) => {
+                                const formData = new FormData()
+                                formData.append('image', blobInfo.blob(), blobInfo.filename())
+                                
+                                fetch('/api/admin/upload-image', {
+                                  method: 'POST',
+                                  body: formData,
+                                })
+                                .then(response => response.json())
+                                .then(result => {
+                                  if (result.url) {
+                                    resolve(result.url)
+                                  } else {
+                                    reject(result.error || 'Upload failed')
+                                  }
+                                })
+                                .catch(error => {
+                                  reject('Upload failed: ' + error.message)
+                                })
+                              })
+                            },
+                            automatic_uploads: true,
+                            file_picker_types: 'image',
+                            branding: false,
+                          }}
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        This content will be displayed above the matching information questions in the student portal. You can add images, format text, and include instructions.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Matching Information Questions List */}
+                  <div className="space-y-3">
+                    {(() => {
+                      // Group questions by groupId
+                      const groups = new Map<string, MatchingInformationQuestion[]>()
+                      part.matchingInformationQuestions?.forEach(q => {
+                        const gid = q.groupId || q.id
+                        if (!groups.has(gid)) {
+                          groups.set(gid, [])
+                        }
+                        groups.get(gid)!.push(q)
+                      })
+                      
+                      return Array.from(groups.entries()).map(([groupId, questions]) => {
+                        const sortedQuestions = [...questions].sort((a, b) => a.questionNumber - b.questionNumber)
+                        const firstQuestion = sortedQuestions[0]
+                        const lastQuestion = sortedQuestions[sortedQuestions.length - 1]
+                        
+                        return (
+                          <div key={groupId} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                            <div className="mb-3 flex items-center justify-between">
+                              <div className="text-sm font-medium text-gray-700">
+                                Questions {firstQuestion.questionNumber}{sortedQuestions.length > 1 ? `-${lastQuestion.questionNumber}` : ''}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removeMatchingInformationQuestion(partIndex, firstQuestion.id)}
+                                className="text-sm text-red-600 hover:text-red-800"
+                              >
+                                Remove Group
+                              </button>
+                            </div>
+                            
+                            {sortedQuestions.map((miq) => (
+                              <div key={miq.id} className="mb-3 last:mb-0 p-3 bg-white rounded border border-gray-200">
+                                <div className="grid grid-cols-2 gap-4 mb-3">
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                                      Question Number
+                                    </label>
+                                    <input
+                                      type="number"
+                                      value={miq.questionNumber}
+                                      onChange={(e) => updateMatchingInformationQuestion(partIndex, miq.id, { questionNumber: parseInt(e.target.value) || 0 })}
+                                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                                      Correct Answer <span className="text-red-500">*</span>
+                                    </label>
+                                    <select
+                                      value={miq.correctAnswer}
+                                      onChange={(e) => updateMatchingInformationQuestion(partIndex, miq.id, { correctAnswer: e.target.value })}
+                                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                    >
+                                      <option value="">Select answer</option>
+                                      {part.matchingInformationOptions?.map((opt) => (
+                                        <option key={opt} value={opt}>
+                                          {opt}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                </div>
+                                <div className="mb-3">
+                                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                                    Question Text <span className="text-red-500">*</span>
+                                  </label>
+                                  <textarea
+                                    value={miq.questionText}
+                                    onChange={(e) => updateMatchingInformationQuestion(partIndex, miq.id, { questionText: e.target.value })}
+                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                    rows={2}
+                                    placeholder="e.g., information about the main topic"
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => removeMatchingInformationQuestion(partIndex, miq.id)}
+                                  className="text-sm text-red-600 hover:text-red-800"
+                                >
+                                  Remove Question
+                                </button>
+                              </div>
+                            ))}
+                            
+                            <button
+                              type="button"
+                              onClick={() => addMatchingInformationQuestion(partIndex, groupId)}
+                              className="text-sm text-blue-600 hover:text-blue-800 mt-2"
+                            >
+                              + Add Question to Group
+                            </button>
+                          </div>
+                        )
+                      })
+                    })()}
                   </div>
                 </div>
               </>

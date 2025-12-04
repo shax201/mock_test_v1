@@ -151,6 +151,7 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
         const hasFillRows = part.fillRows && part.fillRows.length > 0
         const hasSingleChoice = part.singleChoice && part.singleChoice.length > 0
         const hasMatching = part.matching && part.matching.items && part.matching.items.length > 0
+        const hasMatchingInformation = part.matchingInformationQuestions && part.matchingInformationQuestions.length > 0
         const hasFlowChart = part.flowChartQuestions && part.flowChartQuestions.length > 0
         const hasTableCompletion = part.tableCompletionQuestions && part.tableCompletionQuestions.length > 0
         const hasNotes = part.notes && Array.isArray(part.notes) && part.notes.length > 0
@@ -168,7 +169,7 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
           })
         }
         
-        const hasQuestions = hasFillRows || hasSingleChoice || hasMatching || hasFlowChart || hasTableCompletion || hasNotesQuestions
+        const hasQuestions = hasFillRows || hasSingleChoice || hasMatching || hasMatchingInformation || hasFlowChart || hasTableCompletion || hasNotesQuestions
         
         if (!hasQuestions) return null
         
@@ -190,6 +191,12 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
         if (hasMatching) {
           part.matching.items.forEach((it: any) => {
             if (it.q) questionNumbers.push(Number(it.q))
+          })
+        }
+        
+        if (hasMatchingInformation) {
+          part.matchingInformationQuestions.forEach((miq: any) => {
+            if (miq.questionNumber) questionNumbers.push(Number(miq.questionNumber))
           })
         }
         
@@ -375,7 +382,7 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
     setCurrentQuestion(q)
     const el = document.getElementById(`q${q}`) || document.querySelector(`input[name="q${q}"]`) as HTMLElement | null
     if (el) {
-      const container = el.closest('.question-item, .single-choice, .question-row, .notes-list li, .question') as HTMLElement | null
+      const container = el.closest('.question-item, .single-choice, .question-row, .notes-list li, .question, .matching-information-group') as HTMLElement | null
       if (container) {
         container.scrollIntoView({ behavior: 'smooth', block: 'center' })
         const isFillInBlank = (el.tagName === 'INPUT' && (el as HTMLInputElement).type === 'text')
@@ -383,6 +390,90 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
         window.setTimeout(() => (isFillInBlank ? el : container).classList.remove('flash'), 1200)
       }
     }
+  }
+
+  // Render Matching Information Questions (similar to reading test)
+  const renderMatchingInformationGroup = (questions: any[], options: string[], partIndex: number, stimulus?: string | null) => {
+    if (!questions || questions.length === 0 || !options || options.length === 0) return null
+    
+    const sortedQuestions = [...questions].sort((a, b) => a.questionNumber - b.questionNumber)
+    const firstQuestionNumber = sortedQuestions[0]?.questionNumber
+    const lastQuestionNumber = sortedQuestions[sortedQuestions.length - 1]?.questionNumber
+    
+    if (!firstQuestionNumber || !lastQuestionNumber) return null
+    
+    const isActive = currentQuestion >= firstQuestionNumber && currentQuestion <= lastQuestionNumber
+    
+    return (
+      <div
+        key={`matching-information-part-${partIndex}`}
+        className={`question matching-information-group ${isActive ? 'active' : ''}`}
+        style={{ marginTop: 20 }}
+        data-q-start={firstQuestionNumber.toString()}
+        data-q-end={lastQuestionNumber.toString()}
+      >
+        <div className="question-prompt">
+          <p><strong>Questions {firstQuestionNumber}-{lastQuestionNumber}</strong></p>
+          {stimulus ? (
+            <div 
+              className="stimulus-content"
+              dangerouslySetInnerHTML={{ __html: stimulus }}
+            />
+          ) : (
+            <p>Which option contains the following information?</p>
+          )}
+        </div>
+        <table className="question-grid" style={{ width: '100%', borderCollapse: 'collapse', marginTop: 15 }}>
+          <thead>
+            <tr>
+              <th style={{ textAlign: 'left', padding: '10px', border: '1px solid #ddd' }}></th>
+              {options.map((option: string) => (
+                <th key={option} style={{ textAlign: 'center', padding: '10px', border: '1px solid #ddd', fontWeight: 'bold' }}>
+                  {option}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sortedQuestions.map((miq: any) => {
+              const qNum = miq.questionNumber
+              const isQuestionActive = currentQuestion === qNum
+              return (
+                <tr
+                  key={qNum}
+                  data-q-num={qNum}
+                  className={isQuestionActive ? 'active' : ''}
+                  style={{ backgroundColor: 'transparent' }}
+                >
+                  <td style={{ padding: '10px', border: '1px solid #ddd' }}>
+                    <strong>{qNum}</strong> {miq.questionText}
+                  </td>
+                  {options.map((option: string) => {
+                    const inputId = `q${qNum}_${option}`
+                    return (
+                      <td key={option} style={{ textAlign: 'center', padding: '10px', border: '1px solid #ddd' }}>
+                        <input
+                          type="radio"
+                          name={`q${qNum}`}
+                          value={option}
+                          id={inputId}
+                          onChange={(e) => {
+                            const radio = e.target as HTMLInputElement
+                            if (radio.checked) {
+                              updateNavButtonState(qNum)
+                            }
+                          }}
+                        />
+                      </td>
+                    )
+                  })}
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    )
   }
 
   const switchToPart = (part: number) => {
@@ -964,7 +1055,7 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
                       <div className="question-prompt">
                         <p><strong>Complete the flow chart below.</strong></p>
                         <p>Write <strong>ONE WORD AND/OR A NUMBER</strong> for each answer.</p>
-              </div>
+                     </div>
                       {imageUrl && (
                         <FlowChartImage
                           imageUrl={imageUrl}
@@ -1072,31 +1163,86 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
           {currentPart === 2 && (
             <div id="part-2" className="question-part">
               <div className="part-header"><p><strong>{data.parts[1].title}</strong></p></div>
-              <div className="question">
-                <div className="question-prompt"><p><strong>Questions 11-15</strong><br />Choose the correct letter, <strong>A, B or C</strong>.</p></div>
-                <div className="single-choice-container">
-                  {(data.parts[1].singleChoice || []).map((sc: any) => (
-                    <div key={sc.number} className="single-choice"><p>{sc.number} {sc.question}</p>{sc.options.map((opt: string) => {
-                      const val = opt.substring(0,1)
-                      return <label key={val}><input type="radio" name={`q${sc.number}`} value={val} /> {opt}</label>
-                    })}</div>
-                  ))}
-                </div>
-              </div>
-              <div className="question">
-                <div className="question-prompt"><p><strong>Questions 16-20</strong></p><p>What did each of the following studies find?</p><p>Choose <strong>FIVE</strong> answers from the box and write the correct letter, <strong>A-G</strong>, next to Questions 16-20.</p></div>
-                <div className="task-wrapper">
-                  <div className="options-box"><h3>Information</h3><ul>{(data.parts[1].matching?.options || []).map((opt: string, i: number) => {
-                    const code = opt.substring(0,1)
-                    return <li key={i}><strong>{code}</strong> {opt.substring(2)}</li>
-                  })}</ul></div>
-                  <div className="matching-questions-container"><p style={{ fontWeight: 'bold', marginBottom: 15 }}>{data.parts[1].matching?.heading}</p>
-                    {(data.parts[1].matching?.items || []).map((it: any) => (
-                      <div key={it.q} className="question-item"><label htmlFor={`q${it.q}`}><strong>{it.q}</strong> {it.label}</label> <select id={`q${it.q}`} className="answer-input"><option value=""></option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option><option value="F">F</option><option value="G">G</option></select></div>
-                    ))}
+              
+              {/* Single Choice Questions - Only render if they exist */}
+              {(data.parts[1].singleChoice && Array.isArray(data.parts[1].singleChoice) && data.parts[1].singleChoice.length > 0) && (() => {
+                const singleChoiceQuestions = data.parts[1].singleChoice.sort((a: any, b: any) => a.number - b.number)
+                
+                return (
+                  <div className="question">
+                    <div className="question-prompt">
+                      {data.parts[1].singleChoiceTitle ? (
+                        <p><strong>{data.parts[1].singleChoiceTitle}</strong></p>
+                      ) : (
+                        <>
+                          <p><strong>Questions {singleChoiceQuestions[0].number}-{singleChoiceQuestions[singleChoiceQuestions.length - 1].number}</strong></p>
+                          <p>Choose the correct letter, <strong>A, B or C</strong>.</p>
+                        </>
+                      )}
+                    </div>
+                    <div className="single-choice-container">
+                      {singleChoiceQuestions.map((sc: any) => (
+                        <div key={sc.number} className="single-choice">
+                          <p>{sc.number} {sc.question}</p>
+                          {sc.options.map((opt: string) => {
+                            const val = opt.substring(0,1)
+                            return <label key={val}><input type="radio" name={`q${sc.number}`} value={val} /> {opt}</label>
+                          })}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              </div>
+                )
+              })()}
+              
+              {/* Matching Questions - Only render if they exist */}
+              {(data.parts[1].matching && data.parts[1].matching.items && Array.isArray(data.parts[1].matching.items) && data.parts[1].matching.items.length > 0) && (() => {
+                const matchingItems = data.parts[1].matching.items.sort((a: any, b: any) => a.q - b.q)
+                const firstQ = matchingItems[0].q
+                const lastQ = matchingItems[matchingItems.length - 1].q
+                const questionRange = matchingItems.length === 1 ? `Question ${firstQ}` : `Questions ${firstQ}-${lastQ}`
+                const optionsCount = data.parts[1].matching.options?.length || 0
+                const lastOption = optionsCount > 0 ? String.fromCharCode(64 + optionsCount) : 'G'
+                
+                return (
+                  <div className="question">
+                    <div className="question-prompt">
+                      <p><strong>{questionRange}</strong></p>
+                      {data.parts[1].matching.heading && <p>{data.parts[1].matching.heading}</p>}
+                      <p>Choose <strong>{matchingItems.length}</strong> answer{matchingItems.length > 1 ? 's' : ''} from the box and write the correct letter, <strong>A-{lastOption}</strong>, next to {questionRange}.</p>
+                    </div>
+                    <div className="task-wrapper">
+                      <div className="options-box">
+                        <h3>{data.parts[1].matching.heading || 'Options'}</h3>
+                        <ul>
+                          {(data.parts[1].matching.options || []).map((opt: string, i: number) => {
+                            const code = opt.substring(0,1)
+                            return <li key={i}><strong>{code}</strong> {opt.substring(2)}</li>
+                          })}
+                        </ul>
+                      </div>
+                      <div className="matching-questions-container">
+                        {data.parts[1].matching.heading && <p style={{ fontWeight: 'bold', marginBottom: 15 }}>{data.parts[1].matching.heading}</p>}
+                        {matchingItems.map((it: any) => {
+                          // Generate options dynamically based on available options
+                          const availableOptions = (data.parts[1].matching.options || []).map((opt: string) => opt.substring(0,1))
+                          return (
+                            <div key={it.q} className="question-item">
+                              <label htmlFor={`q${it.q}`}><strong>{it.q}</strong> {it.label}</label>
+                              <select id={`q${it.q}`} className="answer-input">
+                                <option value=""></option>
+                                {availableOptions.map((opt: string) => (
+                                  <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
               
               {/* Flow Chart Completion Questions */}
               {(data.parts[1].flowChartQuestions && Array.isArray(data.parts[1].flowChartQuestions) && data.parts[1].flowChartQuestions.length > 0) && (() => {
@@ -1130,6 +1276,28 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
                       )}
                     </div>
                   )
+                })
+              })()}
+              
+              {/* Matching Information Questions */}
+              {(data.parts[1].matchingInformationQuestions && Array.isArray(data.parts[1].matchingInformationQuestions) && data.parts[1].matchingInformationQuestions.length > 0) && (() => {
+                const questions = data.parts[1].matchingInformationQuestions
+                const options = Array.isArray(data.parts[1].matchingInformationOptions) ? data.parts[1].matchingInformationOptions : []
+                const stimulus = data.parts[1].matchingInformationStimulus || null
+                if (questions.length === 0 || options.length === 0) return null
+                
+                // Group questions by groupId
+                const groups = new Map<string, any[]>()
+                questions.forEach((q: any) => {
+                  const gid = q.groupId || 'default'
+                  if (!groups.has(gid)) {
+                    groups.set(gid, [])
+                  }
+                  groups.get(gid)!.push(q)
+                })
+                
+                return Array.from(groups.entries()).map(([groupId, groupQuestions]) => {
+                  return renderMatchingInformationGroup(groupQuestions, options, 1, stimulus)
                 })
               })()}
               
@@ -1215,31 +1383,130 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
           {currentPart === 3 && (
             <div id="part-3" className="question-part">
               <div className="part-header"><p><strong>{data.parts[2].title}</strong></p></div>
-              <div className="question">
-                <div className="question-prompt"><p><strong>Questions 21-26</strong></p><p>Choose the correct letter, <strong>A, B or C</strong>.</p></div>
-                <div className="single-choice-container">
-                  {(data.parts[2].singleChoice || []).map((sc: any) => (
-                    <div key={sc.number} className="single-choice"><p>{sc.number} {sc.question}</p>{sc.options.map((opt: string) => {
-                      const val = opt.substring(0,1)
-                      return <label key={val}><input type="radio" name={`q${sc.number}`} value={val} /> {opt}</label>
-                    })}</div>
-                  ))}
-                </div>
-              </div>
-              <div className="question">
-                <div className="question-prompt"><p><strong>Questions 27-30</strong></p><p>What will Daniel and Fiona do at the meeting to help students with debate?</p><p>Choose <strong>FOUR</strong> answers from the box and write the correct letter, <strong>A-F</strong>, next to questions 27-30.</p></div>
-                <div className="task-wrapper">
-                  <div className="options-box"><h3>Actions at the meeting</h3><ul>{(data.parts[2].matching?.options || []).map((opt: string, i: number) => {
-                    const code = opt.substring(0,1)
-                    return <li key={i}><strong>{code}</strong> {opt.substring(2)}</li>
-                  })}</ul></div>
-                  <div className="matching-questions-container"><p style={{ fontWeight: 'bold', marginBottom: 15 }}>{data.parts[2].matching?.heading}</p>
-                    {(data.parts[2].matching?.items || []).map((it: any) => (
-                      <div key={it.q} className="question-item"><label htmlFor={`q${it.q}`}><strong>{it.q}</strong> {it.label}</label> <select id={`q${it.q}`} className="answer-input"><option value=""></option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option><option value="F">F</option></select></div>
+              
+              {/* Prompt - Render if it exists */}
+              {Array.isArray(data.parts[2].prompt) && data.parts[2].prompt.length > 0 && (
+                <div className="question">
+                  <div className="question-prompt">
+                    {(data.parts[2].prompt as string[]).map((p: string, i: number) => (
+                      <p
+                        key={i}
+                        dangerouslySetInnerHTML={{
+                          __html: p.replace(
+                            'ONE WORD ONLY',
+                            '<strong>ONE WORD ONLY</strong>'
+                          ).replace(
+                            'ONE WORD AND/OR A NUMBER',
+                            '<strong>ONE WORD AND/OR A NUMBER</strong>'
+                          )
+                        }}
+                      />
                     ))}
                   </div>
                 </div>
-              </div>
+              )}
+              
+              {/* Single Choice Questions - Only render if they exist */}
+              {(data.parts[2].singleChoice && Array.isArray(data.parts[2].singleChoice) && data.parts[2].singleChoice.length > 0) && (() => {
+                const singleChoiceQuestions = data.parts[2].singleChoice.sort((a: any, b: any) => a.number - b.number)
+                
+                return (
+                  <div className="question">
+                    <div className="question-prompt">
+                      {data.parts[2].singleChoiceTitle ? (
+                        <p><strong>{data.parts[2].singleChoiceTitle}</strong></p>
+                      ) : (
+                        <>
+                          <p><strong>Questions {singleChoiceQuestions[0].number}-{singleChoiceQuestions[singleChoiceQuestions.length - 1].number}</strong></p>
+                          <p>Choose the correct letter, <strong>A, B or C</strong>.</p>
+                        </>
+                      )}
+                    </div>
+                    <div className="single-choice-container">
+                      {singleChoiceQuestions.map((sc: any) => (
+                        <div key={sc.number} className="single-choice">
+                          <p>{sc.number} {sc.question}</p>
+                          {sc.options.map((opt: string) => {
+                            const val = opt.substring(0,1)
+                            return <label key={val}><input type="radio" name={`q${sc.number}`} value={val} /> {opt}</label>
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
+              
+              {/* Matching Questions - Only render if they exist */}
+              {(data.parts[2].matching && data.parts[2].matching.items && Array.isArray(data.parts[2].matching.items) && data.parts[2].matching.items.length > 0) && (() => {
+                const matchingItems = data.parts[2].matching.items.sort((a: any, b: any) => a.q - b.q)
+                const firstQ = matchingItems[0].q
+                const lastQ = matchingItems[matchingItems.length - 1].q
+                const questionRange = matchingItems.length === 1 ? `Question ${firstQ}` : `Questions ${firstQ}-${lastQ}`
+                const optionsCount = data.parts[2].matching.options?.length || 0
+                const lastOption = optionsCount > 0 ? String.fromCharCode(64 + optionsCount) : 'G'
+                
+                return (
+                  <div className="question">
+                    <div className="question-prompt">
+                      <p><strong>{questionRange}</strong></p>
+                      {data.parts[2].matching.heading && <p>{data.parts[2].matching.heading}</p>}
+                      <p>Choose <strong>{matchingItems.length}</strong> answer{matchingItems.length > 1 ? 's' : ''} from the box and write the correct letter, <strong>A-{lastOption}</strong>, next to {questionRange}.</p>
+                    </div>
+                    <div className="task-wrapper">
+                      <div className="options-box">
+                        <h3>{data.parts[2].matching.heading || 'Options'}</h3>
+                        <ul>
+                          {(data.parts[2].matching.options || []).map((opt: string, i: number) => {
+                            const code = opt.substring(0,1)
+                            return <li key={i}><strong>{code}</strong> {opt.substring(2)}</li>
+                          })}
+                        </ul>
+                      </div>
+                      <div className="matching-questions-container">
+                        {data.parts[2].matching.heading && <p style={{ fontWeight: 'bold', marginBottom: 15 }}>{data.parts[2].matching.heading}</p>}
+                        {matchingItems.map((it: any) => {
+                          // Generate options dynamically based on available options
+                          const availableOptions = (data.parts[2].matching.options || []).map((opt: string) => opt.substring(0,1))
+                          return (
+                            <div key={it.q} className="question-item">
+                              <label htmlFor={`q${it.q}`}><strong>{it.q}</strong> {it.label}</label>
+                              <select id={`q${it.q}`} className="answer-input">
+                                <option value=""></option>
+                                {availableOptions.map((opt: string) => (
+                                  <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
+              
+              {/* Matching Information Questions */}
+              {(data.parts[2].matchingInformationQuestions && Array.isArray(data.parts[2].matchingInformationQuestions) && data.parts[2].matchingInformationQuestions.length > 0) && (() => {
+                const questions = data.parts[2].matchingInformationQuestions
+                const options = Array.isArray(data.parts[2].matchingInformationOptions) ? data.parts[2].matchingInformationOptions : []
+                const stimulus = data.parts[2].matchingInformationStimulus || null
+                if (questions.length === 0 || options.length === 0) return null
+                
+                // Group questions by groupId
+                const groups = new Map<string, any[]>()
+                questions.forEach((q: any) => {
+                  const gid = q.groupId || 'default'
+                  if (!groups.has(gid)) {
+                    groups.set(gid, [])
+                  }
+                  groups.get(gid)!.push(q)
+                })
+                
+                return Array.from(groups.entries()).map(([groupId, groupQuestions]) => {
+                  return renderMatchingInformationGroup(groupQuestions, options, 2, stimulus)
+                })
+              })()}
               
               {/* Flow Chart Completion Questions */}
               {(data.parts[2].flowChartQuestions && Array.isArray(data.parts[2].flowChartQuestions) && data.parts[2].flowChartQuestions.length > 0) && (() => {
@@ -1894,6 +2161,18 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
         .part-header { background-color: #f1f2ec; padding: 15px; border-radius: 5px; margin-bottom: 30px; border: 1px solid #e0e0e0; }
         .question { margin-bottom: 40px; }
         .question-prompt p { margin-bottom: 15px; line-height: 1.7; }
+        .stimulus-content { margin-bottom: 15px; line-height: 1.7; }
+        .stimulus-content p { margin-bottom: 10px; }
+        .stimulus-content img { max-width: 100%; height: auto; margin: 10px 0; border-radius: 4px; display: block; }
+        .contrast-white-on-black .stimulus-content img,
+        .contrast-yellow-on-black .stimulus-content img { border: 1px solid #555; }
+        .stimulus-content ul, .stimulus-content ol { margin: 10px 0; padding-left: 20px; }
+        .stimulus-content li { margin-bottom: 5px; }
+        .stimulus-content h1, .stimulus-content h2, .stimulus-content h3, .stimulus-content h4, .stimulus-content h5, .stimulus-content h6 { margin: 15px 0 10px 0; font-weight: bold; }
+        .stimulus-content blockquote { border-left: 4px solid #ddd; padding-left: 15px; margin: 10px 0; font-style: italic; }
+        .stimulus-content a { color: #2563eb; text-decoration: underline; }
+        .stimulus-content table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        .stimulus-content table td, .stimulus-content table th { border: 1px solid #ddd; padding: 8px; }
         .aligned-form .question-row { display: flex; align-items: center; margin-bottom: 15px; }
         .aligned-form .question-label { width: 300px; flex-shrink: 0; }
         .centered-title { text-align: center; font-size: 1.2em; font-weight: bold; margin-bottom: 25px; margin-top: 10px; }
@@ -1915,6 +2194,13 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
         .answer-input.correct { border-color: #28a745; background-color: #e9f7ef; }
         .answer-input.incorrect { border-color: #dc3545; background-color: #f8d7da; color: #721c24; }
         .correct-answer-text { color: #28a745; font-weight: bold; margin-left: 10px; }
+        .question-grid { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .question-grid th, .question-grid td { border: 1px solid #ddd; padding: 10px; }
+        .question-grid th { text-align: center; font-weight: bold; background-color: transparent; }
+        .question-grid td:first-child { text-align: left; }
+        .question-grid td:not(:first-child) { text-align: center; }
+        .question-grid tr.active { background-color: transparent; }
+        .matching-information-group.active { background-color: transparent; padding: 10px; border-radius: 5px; }
         .nav-row { position: fixed; bottom: 0; left: 0; right: 0; background: #ffffff; padding: 0 20px; display: flex; align-items: center; height: 80px; z-index: 100; overflow-x: auto; white-space: nowrap; border-top: 1px solid #ddd; }
         .footer__questionWrapper___1tZ46 { display: flex; align-items: center; margin-right: 20px; flex-shrink: 0; }
         .footer__questionNo___3WNct { background: none; border: none; padding: 10px 15px; font-size: 16px; font-weight: 600; color: #333; cursor: pointer; display: flex; align-items: center; gap: 5px; }
@@ -1940,7 +2226,7 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
         #central-play-btn { width: 100px; height: 100px; border-radius: 50%; border: none; cursor: pointer; display: flex; justify-content: center; align-items: center; padding: 0; }
         #central-play-btn svg { width: 50px; height: 50px; fill: #333; }
         .audio-player-container { display: none; }
-        @keyframes flash { 0% { background-color: #e6f4ff; } 100% { background-color: transparent; } }
+        @keyframes flash { 0% { background-color: transparent; } 100% { background-color: transparent; } }
         .flash { animation: flash 1.2s ease-out; }
         @keyframes flash-red { from { background-color: #f8d7da; } to { background-color: transparent; } }
         .note-highlight.flash { animation-name: flash-red; }
@@ -2035,6 +2321,8 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
         .contrast-white-on-black .question,
         .contrast-white-on-black .question p,
         .contrast-white-on-black .question-prompt,
+        .contrast-white-on-black .stimulus-content,
+        .contrast-white-on-black .stimulus-content p,
         .contrast-white-on-black .part-header p,
         .contrast-white-on-black .part-header strong,
         .contrast-white-on-black .test-timer-display,
@@ -2053,6 +2341,8 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
         .contrast-yellow-on-black .question,
         .contrast-yellow-on-black .question p,
         .contrast-yellow-on-black .question-prompt,
+        .contrast-yellow-on-black .stimulus-content,
+        .contrast-yellow-on-black .stimulus-content p,
         .contrast-yellow-on-black .part-header p,
         .contrast-yellow-on-black .part-header strong,
         .contrast-yellow-on-black .test-timer-display,
@@ -2065,6 +2355,8 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
         .text-size-large .question,
         .text-size-large .question p,
         .text-size-large .question-prompt,
+        .text-size-large .stimulus-content,
+        .text-size-large .stimulus-content p,
         .text-size-large .part-header p,
         .text-size-large .centered-title,
         .text-size-large .single-choice label,
@@ -2073,6 +2365,8 @@ export default function ListeningTestComponent({ data, onSubmit }: { data: Liste
         .text-size-extra-large .question,
         .text-size-extra-large .question p,
         .text-size-extra-large .question-prompt,
+        .text-size-extra-large .stimulus-content,
+        .text-size-extra-large .stimulus-content p,
         .text-size-extra-large .part-header p,
         .text-size-extra-large .centered-title,
         .text-size-extra-large .single-choice label,

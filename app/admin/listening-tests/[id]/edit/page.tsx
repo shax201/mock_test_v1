@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import ListeningTestForm from '@/components/admin/ListeningTestForm'
+import { useHydrationFix } from '@/hooks/useHydrationFix'
 
 export default function EditListeningTestPage() {
   const router = useRouter()
@@ -11,6 +12,8 @@ export default function EditListeningTestPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [testData, setTestData] = useState<any>(null)
+  
+  useHydrationFix()
 
   useEffect(() => {
     if (params.id) {
@@ -96,7 +99,7 @@ export default function EditListeningTestPage() {
             Edit Listening Test
           </h2>
           <p className="mt-1 text-sm text-gray-500">
-            Update the listening test details, parts, and questions. Use the preview feature to see how Flow Chart questions will appear to students.
+            Update the listening test details, parts, and questions. Supports fill-in-the-blank, single choice (with custom titles), matching, matching information, flow chart, and table completion question types.
           </p>
         </div>
         <div className="mt-4 flex md:mt-0 md:ml-4 space-x-3">

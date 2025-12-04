@@ -34,6 +34,7 @@ export async function GET(
       const fillRows: any[] = []
       const singleChoice: any[] = []
       const matchingItems: any[] = []
+      const matchingInformationQuestions: any[] = []
       const flowChartQuestions: any[] = []
       const tableCompletionQuestions: any[] = []
 
@@ -60,6 +61,12 @@ export async function GET(
           })
         } else if (q.type === 'SELECT') {
           matchingItems.push({ q: q.number, label: q.matchingLabel ?? '' })
+        } else if (q.type === 'MATCHING_INFORMATION') {
+          matchingInformationQuestions.push({
+            questionNumber: q.number,
+            questionText: q.questionText ?? '',
+            groupId: q.groupId ?? q.id
+          })
         } else if (q.type === 'FLOW_CHART') {
           // Group flow chart questions by groupId
           flowChartQuestions.push({
@@ -88,13 +95,23 @@ export async function GET(
       }
 
       if (fillRows.length) result.fillRows = fillRows
-      if (singleChoice.length) result.singleChoice = singleChoice
+      if (singleChoice.length) {
+        result.singleChoice = singleChoice
+        if (part.singleChoiceTitle) {
+          result.singleChoiceTitle = part.singleChoiceTitle
+        }
+      }
       if (matchingItems.length || part.matchingHeading || part.matchingOptions) {
         result.matching = {
           heading: part.matchingHeading ?? '',
           options: Array.isArray(part.matchingOptions) ? part.matchingOptions : [],
           items: matchingItems
         }
+      }
+      if (matchingInformationQuestions.length) {
+        result.matchingInformationQuestions = matchingInformationQuestions
+        result.matchingInformationOptions = Array.isArray(part.matchingInformationOptions) ? part.matchingInformationOptions : []
+        result.matchingInformationStimulus = part.matchingInformationStimulus || null
       }
       if (part.notesSections) result.notes = part.notesSections
       if (flowChartQuestions.length) result.flowChartQuestions = flowChartQuestions
